@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 
 # app/ is not a package — add project root to path for test discovery
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app.main import MainWindow
+from app.main import MainWindow  # noqa: I001
 
 
 # -- pytest-qt tests ----------------------------------------------------------

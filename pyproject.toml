@@ -88,6 +88,7 @@ filterwarnings = [
 markers = [
     "unit: Unit tests (no external dependencies)",
     "integration: Integration tests (require VM/display)",
+    "e2e: End-to-end tests via transparent VM proxy (require running VM)",
 ]
 
 [tool.poe.tasks]

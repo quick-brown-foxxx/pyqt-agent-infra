@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync run test test-full screenshot destroy help status lint lint-fix test-cli workspace-init
+.PHONY: up provision ssh sync run test test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init
 
 SHELL := /bin/bash
 
@@ -52,6 +52,9 @@ test-atspi: ## AT-SPI smoke test only
 
 test-cli: ## CLI integration tests only
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/integration/ -v"
+
+test-e2e: ## e2e bridge tests (real app in VM)
+	uv run qt-ai-dev-tools vm run "cd /vagrant && python3 -m pytest tests/e2e/ -v --timeout=60"
 
 # ── Lint ─────────────────────────────────────────────────────────────────────
 

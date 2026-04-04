@@ -108,14 +108,21 @@ def _import_qt_entries() -> dict[str, object]:
                 widgets[obj_name] = w
         entries["widgets"] = widgets
 
-        # Convenience functions
+        # Convenience functions — search all widgets, not just QApplication children
         def find(widget_type: type, name: str) -> object:
-            """Find a single child widget by type and objectName."""
-            return qapp.findChild(widget_type, name)  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]  # rationale: PySide6 not in venv
+            """Find a single widget by type and objectName."""
+            for w in qapp.allWidgets():  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]  # rationale: PySide6 not in venv
+                if isinstance(w, widget_type) and w.objectName() == name:  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 not in venv
+                    return w  # type: ignore[reportUnknownVariableType]  # rationale: w is a PySide6 widget from allWidgets()
+            return None
 
         def findall(widget_type: type) -> list[object]:
-            """Find all child widgets by type."""
-            result: list[object] = list(qapp.findChildren(widget_type))  # type: ignore[reportUnknownMemberType,reportUnknownArgumentType]  # rationale: PySide6 not in venv
+            """Find all widgets of given type."""
+            result: list[object] = [
+                w
+                for w in qapp.allWidgets()  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]  # rationale: PySide6 not in venv
+                if isinstance(w, widget_type)
+            ]
             return result
 
         entries["find"] = find

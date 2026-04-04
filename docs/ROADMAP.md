@@ -264,7 +264,7 @@ Document the workspace layout, config options, and how agents should use it in r
 
 ## Phase 4: VM environment improvements
 
-**Status:** Done.
+**Status:** Done. Transparent VM proxy eliminates `vm run "qt-ai-dev-tools ..."` double-wrapping — UI commands auto-detect host vs VM via `QT_AI_DEV_TOOLS_VM=1` env var. Redundant `vm-run.sh` and `screenshot.sh` templates removed.
 **Goal:** Make the Vagrant VM workflow robust and ergonomic. This is the primary environment — invest in it.
 
 ### 4.1 — [implement] VM management CLI

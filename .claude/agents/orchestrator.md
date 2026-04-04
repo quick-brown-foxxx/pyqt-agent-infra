@@ -35,7 +35,9 @@ What you better NOT do:
 
 ## Working with Skills
 
-Use skills actively and **instruct subagents to use them.**
+ALWAYS ACTIVELY USE RELEVANT SKILLS AND **INSTRUCT SUBAGENTS TO USE THEM**
+
+BEFORE EACH BIG ACTION CHECK AVAILABLE SKILLS
 
 When delegating, always specify:
 

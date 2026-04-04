@@ -6,6 +6,7 @@ Run inside the Vagrant VM with `make test-full`.
 
 import json
 import os
+import shutil
 import subprocess
 import typing
 
@@ -18,9 +19,14 @@ pytestmark = pytest.mark.skipif(
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
-    """Run qt-ai-dev-tools CLI and capture output."""
+    """Run qt-ai-dev-tools CLI and capture output.
+
+    Uses `qt-ai-dev-tools` directly if on PATH (VM with pip install -e .),
+    falls back to `uv run qt-ai-dev-tools` on host.
+    """
+    cmd = ["qt-ai-dev-tools", *args] if shutil.which("qt-ai-dev-tools") else ["uv", "run", "qt-ai-dev-tools", *args]
     return subprocess.run(
-        ["uv", "run", "qt-ai-dev-tools", *args],
+        cmd,
         capture_output=True,
         text=True,
         timeout=15,

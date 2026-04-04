@@ -2,8 +2,18 @@
 name = "qt-ai-dev-tools"
 description = "AI agent infrastructure for Qt/PySide apps — inspect, interact, screenshot via AT-SPI"
 version = "0.1.0"
+readme = "README.md"
 license = { text = "GPL-3.0" }
 requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "colorlog>=6.10.1",
     "typer>=0.12.0",
@@ -35,6 +45,11 @@ packages = ["src/qt_ai_dev_tools"]
 
 [project.scripts]
 qt-ai-dev-tools = "qt_ai_dev_tools.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
+Repository = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
+Documentation = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
 
 [tool.basedpyright]
 pythonPlatform = "Linux"

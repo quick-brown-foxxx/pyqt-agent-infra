@@ -848,3 +848,98 @@ def file_dialog_cancel_cmd(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo("Dialog cancelled.")
+
+
+# ── System tray commands ──────────────────────────────────────────
+
+tray_app_cli = typer.Typer(help="System tray interaction.")
+app.add_typer(tray_app_cli, name="tray")
+
+
+@tray_app_cli.command(name="list")
+def tray_list_cmd(
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """List system tray items."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+    try:
+        items = tray_mod.list_items()
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not items:
+        typer.echo("No tray items found.")
+        return
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(i) for i in items], indent=2, ensure_ascii=False))
+    else:
+        for item in items:
+            typer.echo(f"  {item.name} ({item.bus_name}) @ {item.object_path}")
+
+
+@tray_app_cli.command(name="click")
+def tray_click_cmd(
+    app_name: typing.Annotated[str, typer.Argument(help="App name substring to activate")],
+) -> None:
+    """Activate (left-click) a tray item."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+    try:
+        tray_mod.click(app_name)
+    except (LookupError, RuntimeError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Activated tray item: {app_name}")
+
+
+@tray_app_cli.command(name="menu")
+def tray_menu_cmd(
+    app_name: typing.Annotated[str, typer.Argument(help="App name substring")],
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Show context menu entries for a tray item."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+    try:
+        entries = tray_mod.menu(app_name)
+    except (LookupError, RuntimeError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not entries:
+        typer.echo("No menu entries found.")
+        return
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(e) for e in entries], indent=2, ensure_ascii=False))
+    else:
+        for entry in entries:
+            status = "" if entry.enabled else " (disabled)"
+            typer.echo(f"  [{entry.index}] {entry.label}{status}")
+
+
+@tray_app_cli.command(name="select")
+def tray_select_cmd(
+    app_name: typing.Annotated[str, typer.Argument(help="App name substring")],
+    item_label: typing.Annotated[str, typer.Argument(help="Menu item label to click")],
+) -> None:
+    """Click a menu item in a tray icon's context menu."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+    try:
+        tray_mod.select(app_name, item_label)
+    except (LookupError, RuntimeError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Selected '{item_label}' from tray menu of {app_name}")

@@ -391,7 +391,7 @@ Based on real usage, document the recommended workflow and common patterns.
 
 ## Phase 6: Advanced capabilities
 
-**Status:** In progress. Bridge eval (6.0) complete. Subsystem design and implementation plan done — see specs below. Remaining work: complex widgets (6.1-6.2), subsystem modules (6.3), e2e tests (6.4), visual diffing (6.5), state snapshots (6.6), complex app testing (6.7).
+**Status:** Done. Bridge eval (6.0) complete. Five Linux subsystem modules (6.3) implemented with CLI commands and unit tests. Complex widgets (6.1-6.2), visual diffing (6.5), state snapshots (6.6), and complex app testing (6.7) deferred to backlog.
 **Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems. **Use-case driven:** agree with user on 3-5 most popular/valuable use cases, implement those first. Additional use cases go to the backlog for future work.
 
 **Design references:**
@@ -464,45 +464,31 @@ Five subsystem modules in `src/qt_ai_dev_tools/subsystems/` wrapping system CLI 
 
 #### 6.3a — [implement] VM provision updates
 
-**Status:** Not started.
-
-Add system packages to `provision.sh.j2`: sox, ffmpeg, xclip, dunst, pipewire (pipewire-pulse, wireplumber). Add dunst and PipeWire autostart to provision template.
+**Status:** Done. Added sox, ffmpeg, xclip, dunst, pipewire packages to provision template. Dunst and PipeWire autostart configured.
 
 #### 6.3b — [implement] Subsystems package scaffold + shared types + subprocess helper
 
-**Status:** Not started.
-
-Create `src/qt_ai_dev_tools/subsystems/` package with `__init__.py`, `models.py` (ClipboardError, FileDialogInfo, FileDialogResult, TrayItem, TrayMenuEntry, Notification, NotificationAction, VirtualMicInfo, AudioSource, AudioStream, AudioVerification), and `_subprocess.py` (check_tool, run_tool typed helpers).
+**Status:** Done. Created `subsystems/` package with `models.py` (12 dataclass types) and `_subprocess.py` (check_tool, run_tool).
 
 #### 6.3c — [implement] Clipboard module + CLI + unit tests
 
-**Status:** Not started.
-
-`subsystems/clipboard.py` — xclip wrapper: `write(text)`, `read()` with DISPLAY env handling. CLI subcommand group: `clipboard write`, `clipboard read`. Unit tests with mocked subprocess calls.
+**Status:** Done. `subsystems/clipboard.py` with xclip wrapper. CLI: `clipboard write`, `clipboard read`.
 
 #### 6.3d — [implement] File dialog module + CLI + test app + unit tests
 
-**Status:** Not started.
-
-`subsystems/file_dialog.py` — AT-SPI automation of QFileDialog: `detect(pilot)`, `fill(pilot, path)`, `accept(pilot)`, `cancel(pilot)`. CLI subcommand group: `file-dialog detect/fill/accept/cancel`. Test app `tests/apps/file_dialog_app.py` with open/save buttons. Unit tests with mocked QtPilot.
+**Status:** Done. `subsystems/file_dialog.py` with AT-SPI automation. CLI: `file-dialog detect/fill/accept/cancel`.
 
 #### 6.3e — [implement] System tray module + CLI + test app + unit tests
 
-**Status:** Not started.
-
-`subsystems/tray.py` — SNI/XEmbed tray interaction via busctl: `list_items()`, `click(app_name)`, `menu(app_name)`, `select(app_name, item_label)`. Includes SNI research (check if openbox VM has SNI watcher, install snixembed/stalonetray if needed). CLI subcommand group: `tray list/click/menu/select`. Test app `tests/apps/tray_app.py` with tray icon, context menu, notifications.
+**Status:** Done. `subsystems/tray.py` with D-Bus SNI interaction. CLI: `tray list/click/menu/select`.
 
 #### 6.3f — [implement] Notifications module + CLI + unit tests
 
-**Status:** Not started.
-
-`subsystems/notify.py` — D-Bus notification interaction via dbus-monitor/busctl: `listen(timeout)`, `dismiss(notification_id)`, `action(notification_id, action_key)`. CLI subcommand group: `notify listen/dismiss/action`. Unit tests with mocked subprocess calls.
+**Status:** Done. `subsystems/notify.py` with D-Bus notification monitoring. CLI: `notify listen/dismiss/action`.
 
 #### 6.3g — [implement] Audio module (PipeWire virtual mic, record, verify) + CLI + test app + unit tests
 
-**Status:** Not started.
-
-`subsystems/audio.py` — PipeWire audio via pw-loopback, pw-cat, sox: `virtual_mic_start()`, `virtual_mic_stop()`, `virtual_mic_play(path)`, `record(duration, output)`, `sources()`, `status()`, `verify_not_silence(path)`. CLI subcommand group: `audio virtual-mic start/stop/play`, `audio record`, `audio sources`, `audio status`, `audio verify`. Test app `tests/apps/audio_app.py` with record/play buttons.
+**Status:** Done. `subsystems/audio.py` with PipeWire virtual mic, recording, and sox verification. CLI: `audio virtual-mic start/stop/play`, `audio record/sources/status/verify`.
 
 ### 6.4 — [test] Subsystem e2e tests
 
@@ -510,39 +496,27 @@ E2E tests run in the VM against real PySide6 test apps. Follow test flows from d
 
 #### 6.4a — [test] E2E fixtures for subsystem test apps
 
-**Status:** Not started.
-
-Module-scoped fixtures in `tests/e2e/conftest.py` that start test apps as subprocesses, wait for AT-SPI, yield, kill on teardown. One fixture per test app: `file_dialog_app`, `clipboard_app`, `tray_app`, `audio_app`, `stt_app`.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 #### 6.4b — [test] Clipboard e2e tests (flows 2A, 2B, 2C)
 
-**Status:** Not started.
-
-Flow 2A: write to clipboard + paste into app. Flow 2B: copy from app + read clipboard. Flow 2C: cross-app clipboard transfer.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 #### 6.4c — [test] File dialog e2e tests (flows 1A, 1B, 1C)
 
-**Status:** Not started.
-
-Flow 1A: open file via dialog. Flow 1B: save file via dialog. Flow 1C: cancel dialog.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 #### 6.4d — [test] Tray e2e tests (flows 3A, 3B, 3C, 3D)
 
-**Status:** Not started.
-
-Flow 3A: restore window from tray click. Flow 3B: open tray context menu + select item. Flow 3C: read notification. Flow 3D: invoke notification action.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 #### 6.4e — [test] Audio e2e tests (flows 4A, 4B)
 
-**Status:** Not started.
-
-Flow 4A: virtual mic audio feed into app. Flow 4B: loopback record + verify non-silence with sox.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 #### 6.4f — [test] STT integration test app + e2e test (flow 4C)
 
-**Status:** Not started.
-
-Create fake STT test app (`tests/apps/stt_app.py`). Flow 4C: virtual mic feed → app transcribes → read result → clipboard paste.
+**Status:** Deferred to Phase 7.7 manual testing.
 
 ### 6.5 — [implement] Visual diffing
 
@@ -567,42 +541,40 @@ Test against a non-trivial Qt app (multi-window, tabs, dialogs, menus). Verify a
 
 ## Phase 6.5: Project hygiene
 
-**Status:** Not started.
+**Status:** Done.
 **Goal:** Address findings from the [2026-04-05 project config audit](reviews/2026-04-05-project-config-audit.md). Fix tooling gaps, apply test markers, add missing tests, update docs.
 
 ### 6.5.1 — [implement] Setup script and make target
 
-Create `scripts/setup.sh` (runs `uv sync && uv run pre-commit install`). Add `make setup` target. Reference in DEVELOPMENT.md as the first step for new contributors. Install pre-commit hooks.
+**Status:** Done. `scripts/setup.sh` created, `make setup` target added.
 
 ### 6.5.2 — [implement] Pre-commit standard hooks
 
-Add trailing-whitespace, end-of-file-fixer, check-yaml hooks to `.pre-commit-config.yaml`.
+**Status:** Done. Added trailing-whitespace, end-of-file-fixer, check-yaml hooks.
 
 ### 6.5.3 — [implement] Lint scope and minor fixes
 
-- Makefile lint targets: use `.` to match poe task
-- Add `src/qt_ai_dev_tools/py.typed` marker (PEP 561)
-- Fix `_bootstrap.py` sys.remote_exec type ignore with `sys.version_info` guard
+**Status:** Done. Lint targets updated, `py.typed` marker added, `_bootstrap.py` type ignore fixed.
 
 ### 6.5.4 — [implement] Apply pytest markers
 
-Apply `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e` to all existing test files. Verify selective runs work (`pytest -m unit`, etc.). Supersedes CQ-2 marker work.
+**Status:** Done. Unit, integration, and e2e markers applied to all test files.
 
 ### 6.5.5 — [doc] Update CLAUDE.md type-ignore policy
 
-Acknowledge bridge modules (`_qt_namespace.py`, `_server.py`) as second type-ignore boundary alongside `_atspi.py`. Document why PySide6 wrapper pattern was investigated and ruled out (missing stubs, not architecture).
+**Status:** Done. Bridge modules documented as second type-ignore boundary.
 
 ### 6.5.6 — [test] High-priority test coverage
 
-Add `tests/unit/test_bootstrap.py` (8 tests) and `tests/unit/test_pilot.py` (6 tests). These cover real branching logic that e2e tests cannot reach. Supersedes CQ-5 for these modules.
+**Status:** Done. `test_bootstrap.py` and `test_pilot.py` unit tests added.
 
 ### 6.5.7 — [test] Medium-priority test coverage
 
-Add `tests/unit/test_bridge_server.py` (5 tests) — socket protocol tests with mock executor, no PySide6/VM needed. Supersedes CQ-5 for this module.
+**Status:** Done. `test_bridge_server.py` socket protocol tests added.
 
 ### 6.5.8 — [test] Low-priority test coverage
 
-Add `tests/unit/test_qt_namespace.py` (1 test) and `tests/unit/test_interact.py` (1 test). Supersedes CQ-5 for these modules.
+**Status:** Done. `test_qt_namespace.py` and `test_interact.py` tests added.
 
 ---
 
@@ -639,39 +611,27 @@ Key properties:
 
 ### 7.1 — [implement] pip package (PyPI metadata + version module + build test)
 
-**Status:** Not started.
-
-Add PyPI metadata to `pyproject.toml`: description, readme, license, requires-python, classifiers, urls, build-system. Create `src/qt_ai_dev_tools/__version__.py`. Test local `uv pip install -e .` and `uv publish --dry-run`.
+**Status:** Done. PyPI metadata in `pyproject.toml`, `__version__.py` created, build tested.
 
 ### 7.2 — [implement] shadcn-style installer (`uvx qt-ai-dev-tools init`)
 
-**Status:** Not started.
-
-Create `src/qt_ai_dev_tools/installer.py` with `init_toolkit(target, memory, cpus)` — copies source, templates, skills, config into target directory. Add `init` CLI command. Generates pyproject.toml, Vagrantfile, config.toml, cli shebang script.
+**Status:** Done. `installer.py` copies source, templates, skills, config. `init` CLI command added.
 
 ### 7.3 — [implement] Self-contained cli shebang script (`uv run --script`)
 
-**Status:** Not started.
-
-A `cli` script with `#!/usr/bin/env -S uv run --script` shebang that can be run directly without activating a venv. `uv` resolves deps from inline metadata or co-located pyproject.toml.
+**Status:** Done. Generated by installer with `#!/usr/bin/env -S uv run --script` shebang.
 
 ### 7.4 — [implement] Self-update mechanism
 
-**Status:** Not started.
-
-`qt-ai-dev-tools self-update` — re-runs init, preserves user customizations (config.toml, notes/, modified templates).
+**Status:** Done. `qt-ai-dev-tools self-update` re-runs init, preserves customizations.
 
 ### 7.5 — [implement] Skills in `skills/` directory
 
-**Status:** Not started.
-
-Maintain a `skills/` directory at the top of the public GitHub repo. `npx -y skills add ghuser/repo` handles discovery and installation automatically — no separate packaging needed. Skills are also bundled into the shadcn-style toolkit copy.
+**Status:** Done. Skills bundled in `skills/` and copied by installer.
 
 ### 7.6 — [doc] Documentation updates (subsystems guide, CLAUDE.md, README.md, ROADMAP.md)
 
-**Status:** Not started.
-
-Write `docs/subsystems-guide.md` documenting all five subsystems (clipboard, file-dialog, tray, notify, audio) with CLI examples and Python API. Update CLAUDE.md with subsystem orientation and CLI usage. Update README.md with subsystem features. Update ROADMAP.md with completion status.
+**Status:** Done. `docs/subsystems-guide.md` written. CLAUDE.md, README.md, ROADMAP.md updated.
 
 ### 7.7 — [test] Manual testing in isolated environments
 

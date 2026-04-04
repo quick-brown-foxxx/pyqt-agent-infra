@@ -14,6 +14,11 @@ qt-ai-dev-tools bridges that gap. Your AI agent can:
 - **Interact with the app** — click buttons, type into fields, press keys, fill forms, navigate menus — all through real X11 input events
 - **Take screenshots** — visual verification after any interaction (~14-22 KB PNG, cheap to send to an LLM)
 - **Execute code inside the app** — run arbitrary Python inside the target process via a Unix socket bridge, accessing widgets, properties, and Qt internals directly
+- **Access the clipboard** — read and write the system clipboard for copy/paste workflows
+- **Automate file dialogs** — detect, fill, accept, and cancel native Qt file dialogs via AT-SPI
+- **Control the system tray** — list tray icons, click them, read context menus, select items via D-Bus SNI
+- **Monitor notifications** — listen for desktop notifications, dismiss them, invoke actions via D-Bus
+- **Work with audio** — create PipeWire virtual microphones, play audio into apps, record output, verify non-silence
 - **Run in an isolated VM** — Vagrant VM with Xvfb, window manager, and AT-SPI pre-configured. No host contamination, reproducible environment
 
 The agent never modifies or instruments the target app. It uses the same accessibility tree that screen readers use, from the outside.
@@ -33,6 +38,7 @@ The agent never modifies or instruments the target app. It uses the same accessi
        +---> AT-SPI (widget tree: roles, names, coords, text)
        +---> xdotool (clicks, keystrokes, text input)
        +---> scrot (screenshots)
+       +---> subsystems (clipboard, file dialogs, tray, notifications, audio)
        |
   [ Vagrant VM: Ubuntu 24.04 + Xvfb + openbox + D-Bus ]
        |
@@ -73,7 +79,17 @@ Once set up, the agent uses the `qt-app-interaction` skill for the core workflow
 
 ### Manual installation
 
-If you prefer to set up manually or your agent doesn't support skills, read `skills/qt-dev-tools-setup/SKILL.md` directly — it's a step-by-step guide.
+**Option A — shadcn-style local copy** (recommended, agent owns the code):
+```bash
+uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+```
+
+**Option B — pip install** (system-wide CLI/library):
+```bash
+pip install qt-ai-dev-tools
+```
+
+**Option C — follow the skill guide** directly: read `skills/qt-dev-tools-setup/SKILL.md` for step-by-step instructions.
 
 ## Project status
 
@@ -84,13 +100,13 @@ If you prefer to set up manually or your agent doesn't support skills, read `ski
 - Workspace init & VM lifecycle management from the CLI
 - Compound commands — `fill` (focus + clear + type), `do` (click + verify/screenshot)
 - Bridge — execute arbitrary Python inside running Qt apps via Unix socket (chrome-dev-tools MCP `evaluate_script` equivalent)
+- Linux subsystems — clipboard (xclip), file dialogs (AT-SPI), system tray (D-Bus SNI), notifications (D-Bus), audio (PipeWire virtual mic, recording, verification)
+- Distribution — `pip install qt-ai-dev-tools` or `uvx qt-ai-dev-tools init` (shadcn-style local copy)
 - AI skills — teach agents the inspect→interact→verify workflow
 
 **Not yet built:**
 - Complex widget helpers (combo boxes, tables, tabs, menus, scroll areas)
-- Linux subsystem access (D-Bus, clipboard, audio, system tray)
 - Visual diffing & state snapshots
-- Distribution (`uvx qt-ai-dev-tools init` installer, pip package)
 - Container & direct-host environments (lighter alternatives to VM)
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full plan and phase details.

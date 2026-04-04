@@ -37,10 +37,20 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
     - `_qt_namespace.py` — pre-populated namespace (Qt imports, widgets, helpers)
     - `_protocol.py` — EvalRequest/EvalResponse, JSON codec
     - `_bootstrap.py` — sys.remote_exec injection (Python 3.14+)
+  - `subsystems/` — Linux subsystem helpers for AI agents
+    - `clipboard.py` — xclip wrapper: read/write system clipboard
+    - `file_dialog.py` — AT-SPI automation of QFileDialog (detect, fill, accept, cancel)
+    - `tray.py` — D-Bus SNI interaction: list/click/menu/select system tray items
+    - `notify.py` — D-Bus notification daemon: listen/dismiss/action
+    - `audio.py` — PipeWire wrapper: virtual mic, record, verify, sources/status
+    - `models.py` — Subsystem data types (FileDialogInfo, TrayItem, Notification, AudioVerification, etc.)
+    - `_subprocess.py` — Typed subprocess helpers: check_tool(), run_tool()
   - `vagrant/` — Vagrant subsystem
     - `workspace.py` — `WorkspaceConfig` + `render_workspace()` template rendering
     - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
     - `templates/` — Jinja2 templates for Vagrantfile, provision.sh
+  - `installer.py` — Shadcn-style installer: `uvx qt-ai-dev-tools init` copies toolkit into project
+  - `__version__.py` — Package version (single source of truth)
 - `app/main.py` — sample PySide6 todo app (test subject)
 - `tests/` — pytest-qt + AT-SPI + CLI integration tests
 - `pyproject.toml` — build config, deps, linting, CLI entry point
@@ -51,7 +61,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-5 complete. Phase 6 in progress — bridge eval (6.0) is complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent — AI agents can execute arbitrary Python code inside running Qt apps via Unix socket. AI skills in `skills/` teach agents the inspect-interact-verify workflow. The next milestone is remaining Phase 6 tasks (complex widgets, subsystems) and Phase 7 (distribution).
+Phases 1-7 complete (except 7.7 manual testing). The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), installable via `pip install qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools init`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects. The next milestone is Phase 8 (container & host support).
 
 ## Key technical facts
 
@@ -79,6 +89,7 @@ Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
 **Note:** `make workspace-init` must be run before other make targets that depend on the VM (generates Vagrantfile, provision.sh from templates).
 
 ```bash
+make setup         # initial project setup (uv sync + pre-commit install)
 make up            # start VM (~10min first time)
 make test          # fast offscreen pytest-qt tests
 make test-full     # all tests including AT-SPI, screenshots, and CLI
@@ -133,6 +144,22 @@ qt-ai-dev-tools eval --file - < script.py               # eval from stdin
 qt-ai-dev-tools eval --pid 1234 "code"                  # target specific app
 qt-ai-dev-tools bridge status                            # list active bridges
 qt-ai-dev-tools bridge inject --pid 1234                 # inject into 3.14+ app
+
+# Subsystem commands (also auto-proxy):
+qt-ai-dev-tools clipboard read                           # read system clipboard
+qt-ai-dev-tools clipboard write "hello"                  # write to clipboard
+qt-ai-dev-tools file-dialog detect                       # detect open file dialog
+qt-ai-dev-tools file-dialog fill /path/to/file           # type path into dialog
+qt-ai-dev-tools file-dialog accept                       # click Open/Save
+qt-ai-dev-tools tray list                                # list system tray items
+qt-ai-dev-tools tray click "MyApp"                       # activate tray icon
+qt-ai-dev-tools tray menu "MyApp"                        # get tray context menu
+qt-ai-dev-tools notify listen --timeout 10               # capture notifications
+qt-ai-dev-tools notify dismiss 42                        # close notification
+qt-ai-dev-tools audio virtual-mic start                  # create virtual mic
+qt-ai-dev-tools audio virtual-mic play audio.wav         # feed audio to app
+qt-ai-dev-tools audio record --duration 3 -o /tmp/out.wav
+qt-ai-dev-tools audio verify /tmp/out.wav                # check not silence
 ```
 
 ## Workflow for improving this project
@@ -203,10 +230,11 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 - Don't add features that aren't needed yet (the roadmap has phases for a reason)
 - Don't over-abstract the library — it's glue between AT-SPI and xdotool, not a framework
 - Don't make the CLI stateful between invocations — each command is self-contained
-- Don't assume container/host environments — VM is primary, everything else is Phase 6
+- Don't assume container/host environments — VM is primary, everything else is Phase 8
 
 ## Documentation
 
 - `docs/PHILOSOPHY.md` — foundational development principles
 - `docs/ROADMAP.md` — project roadmap and task tracking
+- `docs/subsystems-guide.md` — Linux subsystem modules (clipboard, file dialog, tray, notify, audio)
 - `DEVELOPMENT.md` — development environment setup and make targets

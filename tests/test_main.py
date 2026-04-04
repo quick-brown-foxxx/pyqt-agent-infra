@@ -1,19 +1,24 @@
+"""Tests for Qt/AT-SPI infrastructure:
+1. pytest-qt — widget unit tests without AT-SPI
+2. AT-SPI smoke test — accessibility tree works
+3. Screenshot test — scrot sees Xvfb
 """
-Тесты для проверки инфраструктуры:
-1. pytest-qt — юнит-тесты виджетов без AT-SPI
-2. AT-SPI smoke test — проверяем что дерево доступности работает
-3. Screenshot test — проверяем что scrot видит Xvfb
-"""
+
 import os
 import subprocess
 import sys
-import pytest
+from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+import pytest
+from PySide6.QtCore import Qt
+
+# app/ is not a package — add project root to path for test discovery
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.main import MainWindow
 
 
-# ── pytest-qt тесты ──────────────────────────────────────────────────────────
+# -- pytest-qt tests ----------------------------------------------------------
+
 
 class TestMainWindowLogic:
     def test_initial_state(self, qtbot):
@@ -29,7 +34,7 @@ class TestMainWindowLogic:
         qtbot.addWidget(win)
 
         win.text_input.setText("тест")
-        qtbot.mouseClick(win.add_btn, __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.LeftButton)
+        qtbot.mouseClick(win.add_btn, Qt.MouseButton.LeftButton)
 
         assert win.item_list.count() == 1
         assert win.item_list.item(0).text() == "тест"
@@ -41,7 +46,7 @@ class TestMainWindowLogic:
         qtbot.addWidget(win)
 
         win.text_input.clear()
-        qtbot.mouseClick(win.add_btn, __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.LeftButton)
+        qtbot.mouseClick(win.add_btn, Qt.MouseButton.LeftButton)
 
         assert win.item_list.count() == 0
         assert "⚠" in win.status_label.text()
@@ -60,41 +65,34 @@ class TestMainWindowLogic:
         assert win.status_label.text() == "Список очищен"
 
     def test_enter_key_adds_item(self, qtbot):
-        from PySide6.QtCore import Qt
         win = MainWindow()
         qtbot.addWidget(win)
 
         win.text_input.setText("enter-test")
-        qtbot.keyClick(win.text_input, Qt.Key_Return)
+        qtbot.keyClick(win.text_input, Qt.Key.Key_Return)
 
         assert win.item_list.count() == 1
 
 
-# ── AT-SPI smoke test ─────────────────────────────────────────────────────────
-# Запускать только если есть DISPLAY и at-spi доступен
+# -- AT-SPI smoke test --------------------------------------------------------
+
 
 @pytest.mark.skipif(
     not os.environ.get("DISPLAY"),
-    reason="DISPLAY не задан, AT-SPI недоступен"
+    reason="DISPLAY not set, AT-SPI unavailable",
 )
 def test_atspi_accessibility_tree(qtbot):
-    """
-    Проверяем что Qt экспортирует accessibility tree и AT-SPI его видит.
-    Это smoke test — если он проходит, агент может использовать gi.repository.Atspi.
-    """
     try:
         import gi
         gi.require_version("Atspi", "2.0")
         from gi.repository import Atspi
     except (ImportError, ValueError):
-        pytest.skip("gi.repository.Atspi недоступен")
+        pytest.skip("gi.repository.Atspi unavailable")
 
     win = MainWindow()
     win.show()
     qtbot.addWidget(win)
     qtbot.waitExposed(win)
-
-    # даём AT-SPI время зарегистрировать приложение
     qtbot.wait(500)
 
     desktop = Atspi.get_desktop(0)
@@ -104,22 +102,18 @@ def test_atspi_accessibility_tree(qtbot):
         if app:
             app_names.append(app.get_name())
 
-    # приложение должно быть видно в дереве
-    assert len(app_names) > 0, f"AT-SPI desktop пуст. Дерево: {app_names}"
-    print(f"\nAT-SPI видит приложения: {app_names}")
+    assert len(app_names) > 0, f"AT-SPI desktop empty. Tree: {app_names}"
+    print(f"\nAT-SPI sees apps: {app_names}")
 
 
-# ── Screenshot smoke test ─────────────────────────────────────────────────────
+# -- Screenshot smoke test ----------------------------------------------------
+
 
 @pytest.mark.skipif(
     not os.environ.get("DISPLAY"),
-    reason="DISPLAY не задан, scrot недоступен"
+    reason="DISPLAY not set, scrot unavailable",
 )
 def test_screenshot_via_scrot(qtbot, tmp_path):
-    """
-    Проверяем что scrot видит Xvfb и делает скриншот.
-    Критично для workflow агента: visual feedback.
-    """
     win = MainWindow()
     win.show()
     qtbot.addWidget(win)
@@ -129,23 +123,20 @@ def test_screenshot_via_scrot(qtbot, tmp_path):
     screenshot_path = str(tmp_path / "screen.png")
     result = subprocess.run(
         ["scrot", screenshot_path],
-        capture_output=True, text=True
+        capture_output=True, text=True,
     )
 
-    assert result.returncode == 0, f"scrot завершился с ошибкой: {result.stderr}"
-    assert os.path.exists(screenshot_path), "Файл скриншота не создан"
+    assert result.returncode == 0, f"scrot failed: {result.stderr}"
+    assert os.path.exists(screenshot_path), "Screenshot file not created"
     size = os.path.getsize(screenshot_path)
-    assert size > 1000, f"Скриншот подозрительно маленький: {size} байт"
-    print(f"\nСкриншот сохранён: {screenshot_path} ({size} байт)")
+    assert size > 1000, f"Screenshot suspiciously small: {size} bytes"
+    print(f"\nScreenshot saved: {screenshot_path} ({size} bytes)")
 
 
-# ── Qt-internal screenshot (работает без DISPLAY) ────────────────────────────
+# -- Qt-internal screenshot (works without DISPLAY) ----------------------------
+
 
 def test_widget_grab(qtbot, tmp_path):
-    """
-    Qt-internal grab — работает даже в offscreen режиме.
-    Fallback для CI без Xvfb.
-    """
     win = MainWindow()
     win.show()
     qtbot.addWidget(win)
@@ -154,6 +145,6 @@ def test_widget_grab(qtbot, tmp_path):
     pixmap = win.grab()
     saved = pixmap.save(screenshot_path)
 
-    assert saved, "widget.grab() не смог сохранить файл"
+    assert saved, "widget.grab() could not save file"
     assert os.path.getsize(screenshot_path) > 500
-    print(f"\nWidget grab сохранён: {screenshot_path}")
+    print(f"\nWidget grab saved: {screenshot_path}")

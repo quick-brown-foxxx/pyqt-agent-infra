@@ -729,3 +729,39 @@ def bridge_inject_cmd(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"Bridge injected. Socket: {bridge_socket_path}")
+
+
+# ── Clipboard commands ────────────────────────────────────────────
+
+clipboard_app = typer.Typer(help="Clipboard operations.")
+app.add_typer(clipboard_app, name="clipboard")
+
+
+@clipboard_app.command(name="write")
+def clipboard_write_cmd(
+    text: typing.Annotated[str, typer.Argument(help="Text to write to clipboard")],
+) -> None:
+    """Write text to the system clipboard."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import clipboard as clipboard_mod
+
+    try:
+        clipboard_mod.write(text)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo("Clipboard written.")
+
+
+@clipboard_app.command(name="read")
+def clipboard_read_cmd() -> None:
+    """Read text from the system clipboard."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import clipboard as clipboard_mod
+
+    try:
+        content = clipboard_mod.read()
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(content)

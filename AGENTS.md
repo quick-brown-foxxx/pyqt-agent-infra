@@ -4,6 +4,21 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 **Not to be confused with** [qt-pilot](https://github.com/neatobandit0/qt-pilot) — a different project using in-process Qt test harness. We use AT-SPI externally, work with any Qt app without modification, and can access Linux subsystems.
 
+## Foundational Philosophy
+
+**YOU MUST read and internalize `docs/PHILOSOPHY.md` before writing any code.** It defines the non-negotiable principles (pit of success, explicitness through types, fail fast, Result-based errors, testing philosophy, architecture, tooling) that drive every decision in this project. All rules below are applications of those principles.
+
+@docs/PHILOSOPHY.md
+
+---
+
+## Critical Reading Path
+
+1. **New context?** Review this document and `docs/PHILOSOPHY.md` fully.
+2. **Implementation phase?** Consult `### Skills` section below for detailed  instructions.
+
+**Invariant:** Run `uv run poe lint_full` continuously during development, not just at finalization.
+
 ## Quick orientation
 
 - `src/qt_ai_dev_tools/` — Python package: AT-SPI tree traversal, xdotool interaction, CLI

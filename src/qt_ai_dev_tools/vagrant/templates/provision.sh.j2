@@ -28,6 +28,13 @@ apt-get install -y --no-install-recommends \
     libxcb-xinerama0 \
     libxcb-xkb1 \
     libxkbcommon-x11-0 \
+    sox \
+    ffmpeg \
+    xclip \
+    dunst \
+    pipewire \
+    pipewire-pulse \
+    wireplumber \
     fonts-dejavu{% for pkg in extra_packages %} \
     {{ pkg }}{% endfor %}
 
@@ -73,6 +80,14 @@ ExecStart=/bin/bash -c '\
     /usr/libexec/at-spi-bus-launcher --launch-immediately & \
     sleep 0.5; \
     openbox & \
+    sleep 0.5; \
+    dunst & \
+    sleep 0.5; \
+    pipewire & \
+    sleep 0.5; \
+    wireplumber & \
+    sleep 0.5; \
+    pipewire-pulse & \
     wait'
 Restart=on-failure
 RestartSec=2

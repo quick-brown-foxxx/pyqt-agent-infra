@@ -83,7 +83,7 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 
 **BEFORE writing ANY code, ALWAYS check available skills and USE every skill that matches your scope.** Skills are project standards — code that ignores them WILL fail review. When delegating to subagents, tell them which skills to use.
 
-Key skills: `writing-python-code`, `setting-up-python-projects`, `testing-python`, `building-qt-apps`, `writing-python-scripts`, `setting-up-logging`.
+Example key skills: `writing-python-code`, `setting-up-python-projects`, `superpowers/dispatching-parallel-agents`, ` superpowers/executing-plans`
 
 ### Code style
 

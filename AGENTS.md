@@ -100,9 +100,8 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 
 - Python 3.12+, PySide6
 - Type hints on public APIs
-- No unnecessary abstractions — the current `qt_pilot.py` is ~240 lines and that's fine
-- Tests use pytest + pytest-qt
-- CLI will use argparse (no heavy framework for a tool this focused)
+- Tests use pytest + pytest-qt or similar tools
+- CLI will use argparse or similar tool
 
 ### What NOT to do
 

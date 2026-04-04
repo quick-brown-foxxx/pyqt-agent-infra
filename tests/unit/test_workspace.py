@@ -5,11 +5,15 @@ from __future__ import annotations
 import stat
 from pathlib import Path
 
+import pytest
+
 from qt_ai_dev_tools.vagrant.workspace import (
     WorkspaceConfig,
     default_config,
     render_workspace,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestDefaultConfig:

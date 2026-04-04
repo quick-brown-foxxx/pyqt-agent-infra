@@ -1,6 +1,9 @@
-.PHONY: up provision ssh sync run test test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init
+.PHONY: up provision ssh sync run test test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
 
 SHELL := /bin/bash
+
+setup: ## initial project setup
+	bash scripts/setup.sh
 
 help: ## show this message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

@@ -10,6 +10,8 @@ import pytest
 if TYPE_CHECKING:
     pass
 
+pytestmark = pytest.mark.unit
+
 
 @dataclass
 class MockNode:

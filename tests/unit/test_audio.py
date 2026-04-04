@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 class TestParseSoxStat:
     def test_parse_nonsilent_file(self) -> None:

@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 _MOCK_DBUS_MONITOR_OUTPUT = """signal time=1234 sender=:1.1 -> destination=(null) serial=1
 method call time=1234 sender=:1.2 -> destination=:1.1 serial=2 member=Notify
    string "test-app"

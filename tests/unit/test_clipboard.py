@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 class TestClipboardWrite:
     def test_write_calls_xclip_with_correct_args(self) -> None:

@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from qt_ai_dev_tools.bridge._protocol import (
     EvalRequest,
     EvalResponse,
@@ -11,6 +13,8 @@ from qt_ai_dev_tools.bridge._protocol import (
     encode_response,
     socket_path_for_pid,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestEvalRequest:

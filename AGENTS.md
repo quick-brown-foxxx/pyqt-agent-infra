@@ -57,7 +57,7 @@ Phases 1-5 complete. Phase 6 in progress — bridge eval (6.0) is complete. The 
 
 - **AT-SPI** provides the widget tree (roles, names, coordinates). Use `gi.repository.Atspi`, NOT `pyatspi` (broken on Python 3.12).
 - **`AtspiNode` wrapper** (`_atspi.py`) — ALL raw Atspi access is confined here. The rest of the codebase uses `AtspiNode` with typed properties (`name`, `role_name`, `children`, `get_extents()`, `get_text()`, `do_action()`). This keeps `# type: ignore` comments out of business logic.
-- **basedpyright strict** — project runs with strict type checking. No global suppressions. Only `_atspi.py` has type ignores (confined AT-SPI boundary).
+- **basedpyright strict** — project runs with strict type checking. No global suppressions. Type-ignore boundaries are confined to: (1) `_atspi.py` (AT-SPI/gi bindings), (2) bridge modules `_server.py` and `_qt_namespace.py` (PySide6 imports used inside the target app process). A PySide6 typed wrapper was investigated and ruled out — PySide6 lacks stubs in the venv (it's a system dep), making full wrapping impractical.
 - **xdotool** for text input and clicks by coordinate. AT-SPI's `editable_text.insert_text()` does NOT work with Qt — it updates the accessibility layer but not Qt's internal model.
 - **Openbox** window manager is required for correct xdotool coordinates.
 - **Xvfb :99** is the virtual display. All tools need `DISPLAY=:99`.

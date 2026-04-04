@@ -1,6 +1,10 @@
 """Tests for bridge eval engine."""
 
+import pytest
+
 from qt_ai_dev_tools.bridge._eval import MAX_RESULT_BYTES, execute
+
+pytestmark = pytest.mark.unit
 
 
 class TestExecuteEval:

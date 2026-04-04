@@ -12,10 +12,13 @@ import typing
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("DISPLAY"),
-    reason="DISPLAY not set — CLI tests require AT-SPI",
-)
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.skipif(
+        not os.environ.get("DISPLAY"),
+        reason="DISPLAY not set — CLI tests require AT-SPI",
+    ),
+]
 
 
 def run_cli(*args: str) -> subprocess.CompletedProcess[str]:

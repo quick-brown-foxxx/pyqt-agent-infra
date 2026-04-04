@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 # Mock gi and Atspi before importing _atspi, since gi is a system package
 # that may not be available in the test venv.
 _mock_gi = MagicMock()

@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 _MOCK_BUSCTL_OUTPUT = 'as 2 ":1.45/StatusNotifierItem" "org.kde.StatusNotifierHost-1234/StatusNotifierItem"'
 
 

@@ -11,7 +11,7 @@
 ```bash
 git clone https://github.com/quick-brown-foxxx/qt-ai-dev-tools.git
 cd qt-ai-dev-tools
-uv sync
+make setup    # runs uv sync + pre-commit install
 ```
 
 ## Make targets

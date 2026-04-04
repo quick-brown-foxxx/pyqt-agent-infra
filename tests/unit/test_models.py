@@ -1,6 +1,10 @@
 """Unit tests for qt_ai_dev_tools data models."""
 
+import pytest
+
 from qt_ai_dev_tools.models import Extents, WidgetInfo
+
+pytestmark = pytest.mark.unit
 
 
 class TestExtents:

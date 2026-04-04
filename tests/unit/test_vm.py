@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
+import pytest
+
 from qt_ai_dev_tools.vagrant.vm import (
     _vagrant,
     find_workspace,
@@ -16,6 +18,8 @@ from qt_ai_dev_tools.vagrant.vm import (
     vm_sync_auto,
     vm_up,
 )
+
+pytestmark = pytest.mark.unit
 
 
 class TestFindWorkspace:

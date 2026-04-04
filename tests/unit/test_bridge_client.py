@@ -6,12 +6,16 @@ import socket
 import threading
 from pathlib import Path
 
+import pytest
+
 from qt_ai_dev_tools.bridge._client import (
     _extract_pid,
     eval_code,
     find_bridge_socket,
 )
 from qt_ai_dev_tools.bridge._protocol import EvalResponse, encode_response
+
+pytestmark = pytest.mark.unit
 
 
 class TestExtractPid:

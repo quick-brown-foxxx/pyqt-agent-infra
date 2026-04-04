@@ -8,10 +8,13 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("DISPLAY"),
-    reason="E2E tests require Xvfb (run in VM via 'make test-e2e')",
-)
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(
+        not os.environ.get("DISPLAY"),
+        reason="E2E tests require Xvfb (run in VM via 'make test-e2e')",
+    ),
+]
 
 
 class TestBridgeEval:

@@ -45,6 +45,12 @@ reportAny = "error"
 reportImplicitStringConcatenation = "none"
 reportUnusedCallResult = "none"
 reportUnnecessaryIsInstance = "none"
+# gi.repository.Atspi is a system package with no type stubs.
+# These errors are unavoidable at the AT-SPI boundary.
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportMissingTypeStubs = "none"
 exclude = [
     "**/__pycache__", ".venv", "venv", "build", "dist", "wrktrs",
 ]

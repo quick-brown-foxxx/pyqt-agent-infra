@@ -73,10 +73,7 @@ class QtPilot:
             msg = f"No widget found: role={role}, name={name}"
             raise LookupError(msg)
         if len(found) > 1:
-            descs = [
-                f'[{w.role_name}] "{w.name}"'
-                for w in found
-            ]
+            descs = [f'[{w.role_name}] "{w.name}"' for w in found]
             msg = f"Multiple widgets found for role={role}, name={name}: {descs}"
             raise LookupError(msg)
         return found[0]

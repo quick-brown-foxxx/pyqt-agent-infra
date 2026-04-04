@@ -29,6 +29,14 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
   - `state.py` — read widget name, role, extents, text (accepts `AtspiNode`)
   - `screenshot.py` — screenshot via scrot
   - `models.py` — `Extents`, `WidgetInfo` data types
+  - `bridge/` — Bridge: runtime code execution inside Qt apps
+    - `__init__.py` — public API: start(), stop()
+    - `_server.py` — Unix socket server, main-thread dispatch via QObject signals
+    - `_client.py` — socket client for CLI
+    - `_eval.py` — eval/exec engine with stdout capture
+    - `_qt_namespace.py` — pre-populated namespace (Qt imports, widgets, helpers)
+    - `_protocol.py` — EvalRequest/EvalResponse, JSON codec
+    - `_bootstrap.py` — sys.remote_exec injection (Python 3.14+)
   - `vagrant/` — Vagrant subsystem
     - `workspace.py` — `WorkspaceConfig` + `render_workspace()` template rendering
     - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
@@ -43,7 +51,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. AI skills in `skills/` teach agents the inspect-interact-verify workflow. The next milestone is Phase 6 (advanced capabilities) and Phase 7 (distribution).
+Phases 1-5 complete. Phase 6 in progress — bridge eval (6.0) is complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent — AI agents can execute arbitrary Python code inside running Qt apps via Unix socket. AI skills in `skills/` teach agents the inspect-interact-verify workflow. The next milestone is remaining Phase 6 tasks (complex widgets, subsystems) and Phase 7 (distribution).
 
 ## Key technical facts
 
@@ -58,6 +66,7 @@ Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **Jinja2 templates** — Vagrantfile and provision.sh are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
 - **Transparent VM proxy** — UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set inside the VM). On the host, they proxy through SSH to the VM. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
 - **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
+- **Bridge** — runtime code execution inside Qt apps via Unix socket. `bridge.start()` in the app starts a server on `/tmp/qt-ai-dev-tools-bridge-<pid>.sock`. CLI `eval` command sends code, gets results as JSON. Pre-populated namespace includes `app`, `widgets`, `find()`, `findall()`, and common Qt classes. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE=1` env var.
 
 ## AI Skills
 
@@ -115,6 +124,16 @@ qt-ai-dev-tools vm sync                       # rsync files to VM
 qt-ai-dev-tools vm sync-auto                  # background file sync
 qt-ai-dev-tools vm run "pytest /vagrant/tests/"  # arbitrary command in VM
 qt-ai-dev-tools vm destroy                    # destroy VM
+
+# Bridge commands (eval code inside running Qt app):
+qt-ai-dev-tools eval "app.windowTitle()"          # eval expression
+qt-ai-dev-tools eval "widgets['status_label'].text()"  # access named widgets
+qt-ai-dev-tools eval --json "findall(QPushButton)"     # JSON output
+qt-ai-dev-tools eval --file script.py                   # eval from file
+qt-ai-dev-tools eval --file - < script.py               # eval from stdin
+qt-ai-dev-tools eval --pid 1234 "code"                  # target specific app
+qt-ai-dev-tools bridge status                            # list active bridges
+qt-ai-dev-tools bridge inject --pid 1234                 # inject into 3.14+ app
 ```
 
 ## Workflow for improving this project
@@ -186,3 +205,11 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 - Don't over-abstract the library — it's glue between AT-SPI and xdotool, not a framework
 - Don't make the CLI stateful between invocations — each command is self-contained
 - Don't assume container/host environments — VM is primary, everything else is Phase 6
+
+## Documentation
+
+- `docs/PHILOSOPHY.md` — foundational development principles
+- `docs/ROADMAP.md` — project roadmap and task tracking
+- `docs/vm-setup-guide.md` — VM environment setup
+- `docs/agent-workflow.md` — recommended agent workflow
+- `docs/bridge-guide.md` — bridge feature: runtime code execution in Qt apps

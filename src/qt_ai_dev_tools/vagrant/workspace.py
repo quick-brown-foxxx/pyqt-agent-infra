@@ -36,9 +36,7 @@ class WorkspaceConfig:
     display: str = ":99"
     resolution: str = "1920x1080x24"
     extra_packages: list[str] = field(default_factory=list)
-    python_packages: list[str] = field(
-        default_factory=lambda: ["PySide6", "pytest", "pytest-qt", "python-dbusmock"]
-    )
+    python_packages: list[str] = field(default_factory=lambda: ["PySide6", "pytest", "pytest-qt", "python-dbusmock"])
 
 
 def default_config() -> WorkspaceConfig:

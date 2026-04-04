@@ -79,6 +79,23 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 - Don't guess what the agent needs — be the agent, feel the friction
 - Compound commands and shortcuts should emerge from real usage, not speculation
 
+### Skills — MUST use
+
+Before writing or modifying any code, agents and subagents **MUST** check available skills and **MUST** use every skill relevant to the current scope. Skills encode project standards — ignoring them produces code that fails review.
+
+How to use:
+1. Check available skills at the start of any implementation task
+2. If a skill matches what you're doing, invoke it and follow its rules
+3. When delegating to subagents, explicitly tell them which skills to use
+
+Python skills in this project (`.agents/skills/`):
+- **`writing-python-code`** — type hints, error handling, code style. Use for ALL Python code.
+- **`setting-up-python-projects`** — pyproject.toml, project structure, tooling. Use when creating/modifying package config.
+- **`testing-python`** — test design, fixtures, TDD. Use when writing tests.
+- **`building-qt-apps`** — PySide6 patterns. Use when touching Qt code.
+- **`writing-python-scripts`** — standalone scripts. Use when writing one-file utilities.
+- **`setting-up-logging`** — logging setup. Use when adding logging.
+
 ### Code style
 
 - Python 3.12+, PySide6

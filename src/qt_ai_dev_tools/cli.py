@@ -765,3 +765,86 @@ def clipboard_read_cmd() -> None:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(content)
+
+
+# ── File dialog commands ──────────────────────────────────────────
+
+file_dialog_app = typer.Typer(help="File dialog automation.")
+app.add_typer(file_dialog_app, name="file-dialog")
+
+
+@file_dialog_app.command(name="detect")
+def file_dialog_detect_cmd(
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Detect an open file dialog in the application."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
+
+    pilot = _get_pilot(app_name)
+    try:
+        info = fd_mod.detect(pilot)
+    except LookupError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps(asdict(info), indent=2, ensure_ascii=False))
+    else:
+        typer.echo(f"Dialog type: {info.dialog_type}")
+        if info.current_path:
+            typer.echo(f"Current path: {info.current_path}")
+
+
+@file_dialog_app.command(name="fill")
+def file_dialog_fill_cmd(
+    path: typing.Annotated[str, typer.Argument(help="File path to enter")],
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+) -> None:
+    """Type a file path into the dialog's filename field."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
+
+    pilot = _get_pilot(app_name)
+    try:
+        fd_mod.fill(pilot, path)
+    except LookupError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Filled path: {path}")
+
+
+@file_dialog_app.command(name="accept")
+def file_dialog_accept_cmd(
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+) -> None:
+    """Click the accept button (Open/Save/OK) in the file dialog."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
+
+    pilot = _get_pilot(app_name)
+    try:
+        result = fd_mod.accept(pilot)
+    except LookupError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Dialog accepted: {result.accepted}")
+
+
+@file_dialog_app.command(name="cancel")
+def file_dialog_cancel_cmd(
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+) -> None:
+    """Click the Cancel button in the file dialog."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
+
+    pilot = _get_pilot(app_name)
+    try:
+        fd_mod.cancel(pilot)
+    except LookupError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo("Dialog cancelled.")

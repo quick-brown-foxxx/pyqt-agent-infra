@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "building-multi-ui-apps": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "c4704f61978434645584db0ac279fc3700b7989ff25eb293ba3995e1892e3027"
+    },
+    "building-qt-apps": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "3dd27aef5363644b21b95b7738562df9ef10cf5d1a365d8504d07cb2d8cbfd3f"
+    },
+    "setting-up-logging": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "2fddff38302bc1bbcd1862e4cf3311250d44b3d8f50e5603aa7879d8087fe323"
+    },
+    "setting-up-python-projects": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "fee5e2591c832c72b6a0e471ac256d2e25b07fbff2a0abce62ca5e80940eb653"
+    },
+    "setting-up-shortcuts": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "b71b1e11fb956c390f5157ab316b670bf9741a2bbf7b2abab91435a4cebee500"
+    },
+    "testing-python": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "cd0fccaf5112cc0a78773859c27c61cb4a4f5aa8eab78c4f58110ed4a43761a3"
+    },
+    "writing-python-code": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "2f9416a7b096d3f6409b43bc6f0a914a522ec457411684d76989b946217784e6"
+    },
+    "writing-python-scripts": {
+      "source": "quick-brown-foxxx/coding_rules_python",
+      "sourceType": "github",
+      "computedHash": "e3ccd0949cfcd8b4b3cb7a940d2a5b510c98f37563e23108ab0ad68ca6c3b9b3"
+    }
+  }
+}

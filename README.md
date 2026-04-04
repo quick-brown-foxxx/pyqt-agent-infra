@@ -153,9 +153,8 @@ The `skills/` directory contains structured guidance that teaches AI agents how 
 
 | Skill | What it teaches |
 |-------|-----------------|
-| `install-qt-ai-dev-tools` | Autonomous setup of the toolkit in a project -- workspace init, VM boot, environment verification |
-| `qt-inspect-interact-verify` | The core workflow loop: inspect the widget tree, interact with widgets, verify results via state checks and screenshots |
-| `qt-widget-patterns` | Widget identification strategies, common recipes (form filling, menu navigation, dialog handling), and error recovery |
+| `qt-dev-tools-setup` | Install toolkit, configure VM, verify environment -- everything needed before first interaction |
+| `qt-app-interaction` | The core inspect→interact→verify workflow loop, with progressive references for widget roles, recipes, and troubleshooting |
 
 Skills are the primary integration point. An agent with the right skill can use even a basic CLI effectively.
 
@@ -166,7 +165,7 @@ Skills are the primary integration point. An agent with the right skill can use 
 - **Openbox is required.** Without a window manager, xdotool reports incorrect coordinates and `windowactivate` fails.
 - **Xvfb display :99.** All tools need `DISPLAY=:99`. The VM provisions this automatically.
 - **libvirt only (tested).** The Vagrantfile includes VirtualBox provider blocks, but only libvirt (QEMU/KVM via vagrant-libvirt) has been tested. VirtualBox may require adjustments.
-- **Known libvirt DHCP bug.** vagrant-libvirt creates a network with a DHCP range starting at `.1`, colliding with the host bridge IP. Workaround: pre-create the network with a corrected range, or use `--static-ip` to bypass DHCP entirely. See [VM setup guide](docs/vm-setup-guide.md).
+- **Known libvirt DHCP bug.** vagrant-libvirt creates a network with a DHCP range starting at `.1`, colliding with the host bridge IP. Workaround: pre-create the network with a corrected range, or use `--static-ip` to bypass DHCP entirely. See `skills/qt-dev-tools-setup/references/vm-troubleshooting.md`.
 - **Screenshots are small.** scrot output is ~14-22 KB PNG -- cheap to capture and send to an LLM.
 - **Each CLI command is stateless.** No persistent state between invocations. The agent chains commands via shell.
 - **Transparent VM proxy.** UI commands auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set automatically inside the VM). On the host, they proxy through SSH to the VM. On the VM, they run directly. No manual `vm run` wrapping needed for qt-ai-dev-tools commands.
@@ -215,7 +214,7 @@ src/qt_ai_dev_tools/
     workspace.py   # WorkspaceConfig + template rendering
     vm.py          # VM lifecycle commands
     templates/     # Jinja2 templates (Vagrantfile, provision.sh)
-skills/            # AI agent skills (inspect-interact-verify, widget patterns, setup)
+skills/            # AI agent skills (setup, app interaction)
 app/main.py        # Sample PySide6 todo app (test target)
 tests/             # pytest-qt + AT-SPI + CLI integration tests
 ```
@@ -223,8 +222,6 @@ tests/             # pytest-qt + AT-SPI + CLI integration tests
 ## Documentation
 
 - [Roadmap](docs/ROADMAP.md) -- phases, priorities, and design decisions
-- [VM setup guide](docs/vm-setup-guide.md) -- provider setup, troubleshooting, configuration
-- [Agent workflow](docs/agent-workflow.md) -- recommended command sequences and error recovery
 - [Philosophy](docs/PHILOSOPHY.md) -- design principles and architectural decisions
 
 ## Not to be confused with

@@ -62,9 +62,8 @@ Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 ## AI Skills
 
 Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
-- `install-qt-ai-dev-tools` — autonomous setup of the toolkit in a project
-- `qt-inspect-interact-verify` — core inspect->interact->verify loop
-- `qt-widget-patterns` — widget identification strategies and common recipes
+- `qt-dev-tools-setup` — install toolkit, configure VM, verify environment
+- `qt-app-interaction` — inspect widgets, interact, verify results (the core workflow loop)
 
 ## Running things
 

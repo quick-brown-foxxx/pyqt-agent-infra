@@ -29,15 +29,17 @@ def list_items() -> list[TrayItem]:
         RuntimeError: If busctl is not found or the D-Bus call fails.
     """
     check_tool("busctl")
-    output = run_tool([
-        "busctl",
-        "--user",
-        "get-property",
-        _SNI_WATCHER_DEST,
-        _SNI_WATCHER_PATH,
-        "org.kde.StatusNotifierWatcher",
-        "RegisteredStatusNotifierItems",
-    ])
+    output = run_tool(
+        [
+            "busctl",
+            "--user",
+            "get-property",
+            _SNI_WATCHER_DEST,
+            _SNI_WATCHER_PATH,
+            "org.kde.StatusNotifierWatcher",
+            "RegisteredStatusNotifierItems",
+        ]
+    )
     return _parse_registered_items(output)
 
 
@@ -69,12 +71,14 @@ def _parse_registered_items(output: str) -> list[TrayItem]:
         # Extract a readable name from the bus name
         name = bus_name.split(".")[-1] if "." in bus_name else bus_name
 
-        items.append(TrayItem(
-            name=name,
-            bus_name=bus_name,
-            object_path=obj_path,
-            protocol="SNI",
-        ))
+        items.append(
+            TrayItem(
+                name=name,
+                bus_name=bus_name,
+                object_path=obj_path,
+                protocol="SNI",
+            )
+        )
     return items
 
 
@@ -93,18 +97,20 @@ def click(app_name: str) -> None:
     """
     item = _find_item(app_name)
     check_tool("busctl")
-    run_tool([
-        "busctl",
-        "--user",
-        "call",
-        item.bus_name,
-        item.object_path,
-        _SNI_ITEM_IFACE,
-        "Activate",
-        "ii",
-        "0",
-        "0",
-    ])
+    run_tool(
+        [
+            "busctl",
+            "--user",
+            "call",
+            item.bus_name,
+            item.object_path,
+            _SNI_ITEM_IFACE,
+            "Activate",
+            "ii",
+            "0",
+            "0",
+        ]
+    )
 
 
 def menu(app_name: str) -> list[TrayMenuEntry]:
@@ -131,34 +137,38 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
         menu_path = "/" + menu_path
 
     try:
-        output = run_tool([
-            "busctl",
-            "--user",
-            "call",
-            item.bus_name,
-            menu_path,
-            "com.canonical.dbusmenu",
-            "GetLayout",
-            "iias",
-            "0",      # parent ID
-            "-1",     # recursion depth (-1 = all)
-            "0",      # properties (empty array)
-        ])
+        output = run_tool(
+            [
+                "busctl",
+                "--user",
+                "call",
+                item.bus_name,
+                menu_path,
+                "com.canonical.dbusmenu",
+                "GetLayout",
+                "iias",
+                "0",  # parent ID
+                "-1",  # recursion depth (-1 = all)
+                "0",  # properties (empty array)
+            ]
+        )
     except RuntimeError:
         # Some apps use a different menu path
-        output = run_tool([
-            "busctl",
-            "--user",
-            "call",
-            item.bus_name,
-            item.object_path,
-            "com.canonical.dbusmenu",
-            "GetLayout",
-            "iias",
-            "0",
-            "-1",
-            "0",
-        ])
+        output = run_tool(
+            [
+                "busctl",
+                "--user",
+                "call",
+                item.bus_name,
+                item.object_path,
+                "com.canonical.dbusmenu",
+                "GetLayout",
+                "iias",
+                "0",
+                "-1",
+                "0",
+            ]
+        )
 
     return _parse_menu_output(output)
 
@@ -214,37 +224,41 @@ def select(app_name: str, item_label: str) -> None:
                 menu_path = "/" + menu_path
 
             try:
-                run_tool([
-                    "busctl",
-                    "--user",
-                    "call",
-                    item.bus_name,
-                    menu_path,
-                    "com.canonical.dbusmenu",
-                    "Event",
-                    "isvu",
-                    str(entry.index),
-                    "clicked",
-                    "s",
-                    "",
-                    "0",
-                ])
+                run_tool(
+                    [
+                        "busctl",
+                        "--user",
+                        "call",
+                        item.bus_name,
+                        menu_path,
+                        "com.canonical.dbusmenu",
+                        "Event",
+                        "isvu",
+                        str(entry.index),
+                        "clicked",
+                        "s",
+                        "",
+                        "0",
+                    ]
+                )
             except RuntimeError:
-                run_tool([
-                    "busctl",
-                    "--user",
-                    "call",
-                    item.bus_name,
-                    item.object_path,
-                    "com.canonical.dbusmenu",
-                    "Event",
-                    "isvu",
-                    str(entry.index),
-                    "clicked",
-                    "s",
-                    "",
-                    "0",
-                ])
+                run_tool(
+                    [
+                        "busctl",
+                        "--user",
+                        "call",
+                        item.bus_name,
+                        item.object_path,
+                        "com.canonical.dbusmenu",
+                        "Event",
+                        "isvu",
+                        str(entry.index),
+                        "clicked",
+                        "s",
+                        "",
+                        "0",
+                    ]
+                )
             return
 
     available = [e.label for e in entries]

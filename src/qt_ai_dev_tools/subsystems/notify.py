@@ -86,13 +86,15 @@ def _parse_notifications(output: str) -> list[Notification]:
             for i in range(0, len(action_strings) - 1, 2)
         ]
 
-        notifications.append(Notification(
-            id=notification_id,
-            app_name=app_name,
-            summary=summary,
-            body=body,
-            actions=actions,
-        ))
+        notifications.append(
+            Notification(
+                id=notification_id,
+                app_name=app_name,
+                summary=summary,
+                body=body,
+                actions=actions,
+            )
+        )
 
     return notifications
 
@@ -107,17 +109,19 @@ def dismiss(notification_id: int) -> None:
         RuntimeError: If busctl is not found or the D-Bus call fails.
     """
     check_tool("busctl")
-    run_tool([
-        "busctl",
-        "--user",
-        "call",
-        _NOTIFY_DEST,
-        _NOTIFY_PATH,
-        _NOTIFY_IFACE,
-        "CloseNotification",
-        "u",
-        str(notification_id),
-    ])
+    run_tool(
+        [
+            "busctl",
+            "--user",
+            "call",
+            _NOTIFY_DEST,
+            _NOTIFY_PATH,
+            _NOTIFY_IFACE,
+            "CloseNotification",
+            "u",
+            str(notification_id),
+        ]
+    )
 
 
 def action(notification_id: int, action_key: str) -> None:
@@ -133,14 +137,16 @@ def action(notification_id: int, action_key: str) -> None:
         RuntimeError: If busctl is not found or the D-Bus call fails.
     """
     check_tool("busctl")
-    run_tool([
-        "busctl",
-        "--user",
-        "emit",
-        _NOTIFY_PATH,
-        _NOTIFY_IFACE,
-        "ActionInvoked",
-        "us",
-        str(notification_id),
-        action_key,
-    ])
+    run_tool(
+        [
+            "busctl",
+            "--user",
+            "emit",
+            _NOTIFY_PATH,
+            _NOTIFY_IFACE,
+            "ActionInvoked",
+            "us",
+            str(notification_id),
+            action_key,
+        ]
+    )

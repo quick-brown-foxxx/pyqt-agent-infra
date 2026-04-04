@@ -1014,3 +1014,163 @@ def notify_action_cmd(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"Invoked action '{action_key}' on notification {notification_id}")
+
+
+# ── Audio commands ────────────────────────────────────────────────
+
+audio_app_cli = typer.Typer(help="PipeWire audio interaction.")
+app.add_typer(audio_app_cli, name="audio")
+
+# Virtual mic sub-group
+vmic_app = typer.Typer(help="Virtual microphone management.")
+audio_app_cli.add_typer(vmic_app, name="virtual-mic")
+
+
+@vmic_app.command(name="start")
+def audio_vmic_start_cmd(
+    node_name: typing.Annotated[str, typer.Option("--name", "-n", help="Node name")] = "virtual-mic",
+) -> None:
+    """Start a virtual microphone via pw-loopback."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        info = audio_mod.virtual_mic_start(node_name)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Virtual mic started: {info.node_name} (PID {info.pid})")
+
+
+@vmic_app.command(name="stop")
+def audio_vmic_stop_cmd() -> None:
+    """Stop the virtual microphone."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        audio_mod.virtual_mic_stop()
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo("Virtual mic stopped.")
+
+
+@vmic_app.command(name="play")
+def audio_vmic_play_cmd(
+    path: typing.Annotated[str, typer.Argument(help="Audio file path")],
+    node_name: typing.Annotated[str, typer.Option("--name", "-n", help="Target node name")] = "virtual-mic",
+) -> None:
+    """Play audio into the virtual microphone."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        audio_mod.virtual_mic_play(Path(path), node_name)
+    except (RuntimeError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Played {path} into {node_name}")
+
+
+@audio_app_cli.command(name="record")
+def audio_record_cmd(
+    duration: typing.Annotated[float, typer.Option("--duration", "-d", help="Recording duration in seconds")] = 5.0,
+    output: typing.Annotated[str, typer.Option("--output", "-o", help="Output file path")] = "/tmp/recording.wav",  # noqa: S108
+    loopback: typing.Annotated[bool, typer.Option("--loopback", help="Record from loopback source")] = False,
+) -> None:
+    """Record audio from PipeWire."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        result = audio_mod.record(duration, Path(output), loopback=loopback)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Recorded to {result}")
+
+
+@audio_app_cli.command(name="sources")
+def audio_sources_cmd(
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """List PipeWire audio sources."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        src_list = audio_mod.sources()
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not src_list:
+        typer.echo("No audio sources found.")
+        return
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(s) for s in src_list], indent=2, ensure_ascii=False))
+    else:
+        for s in src_list:
+            typer.echo(f"  [{s.id}] {s.name} - {s.description}")
+
+
+@audio_app_cli.command(name="status")
+def audio_status_cmd(
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """List active PipeWire audio streams."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        streams = audio_mod.status()
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not streams:
+        typer.echo("No active audio streams.")
+        return
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(s) for s in streams], indent=2, ensure_ascii=False))
+    else:
+        for s in streams:
+            typer.echo(f"  [{s.id}] {s.node_name} ({s.state})")
+
+
+@audio_app_cli.command(name="verify")
+def audio_verify_cmd(
+    path: typing.Annotated[str, typer.Argument(help="Audio file path to verify")],
+    threshold: typing.Annotated[float, typer.Option("--threshold", help="RMS amplitude threshold")] = 0.001,
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Verify an audio file is not silence."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import audio as audio_mod
+
+    try:
+        result = audio_mod.verify_not_silence(Path(path), threshold=threshold)
+    except (RuntimeError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps(asdict(result), indent=2, ensure_ascii=False))
+    else:
+        status_text = "SILENT" if result.is_silent else "NOT SILENT"
+        typer.echo(f"  Status: {status_text}")
+        typer.echo(f"  Max amplitude: {result.max_amplitude:.6f}")
+        typer.echo(f"  RMS amplitude: {result.rms_amplitude:.6f}")
+        typer.echo(f"  Duration: {result.duration_seconds:.2f}s")
+
+    if result.is_silent:
+        raise typer.Exit(code=1)

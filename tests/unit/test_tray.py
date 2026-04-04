@@ -77,7 +77,7 @@ class TestClick:
 
         with (
             patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
-            patch("qt_ai_dev_tools.subsystems.tray.run_tool", return_value='as 0'),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", return_value="as 0"),
             pytest.raises(LookupError, match="No tray item matching"),
         ):
             click("nonexistent-app")

@@ -65,9 +65,9 @@ class TestParseNotifications:
 
         output = (
             _MOCK_DBUS_MONITOR_OUTPUT
-            + '\nmethod call time=5678 sender=:1.3 -> destination=:1.1 serial=3 member=Notify\n'
+            + "\nmethod call time=5678 sender=:1.3 -> destination=:1.1 serial=3 member=Notify\n"
             '   string "other-app"\n'
-            '   uint32 42\n'
+            "   uint32 42\n"
             '   string "icon"\n'
             '   string "Second"\n'
             '   string "Second body"\n'

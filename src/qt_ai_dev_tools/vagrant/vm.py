@@ -68,7 +68,24 @@ def vm_sync(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
     return _vagrant(["rsync"], ws)
 
 
-def vm_run(command: str, workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
+def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
+    """Start background rsync-auto to keep VM files in sync.
+
+    Returns the Popen handle so caller can stop it later.
+    """
+    ws = _find_workspace(workspace)
+    return subprocess.Popen(
+        ["vagrant", "rsync-auto"],
+        cwd=ws,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def vm_run(
+    command: str, workspace: Path | None = None, display: str = ":99"
+) -> subprocess.CompletedProcess[str]:
     """Run a command inside the VM with proper Qt/AT-SPI environment.
 
     Uses the vm-run.sh script if present, otherwise uses vagrant ssh -c.
@@ -87,8 +104,8 @@ def vm_run(command: str, workspace: Path | None = None) -> subprocess.CompletedP
 
     # Fallback: vagrant ssh with env vars
     env_prefix = (
-        'export DISPLAY=:99 QT_QPA_PLATFORM=xcb QT_ACCESSIBILITY=1'
-        ' QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1'
+        f"export DISPLAY={display} QT_QPA_PLATFORM=xcb QT_ACCESSIBILITY=1"
+        " QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1"
         ' DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus";'
     )
     return _vagrant(["ssh", "-c", f"{env_prefix} {command}"], ws)

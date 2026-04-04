@@ -76,7 +76,7 @@ def tree(
         if output_json:
             typer.echo("JSON output for full tree not yet supported. Use --role filter.", err=True)
             raise typer.Exit(code=1)
-        pilot.dump_tree(max_depth=max_depth)
+        typer.echo(pilot.dump_tree(max_depth=max_depth))
 
 
 @app.command()
@@ -247,6 +247,114 @@ def wait(
     raise typer.Exit(code=1)
 
 
+# ── Compound commands ──────────────────────────────────────────────
+
+
+@app.command()
+def fill(
+    value: typing.Annotated[str, typer.Argument(help="Text to type into the widget")],
+    role: typing.Annotated[str, typer.Option("--role", "-r", help="Widget role")] = "text",
+    name: typing.Annotated[str | None, typer.Option("--name", "-n", help="Widget name")] = None,
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name")] = None,
+    no_clear: typing.Annotated[bool, typer.Option("--no-clear", help="Don't clear field first")] = False,
+) -> None:
+    """Focus a text widget, clear it, and type a value (compound action)."""
+    try:
+        pilot = _get_pilot(app_name)
+        pilot.fill(role=role, name=name, value=value, clear_first=not no_clear)
+        name_suffix = f" ({name})" if name else ""
+        typer.echo(f"Filled '{role}'{name_suffix} with: {value}")
+    except (RuntimeError, LookupError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command(name="do")
+def do_action(
+    action: typing.Annotated[str, typer.Argument(help="Action to perform: click")],
+    target: typing.Annotated[str, typer.Argument(help="Widget name or role to act on")],
+    role: typing.Annotated[str, typer.Option("--role", "-r", help="Widget role")] = "push button",
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name")] = None,
+    verify: typing.Annotated[
+        str | None, typer.Option("--verify", help="Verify condition after action (e.g. 'label:status contains Saved')")
+    ] = None,
+    screenshot_after: typing.Annotated[bool, typer.Option("--screenshot", help="Take screenshot after action")] = False,
+) -> None:
+    """Perform a compound action (click + optional verify/screenshot).
+
+    Examples:
+        qt-ai-dev-tools do click "Save"
+        qt-ai-dev-tools do click "Save" --verify "label:status contains Saved"
+        qt-ai-dev-tools do click "Add" --screenshot
+    """
+    try:
+        pilot = _get_pilot(app_name)
+
+        if action == "click":
+            widget = pilot.find_one(role=role, name=target)
+            pilot.click(widget)
+            typer.echo(f"Clicked '{role}' ({target})")
+        else:
+            typer.echo(f"Unknown action: {action}", err=True)
+            raise typer.Exit(code=1)
+
+        if screenshot_after:
+            path = pilot.screenshot()
+            typer.echo(f"Screenshot: {path}")
+
+        if verify:
+            _verify_condition(pilot, verify)
+
+    except (RuntimeError, LookupError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+def _verify_condition(pilot: QtPilot, condition: str) -> None:
+    """Parse and check a verify condition string.
+
+    Format: "role:name contains text" or "role contains text"
+    Examples:
+        "label:status contains Saved"
+        "label contains Items: 1"
+    """
+    if " contains " not in condition:
+        typer.echo(f"Invalid verify format: {condition} (expected 'role:name contains text')", err=True)
+        raise typer.Exit(code=1)
+
+    selector, expected_text = condition.split(" contains ", 1)
+
+    if ":" in selector:
+        verify_role, verify_name = selector.split(":", 1)
+    else:
+        verify_role = selector
+        verify_name = None
+
+    try:
+        widgets = pilot.find(
+            role=verify_role.strip(),
+            name=verify_name.strip() if verify_name else None,
+        )
+        if not widgets:
+            typer.echo(f"Verify FAILED: no widget matching '{selector}'", err=True)
+            raise typer.Exit(code=1)
+
+        for w in widgets:
+            widget_text = pilot.get_name(w)
+            widget_actual_text = pilot.get_text(w)
+            combined = f"{widget_text} {widget_actual_text}"
+            if expected_text.strip() in combined:
+                typer.echo(f"Verify OK: '{selector}' contains '{expected_text.strip()}'")
+                return
+
+        typer.echo(f"Verify FAILED: '{selector}' does not contain '{expected_text.strip()}'", err=True)
+        raise typer.Exit(code=1)
+
+    except LookupError as exc:
+        typer.echo(f"Verify FAILED: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
 # ── Workspace commands ──────────────────────────────────────────────
 
 workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.")
@@ -263,6 +371,7 @@ def workspace_init(
     hostname: typing.Annotated[str, typer.Option(help="VM hostname")] = "qt-dev",
     display: typing.Annotated[str, typer.Option(help="X display")] = ":99",
     resolution: typing.Annotated[str, typer.Option(help="Display resolution")] = "1920x1080x24",
+    static_ip: typing.Annotated[str, typer.Option("--static-ip", help="Static IP for VM (e.g. 192.168.121.100)")] = "",
 ) -> None:
     """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
@@ -273,6 +382,7 @@ def workspace_init(
         memory=memory,
         cpus=cpus,
         hostname=hostname,
+        static_ip=static_ip,
         display=display,
         resolution=resolution,
     )
@@ -360,6 +470,25 @@ def vm_sync_cmd(
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
+
+
+@vm_app.command(name="sync-auto")
+def vm_sync_auto_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Start background rsync-auto to keep VM files in sync."""
+    from qt_ai_dev_tools.vagrant.vm import vm_sync_auto
+
+    process = vm_sync_auto(workspace)
+    typer.echo(f"rsync-auto started (PID {process.pid}). Files will sync automatically.")
+    typer.echo("Press Ctrl+C to stop.")
+    try:
+        process.wait()
+    except KeyboardInterrupt:
+        process.terminate()
+        typer.echo("\nrsync-auto stopped.")
 
 
 @vm_app.command(name="run")

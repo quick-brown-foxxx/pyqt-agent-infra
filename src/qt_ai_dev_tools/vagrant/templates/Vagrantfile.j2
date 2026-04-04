@@ -2,18 +2,29 @@ Vagrant.configure("2") do |config|
   config.vm.box = "{{ box }}"
   config.vm.hostname = "{{ hostname }}"
 
-  config.vm.provider "{{ provider }}" do |v|
-    v.default_prefix = "{{ hostname }}"
+  {% if static_ip %}
+  config.vm.network "private_network", ip: "{{ static_ip }}"
+  {% endif %}
+
+  config.vm.provider "libvirt" do |v|
     v.memory = {{ memory }}
-    v.cpus   = {{ cpus }}
+    v.cpus = {{ cpus }}
+    {% if mac_address %}
     v.management_network_mac = "{{ mac_address }}"
+    {% endif %}
   end
 
-  # shared folder via rsync (no guest additions needed)
-  config.vm.synced_folder "{{ shared_folder }}", "/vagrant", type: "rsync",
-    rsync__exclude: [{% for exc in rsync_excludes %}"{{ exc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  config.vm.provider "virtualbox" do |v|
+    v.memory = {{ memory }}
+    v.cpus = {{ cpus }}
+    v.gui = false
+    v.customize ["modifyvm", :id, "--audio", "none"]
+  end
+
+  config.vm.synced_folder "{{ shared_folder }}", "/vagrant",
+    type: "rsync",
+    rsync__exclude: {{ rsync_excludes | tojson }}
 
   config.ssh.insert_key = true
-
   config.vm.provision "shell", path: "provision.sh"
 end

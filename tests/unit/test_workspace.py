@@ -21,6 +21,7 @@ class TestDefaultConfig:
         assert config.memory == 4096
         assert config.cpus == 4
         assert config.mac_address == "52:54:00:AB:CD:EF"
+        assert config.static_ip == ""
         assert config.shared_folder == "."
         assert config.rsync_excludes == [".git/", ".vagrant/"]
         assert config.display == ":99"
@@ -47,7 +48,7 @@ class TestRenderWorkspace:
         content = (tmp_path / "Vagrantfile").read_text()
         assert '"bento/ubuntu-24.04"' in content
         assert "v.memory = 4096" in content
-        assert "v.cpus   = 4" in content
+        assert "v.cpus = 4" in content
         assert 'config.vm.hostname = "qt-dev"' in content
 
     def test_provision_contains_defaults(self, tmp_path: Path) -> None:
@@ -112,3 +113,26 @@ class TestRenderWorkspace:
             tmp_path / "scripts" / "screenshot.sh",
         }
         assert set(created) == expected
+
+    def test_vagrantfile_contains_virtualbox_provider(self, tmp_path: Path) -> None:
+        render_workspace(tmp_path)
+        content = (tmp_path / "Vagrantfile").read_text()
+        assert 'config.vm.provider "virtualbox"' in content
+        assert "v.gui = false" in content
+        assert '--audio", "none"' in content
+
+    def test_vagrantfile_contains_libvirt_provider(self, tmp_path: Path) -> None:
+        render_workspace(tmp_path)
+        content = (tmp_path / "Vagrantfile").read_text()
+        assert 'config.vm.provider "libvirt"' in content
+
+    def test_static_ip_present_when_set(self, tmp_path: Path) -> None:
+        config = WorkspaceConfig(static_ip="192.168.121.100")
+        render_workspace(tmp_path, config=config)
+        content = (tmp_path / "Vagrantfile").read_text()
+        assert 'config.vm.network "private_network", ip: "192.168.121.100"' in content
+
+    def test_static_ip_absent_when_empty(self, tmp_path: Path) -> None:
+        render_workspace(tmp_path)
+        content = (tmp_path / "Vagrantfile").read_text()
+        assert "private_network" not in content

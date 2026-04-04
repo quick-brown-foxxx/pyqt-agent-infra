@@ -31,6 +31,7 @@ class WorkspaceConfig:
     memory: int = 4096
     cpus: int = 4
     mac_address: str = "52:54:00:AB:CD:EF"
+    static_ip: str = ""
     shared_folder: str = "."
     rsync_excludes: list[str] = field(default_factory=lambda: [".git/", ".vagrant/"])
     # provision.sh

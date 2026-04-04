@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest import mock
 from unittest.mock import patch
 
 from qt_ai_dev_tools.vagrant.vm import (
@@ -12,6 +13,7 @@ from qt_ai_dev_tools.vagrant.vm import (
     vm_run,
     vm_status,
     vm_sync,
+    vm_sync_auto,
     vm_up,
 )
 
@@ -157,3 +159,15 @@ class TestVmRun:
             assert cmd[2] == "-c"
             assert "DISPLAY=:99" in cmd[3]
             assert "echo hello" in cmd[3]
+
+
+class TestVmSyncAuto:
+    def test_starts_rsync_auto_process(self, tmp_path: Path) -> None:
+        vagrantfile = tmp_path / "Vagrantfile"
+        vagrantfile.touch()
+        with mock.patch("subprocess.Popen") as mock_popen:
+            vm_sync_auto(tmp_path)
+            mock_popen.assert_called_once()
+            args = mock_popen.call_args
+            assert args[0][0] == ["vagrant", "rsync-auto"]
+            assert args[1]["cwd"] == tmp_path

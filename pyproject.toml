@@ -85,6 +85,10 @@ log_cli_level = "INFO"
 filterwarnings = [
     "ignore::pytest.PytestConfigWarning",
 ]
+markers = [
+    "unit: Unit tests (no external dependencies)",
+    "integration: Integration tests (require VM/display)",
+]
 
 [tool.poe.tasks]
 test = "pytest"

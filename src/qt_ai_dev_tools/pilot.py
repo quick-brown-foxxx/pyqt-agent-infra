@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 from qt_ai_dev_tools import interact, state
 from qt_ai_dev_tools._atspi import AtspiNode
 from qt_ai_dev_tools.models import Extents
 from qt_ai_dev_tools.screenshot import take_screenshot
+
+logger = logging.getLogger(__name__)
 
 
 class QtPilot:
@@ -84,16 +87,14 @@ class QtPilot:
         indent: int = 0,
         max_depth: int = 8,
     ) -> str:
-        """Return and print a text dump of the widget tree."""
+        """Return a text dump of the widget tree."""
         root = root or self.app
         if root is None:
             msg = "No app connected"
             raise RuntimeError(msg)
         lines: list[str] = []
         self._dump(root, indent, max_depth, lines)
-        text = "\n".join(lines)
-        print(text)
-        return text
+        return "\n".join(lines)
 
     def get_children(self, widget: AtspiNode) -> list[AtspiNode]:
         """Get direct children of a widget."""
@@ -138,6 +139,26 @@ class QtPilot:
     def get_text(self, widget: AtspiNode) -> str:
         """Get text content from a widget."""
         return state.get_text(widget)
+
+    # ── Compound actions ─────────────────────────────────────────
+
+    def fill(
+        self,
+        role: str = "text",
+        name: str | None = None,
+        value: str = "",
+        clear_first: bool = True,
+    ) -> None:
+        """Focus a text widget, optionally clear it, and type a value.
+
+        This is a compound action: focus -> clear -> type.
+        """
+        widget = self.find_one(role=role, name=name)
+        self.focus(widget)
+        if clear_first:
+            interact.press_key("ctrl+a")
+            interact.press_key("Delete")
+        self.type_text(value)
 
     # ── Screenshots ──────────────────────────────────────────────
 

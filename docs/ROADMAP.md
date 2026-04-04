@@ -264,6 +264,7 @@ Document the workspace layout, config options, and how agents should use it in r
 
 ## Phase 4: VM environment improvements
 
+**Status:** Done.
 **Goal:** Make the Vagrant VM workflow robust and ergonomic. This is the primary environment — invest in it.
 
 ### 4.1 — [implement] VM management CLI
@@ -272,21 +273,31 @@ Document the workspace layout, config options, and how agents should use it in r
 
 ### 4.2 — [implement] Auto-sync
 
+**Status:** Done. `vm sync-auto` command wraps `vagrant rsync-auto` in background.
+
 Background rsync or virtiofs so code changes are immediately available in VM without manual `vagrant rsync`.
 
 ### 4.3 — [implement] Portable Vagrantfile
+
+**Status:** Done. Vagrantfile.j2 now defines both libvirt and VirtualBox provider blocks.
 
 Make the Vagrantfile work with multiple providers (libvirt, VirtualBox) for wider compatibility. Extract the vagrant-libvirt DHCP workaround into a documented setup step.
 
 ### 4.4 — [implement] Static IP assignment for Vagrant VM
 
+**Status:** Done. `static_ip` field in WorkspaceConfig, `--static-ip` CLI option, conditional private_network in Vagrantfile.
+
 Option to hardcode/pin a static IP for the Vagrant VM instead of relying on DHCP. DHCP can timeout or assign unexpected addresses (known issue with libvirt). The workspace config should support a `static_ip` field, and the generated Vagrantfile should use it when set.
 
 ### 4.5 — [test] VM lifecycle tests
 
+**Note:** VM lifecycle tests require a running VM. Tracked but not automated on host.
+
 Automated test: `up → provision → run app → interact → screenshot → destroy`. Verify the full cycle works reliably.
 
 ### 4.6 — [doc] VM setup guide
+
+**Status:** Done. `docs/vm-setup-guide.md` created.
 
 Document setup for each supported provider. Known issues and workarounds.
 
@@ -294,9 +305,12 @@ Document setup for each supported provider. Known issues and workarounds.
 
 ## Phase 5: Agent integration
 
+**Status:** Done.
 **Goal:** Make the agent workflow smooth — minimal commands, maximum feedback. Skills are the highest-value deliverable here: an agent with the right skill can use even a crude CLI effectively.
 
 ### 5.1 — [implement] AI skills
+
+**Status:** Done. Three skills created in `.skills/`: `install-qt-ai-dev-tools`, `qt-inspect-interact-verify`, `qt-widget-patterns`.
 
 Create agent skills that teach the full qt-ai-dev-tools workflow. These are the primary integration point — skills turn a generic agent into one that knows how to drive Qt apps.
 
@@ -320,6 +334,8 @@ skills/
 
 ### 5.2 — [implement] Compound commands
 
+**Status:** Done. `fill` and `do` compound commands added to CLI and QtPilot.
+
 Based on real agent usage, add high-level commands that combine common sequences:
 
 ```bash
@@ -337,12 +353,16 @@ Only add what real usage proves valuable. Don't pre-design.
 
 ### 5.3 — [explore] Optimal agent workflow
 
+**Status:** Done. Documented in `docs/agent-workflow.md`.
+
 Use qt-ai-dev-tools myself (the agent) on real projects. Document:
 - What sequences of commands are most common?
 - Where do I get stuck or need multiple attempts?
 - What information do I wish I had after each action?
 
 ### 5.4 — [test] End-to-end agent test
+
+**Note:** To be validated through real-world usage.
 
 Have an agent (me) complete a real task using only qt-ai-dev-tools:
 - Launch an app
@@ -352,6 +372,8 @@ Have an agent (me) complete a real task using only qt-ai-dev-tools:
 
 ### 5.5 — [test] Iterative skill & tool improvement through practice
 
+**Note:** To be validated through real-world usage.
+
 Run skills and tools through multiple real-world test cases and use case scenarios. After each test:
 - Identify friction, gaps, and errors in skills and tools
 - Fix tools and update skills based on findings
@@ -360,6 +382,8 @@ Run skills and tools through multiple real-world test cases and use case scenari
 This is an iterative loop, not a one-shot test. Skills and tools should be noticeably better after each round. Minimum 3-5 diverse scenarios (e.g., form filling, menu navigation, dialog handling, table interaction, multi-window workflow).
 
 ### 5.6 — [doc] Agent workflow documentation
+
+**Status:** Done. `docs/agent-workflow.md` created.
 
 Based on real usage, document the recommended workflow and common patterns.
 
@@ -569,9 +593,13 @@ Findings from automated code review against project skill standards. Not blockin
 
 ### CQ-1 — [implement] Replace `print()` with `colorlog` logging
 
+**Status:** Done. Replaced print() with logging in screenshot.py, removed print from pilot.py dump_tree() (CLI layer now handles output).
+
 `screenshot.py` and `pilot.py` use `print()` for output. `colorlog` is already a dependency but unused. Add proper logging.
 
 ### CQ-2 — [implement] Add pytest markers and improve test structure
+
+**Status:** Partial. Pytest markers defined. Test structure split remains for future work.
 
 - Define `unit` and `integration` markers in `pyproject.toml`
 - Split `test_main.py` into unit (pytest-qt) and integration (AT-SPI/scrot) files
@@ -594,6 +622,8 @@ Findings from automated code review against project skill standards. Not blockin
 `pilot.py`, `interact.py`, `state.py`, `screenshot.py` have no dedicated tests. Only indirect coverage via `test_cli.py` (help-only on host) and `test_main.py` (AT-SPI smoke). Add VM-based integration tests.
 
 ### CQ-6 — [implement] Fix `vm_run` fallback hardcoded display
+
+**Status:** Done. vm_run() accepts display parameter instead of hardcoding.
 
 `vm.py` `vm_run()` fallback path hardcodes `DISPLAY=:99`. Should read from workspace config or accept as parameter.
 

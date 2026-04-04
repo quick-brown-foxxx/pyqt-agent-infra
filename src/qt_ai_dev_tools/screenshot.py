@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 
 def take_screenshot(path: str = "/tmp/screenshot.png") -> str:  # noqa: S108
@@ -16,5 +19,5 @@ def take_screenshot(path: str = "/tmp/screenshot.png") -> str:  # noqa: S108
     env.setdefault("DISPLAY", ":99")
     subprocess.run(["scrot", path], check=True, env=env)
     size = os.path.getsize(path)
-    print(f"Screenshot: {path} ({size} bytes)")
+    logger.info("Screenshot saved: %s (%d bytes)", path, size)
     return path

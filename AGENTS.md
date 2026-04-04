@@ -45,7 +45,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1–3 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with `workspace init` and `vm *` CLI commands. The next milestone is VM environment improvements (Phase 4) and agent integration (Phase 5).
+Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. AI skills in `.skills/` teach agents the inspect-interact-verify workflow. The next milestone is Phase 6 (advanced capabilities) and Phase 7 (distribution).
 
 ## Key technical facts
 
@@ -59,7 +59,16 @@ Phases 1–3 complete. The project is a proper Python package (`src/qt_ai_dev_to
 - **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
 - **Jinja2 templates** — Vagrantfile, provision.sh, scripts are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
 
+## AI Skills
+
+Agent skills in `.skills/` teach AI agents the qt-ai-dev-tools workflow:
+- `install-qt-ai-dev-tools` — autonomous setup of the toolkit in a project
+- `qt-inspect-interact-verify` — core inspect->interact->verify loop
+- `qt-widget-patterns` — widget identification strategies and common recipes
+
 ## Running things
+
+**Note:** `make workspace-init` must be run before other make targets that use VM scripts (generates Vagrantfile, provision.sh, etc. from templates).
 
 ```bash
 make up            # start VM (~10min first time)
@@ -98,6 +107,14 @@ qt-ai-dev-tools vm ssh                        # SSH into VM
 qt-ai-dev-tools vm sync                       # rsync files to VM
 qt-ai-dev-tools vm run "pytest /vagrant/tests/"  # run command in VM
 qt-ai-dev-tools vm destroy                    # destroy VM
+
+# Compound commands:
+qt-ai-dev-tools fill "hello" --role text --name input   # focus + clear + type
+qt-ai-dev-tools do click "Save" --role "push button" --verify "label:status contains Saved"
+qt-ai-dev-tools do click "Add" --screenshot              # click + screenshot
+
+# Auto-sync:
+qt-ai-dev-tools vm sync-auto                             # background file sync
 ```
 
 ## Workflow for improving this project

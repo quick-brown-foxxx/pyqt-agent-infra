@@ -26,7 +26,9 @@ cp -r /tmp/qt-ai-dev-tools/src /tmp/qt-ai-dev-tools/pyproject.toml ./qt-ai-dev-t
 Verify the CLI works:
 
 ```bash
-cd qt-ai-dev-tools && uv run qt-ai-dev-tools --help
+cd qt-ai-dev-tools
+uv sync
+uv run qt-ai-dev-tools --help
 ```
 
 Expected: help text listing available commands (tree, click, type, screenshot, vm, workspace, etc.).
@@ -148,6 +150,12 @@ Keep host files in sync with the VM:
 
 - **Manual:** `uv run qt-ai-dev-tools vm sync` -- run before each test cycle
 - **Automatic:** `uv run qt-ai-dev-tools vm sync-auto` -- watches for changes in background
+
+## References
+
+Detailed guides available in `references/`. Load these when you need deeper information.
+
+- **[references/vm-troubleshooting.md](references/vm-troubleshooting.md)** -- VM and environment troubleshooting: DHCP timeout, VM won't start, PySide6 import errors, AT-SPI not seeing apps, blank screenshots, xdotool coordinate issues, slow file sync.
 
 ## Next step
 

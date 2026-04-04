@@ -136,3 +136,12 @@ The three most common problems and their fixes. See [references/troubleshooting.
 **Click had no effect** -- take a `screenshot` to see what happened. Look for a modal dialog in the tree (`[dialog]` or `[alert]`). The widget may be disabled (grayed out) or outside the visible scroll area. Use `find --json` to verify you matched the right widget.
 
 **Text went to wrong widget** -- use `fill` instead of manual focus+type. If a modal dialog appeared and stole focus, dismiss it first (`key Escape`). Always click the target text field before typing if not using `fill`.
+
+## References
+
+Detailed guides available in `references/`. Load these when you need deeper information.
+
+- **[references/bridge.md](references/bridge.md)** -- Runtime code execution inside Qt apps via Unix socket. Setup, CLI commands, pre-populated namespace, recipes.
+- **[references/recipes.md](references/recipes.md)** -- Concrete command sequences for common tasks: fill forms, navigate menus, handle dialogs, select combo boxes, switch tabs, scroll to widgets.
+- **[references/troubleshooting.md](references/troubleshooting.md)** -- Full error recovery guide: widget not found, click had no effect, stale AT-SPI data, timing issues, app crashes, and more.
+- **[references/widget-roles.md](references/widget-roles.md)** -- AT-SPI role reference: mapping from Qt widget types (QPushButton, QLineEdit, etc.) to AT-SPI role strings used in `--role` filters.

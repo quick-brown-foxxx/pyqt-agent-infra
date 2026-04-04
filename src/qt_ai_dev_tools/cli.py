@@ -293,11 +293,12 @@ def vm_up_cmd(
     workspace: typing.Annotated[
         Path | None, typer.Option("--workspace", "-w", help="Workspace path")
     ] = None,
+    provider: typing.Annotated[str, typer.Option("--provider", help="Vagrant provider")] = "libvirt",
 ) -> None:
     """Start the VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_up
 
-    result = vm_up(workspace)
+    result = vm_up(workspace, provider=provider)
     typer.echo(result.stdout)
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)

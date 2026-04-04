@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from importlib import resources as importlib_resources
 from pathlib import Path
 
@@ -71,20 +71,7 @@ def render_workspace(target: Path, config: WorkspaceConfig | None = None) -> lis
         config = default_config()
 
     env = Environment(loader=BaseLoader(), keep_trailing_newline=True)  # noqa: S701 — generating shell scripts, not HTML
-    context = {
-        "box": config.box,
-        "hostname": config.hostname,
-        "provider": config.provider,
-        "memory": config.memory,
-        "cpus": config.cpus,
-        "mac_address": config.mac_address,
-        "shared_folder": config.shared_folder,
-        "rsync_excludes": config.rsync_excludes,
-        "display": config.display,
-        "resolution": config.resolution,
-        "extra_packages": config.extra_packages,
-        "python_packages": config.python_packages,
-    }
+    context = asdict(config)
 
     created: list[Path] = []
 

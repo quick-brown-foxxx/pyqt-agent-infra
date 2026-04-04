@@ -38,10 +38,10 @@ def _vagrant(args: list[str], workspace: Path) -> subprocess.CompletedProcess[st
     )
 
 
-def vm_up(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
+def vm_up(workspace: Path | None = None, provider: str = "libvirt") -> subprocess.CompletedProcess[str]:
     """Start the VM (vagrant up)."""
     ws = _find_workspace(workspace)
-    return _vagrant(["up", "--provider=libvirt"], ws)
+    return _vagrant(["up", f"--provider={provider}"], ws)
 
 
 def vm_status(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:

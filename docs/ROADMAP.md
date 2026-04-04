@@ -257,16 +257,7 @@ Document the workspace layout, config options, and how agents should use it in r
 
 ### 4.1 — [implement] VM management CLI
 
-Wrap Vagrant commands into the tool itself:
-
-```bash
-qt-ai-dev-tools vm up          # vagrant up + verify services
-qt-ai-dev-tools vm status      # Xvfb, openbox, AT-SPI health
-qt-ai-dev-tools vm ssh         # vagrant ssh with env vars
-qt-ai-dev-tools vm sync        # vagrant rsync
-qt-ai-dev-tools vm destroy     # vagrant destroy
-qt-ai-dev-tools vm snapshot save/restore  # fast VM reset
-```
+**Status:** Done (implemented in Phase 3). `qt-ai-dev-tools vm up/status/ssh/destroy/sync/run` commands exist. Snapshot save/restore still TODO.
 
 ### 4.2 — [implement] Auto-sync
 
@@ -482,6 +473,42 @@ When to use which environment:
 ### 8.6 — [test] Cross-environment tests
 
 Same test suite runs in: Vagrant VM, container, direct host. Verify UI features work identically. Document which advanced features (D-Bus, audio) are VM-only.
+
+---
+
+## Code quality backlog (from Phase 2-3 analysis)
+
+Findings from automated code review against project skill standards. Not blocking — tracked here for future phases.
+
+### CQ-1 — [implement] Replace `print()` with `colorlog` logging
+
+`screenshot.py` and `pilot.py` use `print()` for output. `colorlog` is already a dependency but unused. Add proper logging.
+
+### CQ-2 — [implement] Add pytest markers and improve test structure
+
+- Define `unit` and `integration` markers in `pyproject.toml`
+- Split `test_main.py` into unit (pytest-qt) and integration (AT-SPI/scrot) files
+- Remove `sys.path` hack in `test_main.py` — make `app/` importable or use subprocess
+- Add type annotations to all test functions
+
+### CQ-3 — [implement] Replace tautological mock tests with meaningful tests
+
+`test_atspi.py` mostly tests that mocks return what they were told to return. `test_vm.py` asserts exact subprocess call lists (implementation detail). Either:
+- Delete thin-wrapper tests, rely on integration tests
+- Replace subprocess mocks with mock-binary approach (tiny script on PATH)
+- Keep only tests that verify real logic (error paths, action lookup)
+
+### CQ-4 — [explore] Evaluate Result-based error handling
+
+`writing-python-code` skill mandates `rusty-results` for expected failures. Currently the project uses Python exceptions everywhere. Evaluate whether adopting `Result[T, E]` is worth the API change for a CLI tool where exceptions are natural. Document decision.
+
+### CQ-5 — [implement] Add integration tests for core library modules
+
+`pilot.py`, `interact.py`, `state.py`, `screenshot.py` have no dedicated tests. Only indirect coverage via `test_cli.py` (help-only on host) and `test_main.py` (AT-SPI smoke). Add VM-based integration tests.
+
+### CQ-6 — [implement] Fix `vm_run` fallback hardcoded display
+
+`vm.py` `vm_run()` fallback path hardcodes `DISPLAY=:99`. Should read from workspace config or accept as parameter.
 
 ---
 

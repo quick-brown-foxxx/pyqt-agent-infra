@@ -143,6 +143,50 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
     raise typer.Exit(code=0)
 
 
+# ── Init / Self-update commands ────────────────────────────────────
+
+
+@app.command(name="init")
+def init_command(
+    path: typing.Annotated[Path, typer.Argument(help="Target directory")] = Path("./qt-ai-dev-tools"),
+    memory: typing.Annotated[int, typer.Option(help="VM memory MB")] = 4096,
+    cpus: typing.Annotated[int, typer.Option(help="VM CPUs")] = 4,
+) -> None:
+    """Install qt-ai-dev-tools toolkit into a project directory (shadcn-style)."""
+    from qt_ai_dev_tools.installer import init_toolkit
+
+    target = path.resolve()
+    try:
+        created = init_toolkit(target, memory=memory, cpus=cpus)
+    except OSError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    for entry in created:
+        typer.echo(f"  {entry}")
+    typer.echo(f"Toolkit installed to {target}")
+    typer.echo(f"Run: {target}/cli --help")
+
+
+@app.command(name="self-update")
+def self_update_command(
+    path: typing.Annotated[Path, typer.Argument(help="Existing toolkit directory")] = Path("./qt-ai-dev-tools"),
+) -> None:
+    """Update an existing qt-ai-dev-tools installation, preserving config and notes."""
+    from qt_ai_dev_tools.installer import self_update
+
+    target = path.resolve()
+    try:
+        updated = self_update(target)
+    except (OSError, FileNotFoundError) as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    for entry in updated:
+        typer.echo(f"  {entry}")
+    typer.echo(f"Toolkit updated at {target}")
+
+
 # ── Commands ────────────────────────────────────────────────────────
 
 

@@ -943,3 +943,74 @@ def tray_select_cmd(
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(f"Selected '{item_label}' from tray menu of {app_name}")
+
+
+# ── Notification commands ─────────────────────────────────────────
+
+notify_app_cli = typer.Typer(help="Desktop notification interaction.")
+app.add_typer(notify_app_cli, name="notify")
+
+
+@notify_app_cli.command(name="listen")
+def notify_listen_cmd(
+    timeout: typing.Annotated[float, typer.Option("--timeout", "-t", help="Seconds to listen")] = 5.0,
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Listen for desktop notifications."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import notify as notify_mod
+
+    try:
+        notifications = notify_mod.listen(timeout=timeout)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if not notifications:
+        typer.echo("No notifications captured.")
+        return
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps([asdict(n) for n in notifications], indent=2, ensure_ascii=False))
+    else:
+        for n in notifications:
+            typer.echo(f"  [{n.id}] {n.app_name}: {n.summary}")
+            if n.body:
+                typer.echo(f"    {n.body}")
+            for a in n.actions:
+                typer.echo(f"    Action: {a.key} ({a.label})")
+
+
+@notify_app_cli.command(name="dismiss")
+def notify_dismiss_cmd(
+    notification_id: typing.Annotated[int, typer.Argument(help="Notification ID to dismiss")],
+) -> None:
+    """Dismiss a notification by ID."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import notify as notify_mod
+
+    try:
+        notify_mod.dismiss(notification_id)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Dismissed notification {notification_id}")
+
+
+@notify_app_cli.command(name="action")
+def notify_action_cmd(
+    notification_id: typing.Annotated[int, typer.Argument(help="Notification ID")],
+    action_key: typing.Annotated[str, typer.Argument(help="Action key to invoke")],
+) -> None:
+    """Invoke an action on a notification."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.subsystems import notify as notify_mod
+
+    try:
+        notify_mod.action(notification_id, action_key)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Invoked action '{action_key}' on notification {notification_id}")

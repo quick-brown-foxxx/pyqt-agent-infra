@@ -81,6 +81,8 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 
 ### Skills — ALWAYS CHECK, ALWAYS USE
 
+<EXTREMELY_IMPORTANT>
+
 **BEFORE writing ANY code, ALWAYS check available skills and USE every skill that matches your scope.** Skills are project standards — code that ignores them WILL fail review. When delegating to subagents, tell them which skills to use.
 
 #### Python
@@ -91,6 +93,8 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 - `writing-python-scripts` — ALWAYS load when creating standalone scripts. NEVER write single-file CLI tools without this.
 - `setting-up-logging` — DO load when adding or changing logging. DON'T configure logging manually.
 - `building-multi-ui-apps` — DO load when app has both CLI and/or GUI and/or API sharing logic. DON'T duplicate business logic across interfaces.
+
+</EXTREMELY_IMPORTANT>
 
 ### Code style
 

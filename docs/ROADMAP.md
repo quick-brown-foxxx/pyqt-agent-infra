@@ -8,9 +8,21 @@
 
 1. **Composable over monolithic.** 80% of use cases should be one-liners (`qt-ai-dev-tools tree`, `qt-ai-dev-tools click "Save"`). The remaining 20% use the Python library directly. No "super-tool" that tries to do everything.
 2. **Agent-scriptable.** The agent can write small Python scripts using `qt_ai_dev_tools` as a library when the CLI isn't enough. Primitives are always exposed.
-3. **Drop-in portable.** Works in any PySide6/PyQt6 project. No project-specific config required. Copy the folder, run the commands.
+3. **Drop-in portable.** Works in any PySide6/PyQt6 project. `uvx qt-ai-dev-tools init` copies the full toolkit into the project — source, templates, skills, config. Agent owns the code, can read and extend it. No global install required, only `uv`.
 4. **VM-first.** Vagrant VM is the primary environment — it gives full OS isolation and access to Linux subsystems (D-Bus, audio, system tray). Container/host support comes later as a lighter-weight option for UI-only workflows.
 5. **Feedback-rich.** Every action returns enough context for the agent to know what happened — widget state after click, screenshot after interaction, error messages with available alternatives.
+
+## Workflow rules
+
+Rules that apply to every phase of work:
+
+1. **Clean up before proceeding.** Fix all important code issues and tech debt from the code quality backlog before starting a new phase. Don't carry known bugs forward.
+2. **Clean worktree at phase end.** Commit and push all changes, or explicitly discard uncommitted work. The worktree must be clean at the end of every phase.
+3. **Quality gate after every phase.** Run quality validator agents after completing each phase:
+   - Run separate code analyzer subagents checking alignment with `writing-python-code`, `testing-python`, and architecture skill rules
+   - Bugs found → fix immediately
+   - Non-critical issues → add to code quality backlog in this roadmap
+   - Phase is not "done" until the quality gate passes
 
 ## Naming note
 
@@ -25,10 +37,9 @@ The final product is a **composable toolkit**, not a single binary:
 | **Python library** (`qt_ai_dev_tools`) | AT-SPI + xdotool primitives | `from qt_ai_dev_tools import QtPilot` in custom scripts |
 | **CLI** (`qt-ai-dev-tools`) | One-liner commands | `qt-ai-dev-tools tree`, `qt-ai-dev-tools click "Save"`, `qt-ai-dev-tools screenshot` |
 | **AI skills** | Workflow guidance | Teach agents the inspect→interact→verify loop |
-| **MCP server** (later) | Structured tool interface | Native tool calls from Claude Code / other agents |
 | **VM environment** | Vagrant + Xvfb + AT-SPI setup | Scripts that create and manage the headless Qt environment |
 
-Distribution: pip-installable package + optional AI skills drop-in. Think `pip install qt-ai-dev-tools` for the tool, copy `.agents/skills/qt-ai-dev-tools/` for the agent knowledge.
+Distribution: Primary: `uvx qt-ai-dev-tools init ./qt-ai-dev-tools` — copies full toolkit (source, templates, skills, config) into the project directory. Agent owns the code, can read and extend it. Secondary: `pip install qt-ai-dev-tools` for library/CLI-only usage. Skills: installed via skills tooling (`npx -y skills add ...`) or bundled with the toolkit copy.
 
 ---
 
@@ -267,15 +278,9 @@ Background rsync or virtiofs so code changes are immediately available in VM wit
 
 Make the Vagrantfile work with multiple providers (libvirt, VirtualBox) for wider compatibility. Extract the vagrant-libvirt DHCP workaround into a documented setup step.
 
-### 4.4 — [explore] Alternative VM tools
+### 4.4 — [implement] Static IP assignment for Vagrant VM
 
-Research lighter VM options for future compatibility:
-- **QEMU microVMs** (firecracker-style, faster boot)
-- **cloud-hypervisor** / **crosvm**
-- **Lima** (Linux VMs on macOS — extends reach beyond Linux hosts)
-- **Incus/LXD** (system containers — middle ground between VM and Docker)
-
-Output: findings doc with trade-offs. No implementation yet.
+Option to hardcode/pin a static IP for the Vagrant VM instead of relying on DHCP. DHCP can timeout or assign unexpected addresses (known issue with libvirt). The workspace config should support a `static_ip` field, and the generated Vagrantfile should use it when set.
 
 ### 4.5 — [test] VM lifecycle tests
 
@@ -289,18 +294,33 @@ Document setup for each supported provider. Known issues and workarounds.
 
 ## Phase 5: Agent integration
 
-**Goal:** Make the agent workflow smooth — minimal commands, maximum feedback.
+**Goal:** Make the agent workflow smooth — minimal commands, maximum feedback. Skills are the highest-value deliverable here: an agent with the right skill can use even a crude CLI effectively.
 
-### 5.1 — [explore] Optimal agent workflow
+### 5.1 — [implement] AI skills
 
-Use qt-ai-dev-tools myself (the agent) on real projects. Document:
-- What sequences of commands are most common?
-- Where do I get stuck or need multiple attempts?
-- What information do I wish I had after each action?
+Create agent skills that teach the full qt-ai-dev-tools workflow. These are the primary integration point — skills turn a generic agent into one that knows how to drive Qt apps.
+
+Skills to build:
+
+- **`install-qt-ai-dev-tools`** — instructs the agent how to autonomously set up the toolkit in a project (run `uvx qt-ai-dev-tools init`, verify VM, start app). No manual user steps needed — the agent reads the skill and does everything.
+- **Inspect→interact→verify loop** — the core workflow skill. Teaches agents to: get the widget tree, identify targets, interact, take a screenshot to confirm, recover from errors.
+- **Widget identification patterns** — how to find the right widget by role, name, index. Strategies for ambiguous names, dynamic content, unnamed widgets.
+- **Error recovery** — what to do when a click misses, when the app doesn't respond, when AT-SPI returns stale data. Retry strategies, screenshot-based verification.
+- **Environment setup** — VM lifecycle, display configuration, AT-SPI prerequisites. What agents need to check before interacting.
+- **Common recipes** — fill a form, navigate a menu, handle a dialog, select from a dropdown, read a table.
+
+Distributable as superpowers-style skills (`npx -y skills add ...` or bundled with the toolkit copy).
+
+```
+skills/
+  install-qt-ai-dev-tools/SKILL.md   # Autonomous setup
+  qt-inspect-interact-verify/SKILL.md # Core workflow
+  qt-widget-patterns/SKILL.md         # Identification + recipes
+```
 
 ### 5.2 — [implement] Compound commands
 
-Based on 5.1, add high-level commands that combine common sequences:
+Based on real agent usage, add high-level commands that combine common sequences:
 
 ```bash
 # Click and verify (click + screenshot + state check)
@@ -315,40 +335,29 @@ qt-ai-dev-tools run script.yaml
 
 Only add what real usage proves valuable. Don't pre-design.
 
-### 5.3 — [implement] AI skills
+### 5.3 — [explore] Optimal agent workflow
 
-Create agent skills that teach the inspect→interact→verify workflow:
+Use qt-ai-dev-tools myself (the agent) on real projects. Document:
+- What sequences of commands are most common?
+- Where do I get stuck or need multiple attempts?
+- What information do I wish I had after each action?
 
-```
-.agents/skills/qt-ai-dev-tools/
-  SKILL.md              # How to use qt-ai-dev-tools: workflow, commands, gotchas
-```
-
-### 5.4 — [prototype] MCP server
-
-Wrap qt-ai-dev-tools CLI as an MCP server:
-
-```json
-{
-  "tools": [
-    {"name": "qt_tree", "description": "Get widget tree"},
-    {"name": "qt_click", "description": "Click a widget by role/name"},
-    {"name": "qt_type", "description": "Type text into focused widget"},
-    {"name": "qt_screenshot", "description": "Take screenshot"},
-    {"name": "qt_state", "description": "Read widget state"}
-  ]
-}
-```
-
-Simple stdio MCP server. Each tool maps 1:1 to a CLI command.
-
-### 5.5 — [test] End-to-end agent test
+### 5.4 — [test] End-to-end agent test
 
 Have an agent (me) complete a real task using only qt-ai-dev-tools:
 - Launch an app
 - Navigate UI to accomplish a goal
 - Verify the result
 - Document friction points
+
+### 5.5 — [test] Iterative skill & tool improvement through practice
+
+Run skills and tools through multiple real-world test cases and use case scenarios. After each test:
+- Identify friction, gaps, and errors in skills and tools
+- Fix tools and update skills based on findings
+- Re-run the scenario to verify improvement
+
+This is an iterative loop, not a one-shot test. Skills and tools should be noticeably better after each round. Minimum 3-5 diverse scenarios (e.g., form filling, menu navigation, dialog handling, table interaction, multi-window workflow).
 
 ### 5.6 — [doc] Agent workflow documentation
 
@@ -358,7 +367,7 @@ Based on real usage, document the recommended workflow and common patterns.
 
 ## Phase 6: Advanced capabilities
 
-**Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems.
+**Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems. **Use-case driven:** agree with user on 3-5 most popular/valuable use cases, implement those first. Additional use cases go to the backlog for future work.
 
 ### 6.1 — [explore] Complex widget support
 
@@ -408,23 +417,67 @@ Test against a non-trivial Qt app (multi-window, tabs, dialogs, menus). Verify a
 
 ---
 
-## Phase 7: Polish & distribution
+## Phase 7: Distribution
 
-**Goal:** Make it easy to adopt in any project.
+**Goal:** Make it easy to adopt in any project. Primary model is shadcn-like local copy — agent owns the code.
 
-### 7.1 — [implement] pip package
+The primary distribution is a self-contained toolkit directory copied into the target project:
 
-`pip install qt-ai-dev-tools` — installs the library + CLI. System deps (xdotool, AT-SPI) documented in install guide.
+```
+my-qt-app/
+├── src/                          # the actual Qt app
+├── qt-ai-dev-tools/              # self-contained toolkit (gitignored or committed)
+│   ├── cli                       # shebang script: #!/usr/bin/env -S uv run --script
+│   ├── src/                      # full package source, readable/editable by agent
+│   │   └── qt_ai_dev_tools/
+│   ├── templates/                # Vagrant/provision templates
+│   ├── skills/                   # agent skills co-located
+│   ├── pyproject.toml            # deps (uv resolves them)
+│   ├── config.toml               # workspace config overrides
+│   ├── notes/                    # agent's scratch space
+│   └── Vagrantfile               # generated from templates, customizable
+```
 
-### 7.2 — [implement] Drop-in skills
+Key properties:
+- **Primary installer: `uvx qt-ai-dev-tools init ./qt-ai-dev-tools`** — single command, only requires `uv`
+- Agent owns the code — can read, modify, extend, fix bugs, add helpers
+- Self-contained — no global install, no venv conflicts
+- `uv run` handles dependency resolution via shebang or pyproject.toml
+- Skills + config + notes + source all co-located
+- Version-controllable per-project (or gitignored)
+- **Secondary: `pip install qt-ai-dev-tools`** for users who want system-wide CLI or library usage
+- Update story: re-run `uvx qt-ai-dev-tools init` to update, or `qt-ai-dev-tools self-update` from within the toolkit
 
-Publishable AI skills that any project can reference.
+### 7.1 — [implement] shadcn-style installer (`uvx qt-ai-dev-tools init`)
 
-### 7.3 — [doc] README, examples, troubleshooting
+Single command that copies the full toolkit into a project directory. Scaffolds the layout above, resolves dependencies, generates Vagrantfile from templates.
 
-### 7.4 — [test] Compatibility matrix
+### 7.2 — [implement] Self-contained cli shebang script (`uv run --script`)
 
-Test with: PySide6, PyQt6, PySide2, PyQt5. Document what works.
+A `cli` script with `#!/usr/bin/env -S uv run --script` shebang that can be run directly without activating a venv. `uv` resolves deps from inline metadata or co-located pyproject.toml.
+
+### 7.3 — [implement] Update/upgrade mechanism
+
+`uvx qt-ai-dev-tools init` re-run to update, or `qt-ai-dev-tools self-update` from within the toolkit. Preserves user customizations (config.toml, notes/, modified templates).
+
+### 7.4 — [implement] pip package (secondary distribution)
+
+`pip install qt-ai-dev-tools` — installs the library + CLI system-wide. For users who prefer traditional package management or need it as a library dependency.
+
+### 7.5 — [implement] Skills in `.skills/` directory
+
+Maintain a `.skills/` directory at the top of the public GitHub repo. `npx -y skills add ghuser/repo` handles discovery and installation automatically — no separate packaging needed. Skills are also bundled into the shadcn-style toolkit copy.
+
+### 7.6 — [doc] Distribution guide (which method when)
+
+Document when to use each distribution method:
+- **shadcn-style copy** (primary): agent-driven development, per-project customization, full source access
+- **pip install** (secondary): library usage, system-wide CLI, CI/CD pipelines
+- **Skills only**: agent already has tooling, just needs Qt knowledge
+
+### 7.7 — [test] Install-from-scratch test on clean machine
+
+Verify `uvx qt-ai-dev-tools init` works on a fresh machine with only `uv` installed. Verify `pip install` works. Test the full lifecycle: install → init workspace → vm up → interact → screenshot.
 
 ---
 
@@ -473,6 +526,40 @@ When to use which environment:
 ### 8.6 — [test] Cross-environment tests
 
 Same test suite runs in: Vagrant VM, container, direct host. Verify UI features work identically. Document which advanced features (D-Bus, audio) are VM-only.
+
+---
+
+## Phase 9: Alternative VM backends
+
+**Goal:** Explore lighter/faster VM options beyond Vagrant for better performance and broader host compatibility.
+
+**Blocker:** These tools (QEMU microVMs, Lima, cloud-hypervisor, crosvm, Incus/LXD) must be installed and carefully tested before any integration work. They may have incompatibilities with the current AT-SPI + Xvfb + openbox stack, provider-specific networking issues, or missing features. **Initial setup must be pair-programmed with the user** — not autonomous.
+
+### 9.1 — [explore] Evaluate alternative VM tools
+
+Research and test (with user):
+- **QEMU microVMs** (firecracker-style, faster boot)
+- **cloud-hypervisor** / **crosvm**
+- **Lima** (Linux VMs on macOS — extends reach beyond Linux hosts)
+- **Incus/LXD** (system containers — middle ground between VM and Docker)
+
+For each: install, test AT-SPI + Xvfb + openbox stack, verify widget interaction works, document issues. Output: findings doc with trade-offs and compatibility matrix.
+
+### 9.2 — [implement] Integration for viable backends
+
+Based on 9.1 findings, add support for backends that passed testing. Extend `qt-ai-dev-tools vm up --backend <name>` or similar.
+
+### 9.3 — [test] Cross-backend compatibility tests
+
+Same test suite runs across Vagrant and any new backends. Verify feature parity or document gaps.
+
+---
+
+## Use case backlog
+
+Future use cases identified during Phase 6 work. Not scheduled — pulled into phases as needed.
+
+_(To be populated during Phase 6 based on real-world usage patterns.)_
 
 ---
 

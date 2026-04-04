@@ -488,6 +488,47 @@ Test against a non-trivial Qt app (multi-window, tabs, dialogs, menus). Verify a
 
 ---
 
+## Phase 6.5: Project hygiene
+
+**Status:** Not started.
+**Goal:** Address findings from the [2026-04-05 project config audit](reviews/2026-04-05-project-config-audit.md). Fix tooling gaps, apply test markers, add missing tests, update docs.
+
+### 6.5.1 — [implement] Setup script and make target
+
+Create `scripts/setup.sh` (runs `uv sync && uv run pre-commit install`). Add `make setup` target. Reference in DEVELOPMENT.md as the first step for new contributors. Install pre-commit hooks.
+
+### 6.5.2 — [implement] Pre-commit standard hooks
+
+Add trailing-whitespace, end-of-file-fixer, check-yaml hooks to `.pre-commit-config.yaml`.
+
+### 6.5.3 — [implement] Lint scope and minor fixes
+
+- Makefile lint targets: use `.` to match poe task
+- Add `src/qt_ai_dev_tools/py.typed` marker (PEP 561)
+- Fix `_bootstrap.py` sys.remote_exec type ignore with `sys.version_info` guard
+
+### 6.5.4 — [implement] Apply pytest markers
+
+Apply `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e` to all existing test files. Verify selective runs work (`pytest -m unit`, etc.). Supersedes CQ-2 marker work.
+
+### 6.5.5 — [doc] Update CLAUDE.md type-ignore policy
+
+Acknowledge bridge modules (`_qt_namespace.py`, `_server.py`) as second type-ignore boundary alongside `_atspi.py`. Document why PySide6 wrapper pattern was investigated and ruled out (missing stubs, not architecture).
+
+### 6.5.6 — [test] High-priority test coverage
+
+Add `tests/unit/test_bootstrap.py` (8 tests) and `tests/unit/test_pilot.py` (6 tests). These cover real branching logic that e2e tests cannot reach. Supersedes CQ-5 for these modules.
+
+### 6.5.7 — [test] Medium-priority test coverage
+
+Add `tests/unit/test_bridge_server.py` (5 tests) — socket protocol tests with mock executor, no PySide6/VM needed. Supersedes CQ-5 for this module.
+
+### 6.5.8 — [test] Low-priority test coverage
+
+Add `tests/unit/test_qt_namespace.py` (1 test) and `tests/unit/test_interact.py` (1 test). Supersedes CQ-5 for these modules.
+
+---
+
 ## Phase 7: Distribution
 
 **Goal:** Make it easy to adopt in any project. Primary model is shadcn-like local copy — agent owns the code.
@@ -646,7 +687,7 @@ Findings from automated code review against project skill standards. Not blockin
 
 ### CQ-2 — [implement] Add pytest markers and improve test structure
 
-**Status:** Partial. Pytest markers defined. Test structure split remains for future work.
+**Status:** Partial. Pytest markers defined. Marker application tracked in Phase 6.5.4. Test structure split remains for future work.
 
 - Define `unit` and `integration` markers in `pyproject.toml`
 - Split `test_main.py` into unit (pytest-qt) and integration (AT-SPI/scrot) files
@@ -665,6 +706,8 @@ Findings from automated code review against project skill standards. Not blockin
 `writing-python-code` skill mandates `rusty-results` for expected failures. Currently the project uses Python exceptions everywhere. Evaluate whether adopting `Result[T, E]` is worth the API change for a CLI tool where exceptions are natural. Document decision.
 
 ### CQ-5 — [implement] Add integration tests for core library modules
+
+**Status:** Superseded by Phase 6.5.6/6.5.7/6.5.8 with detailed test plans (21 tests across 5 files).
 
 `pilot.py`, `interact.py`, `state.py`, `screenshot.py` have no dedicated tests. Only indirect coverage via `test_cli.py` (help-only on host) and `test_main.py` (AT-SPI smoke). Add VM-based integration tests.
 

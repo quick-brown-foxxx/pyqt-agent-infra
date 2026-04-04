@@ -6,19 +6,26 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Quick orientation
 
-- `scripts/qt_pilot.py` — core library: AT-SPI tree traversal, xdotool interaction, screenshots
+- `src/qt_ai_dev_tools/` — Python package: AT-SPI tree traversal, xdotool interaction, CLI
+  - `pilot.py` — `QtPilot` class: connect to Qt app, find/click/type/read widgets
+  - `cli.py` — Typer CLI: `qt-ai-dev-tools tree`, `click`, `find`, `screenshot`, etc.
+  - `interact.py` — xdotool click/type/key, AT-SPI actions
+  - `state.py` — read widget name, role, extents, text
+  - `screenshot.py` — screenshot via scrot
+  - `models.py` — `Extents`, `WidgetInfo` data types
 - `app/main.py` — sample PySide6 todo app (test subject)
-- `tests/test_main.py` — 8 tests: pytest-qt + AT-SPI + screenshots
-- `scripts/vm-run.sh` — run commands inside Vagrant VM with Qt/AT-SPI env
+- `tests/` — pytest-qt + AT-SPI + CLI integration tests
+- `scripts/vm-run.sh` — run commands inside Vagrant VM
 - `scripts/screenshot.sh` — take screenshot in VM, copy to host
+- `pyproject.toml` — build config, deps, linting, CLI entry point
 - `provision.sh` — VM setup: Xvfb, openbox, AT-SPI, PySide6
 - `Vagrantfile` — Ubuntu 24.04 VM (libvirt, 4GB RAM, 4 CPUs)
-- `RESULTS.md` — proof-of-concept evaluation, what works and what doesn't
-- `docs/ROADMAP.md` — project roadmap with phases and task types
+- `RESULTS.md` — proof-of-concept evaluation
+- `docs/ROADMAP.md` — project roadmap
 
 ## Current state
 
-Proof-of-concept. Everything works but the ergonomics are rough — interacting with the app requires multi-line Python heredocs over SSH. The next milestone is a proper CLI (`qt-ai-dev-tools tree`, `qt-ai-dev-tools click "Save"`, etc.).
+Phase 1 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). Agents interact with Qt apps using one-liner commands instead of Python heredocs. The next milestone is VM workflow improvements (Phase 2) and agent integration (Phase 3).
 
 ## Key technical facts
 
@@ -34,10 +41,28 @@ Proof-of-concept. Everything works but the ergonomics are rough — interacting 
 ```bash
 make up            # start VM (~10min first time)
 make test          # fast offscreen pytest-qt tests
-make test-full     # all tests including AT-SPI and screenshots
+make test-full     # all tests including AT-SPI, screenshots, and CLI
+make test-cli      # CLI integration tests only
+make lint          # run ruff check + basedpyright
+make lint-fix      # auto-fix lint issues
 make screenshot    # screenshot current VM display
 make status        # check Xvfb, openbox, AT-SPI status
 make destroy       # tear down VM
+```
+
+### CLI usage
+
+```bash
+# In the VM (via vm-run.sh or make ssh):
+qt-ai-dev-tools tree                          # full widget tree
+qt-ai-dev-tools tree --role "push button"     # filtered by role
+qt-ai-dev-tools find --role "label" --json    # find + JSON output
+qt-ai-dev-tools click --role "push button" --name "Save"
+qt-ai-dev-tools type "hello world"
+qt-ai-dev-tools key Return
+qt-ai-dev-tools screenshot -o /tmp/shot.png
+qt-ai-dev-tools apps                          # list AT-SPI apps
+qt-ai-dev-tools wait --app "main.py"          # wait for app
 ```
 
 ## Workflow for improving this project
@@ -54,7 +79,7 @@ The project evolves through typed tasks (see roadmap for definitions):
 
 - **explore** — research before building. Write findings in `docs/`. Update roadmap.
 - **prototype** — quick throwaway to test an idea. May live in `prototypes/` or a branch.
-- **implement** — real code, tested, goes into `qt_ai_dev_tools/` package.
+- **implement** — real code, tested, goes into `src/qt_ai_dev_tools/` package.
 - **test** — verify features. Prefer automated tests in `tests/`.
 - **doc** — persist learnings in `docs/` or inline.
 
@@ -101,7 +126,7 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 - Python 3.12+, PySide6
 - Type hints on public APIs
 - Tests use pytest + pytest-qt or similar tools
-- CLI will use argparse or similar tool
+- CLI uses typer
 
 ### What NOT to do
 

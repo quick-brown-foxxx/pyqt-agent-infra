@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
@@ -24,22 +25,32 @@ def list_items() -> list[TrayItem]:
 
     Returns:
         List of TrayItem objects for each registered tray icon.
+        Returns an empty list with a warning if StatusNotifierWatcher
+        is not available (no SNI host running).
 
     Raises:
-        RuntimeError: If busctl is not found or the D-Bus call fails.
+        RuntimeError: If busctl is not found.
     """
     check_tool("busctl")
-    output = run_tool(
-        [
-            "busctl",
-            "--user",
-            "get-property",
-            _SNI_WATCHER_DEST,
-            _SNI_WATCHER_PATH,
-            "org.kde.StatusNotifierWatcher",
-            "RegisteredStatusNotifierItems",
-        ]
-    )
+    try:
+        output = run_tool(
+            [
+                "busctl",
+                "--user",
+                "get-property",
+                _SNI_WATCHER_DEST,
+                _SNI_WATCHER_PATH,
+                "org.kde.StatusNotifierWatcher",
+                "RegisteredStatusNotifierItems",
+            ]
+        )
+    except RuntimeError:
+        print(
+            "Warning: StatusNotifierWatcher D-Bus service not available. "
+            "Install an SNI host (e.g. stalonetray, snixembed) to enable tray support.",
+            file=sys.stderr,
+        )
+        return []
     return _parse_registered_items(output)
 
 

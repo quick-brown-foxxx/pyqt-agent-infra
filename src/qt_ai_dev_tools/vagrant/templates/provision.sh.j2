@@ -33,6 +33,7 @@ apt-get install -y --no-install-recommends \
     xclip \
     xsel \
     dunst \
+    stalonetray \
     pipewire \
     pipewire-pulse \
     wireplumber \
@@ -81,6 +82,8 @@ ExecStart=/bin/bash -c '\
     /usr/libexec/at-spi-bus-launcher --launch-immediately & \
     sleep 0.5; \
     openbox & \
+    sleep 0.5; \
+    stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE & \
     sleep 0.5; \
     dunst & \
     sleep 0.5; \

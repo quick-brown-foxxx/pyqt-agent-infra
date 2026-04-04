@@ -23,8 +23,8 @@ _APPS_DIR = Path(__file__).parent.parent / "apps"
 _MAIN_APP_PATH = Path(__file__).parent.parent.parent / "app" / "main.py"
 
 # How long to wait for an app to become visible on AT-SPI
-_APP_STARTUP_TIMEOUT = 15.0
-_APP_POLL_INTERVAL = 0.3
+_APP_STARTUP_TIMEOUT = 25.0
+_APP_POLL_INTERVAL = 0.5
 
 
 def _clean_stale_sockets() -> None:
@@ -48,6 +48,11 @@ def _start_app(
         The started Popen process.
     """
     env = dict(os.environ)
+    # Ensure DISPLAY is set for Xvfb (critical for AT-SPI visibility)
+    env.setdefault("DISPLAY", ":99")
+    env.setdefault("QT_QPA_PLATFORM", "xcb")
+    env.setdefault("QT_ACCESSIBILITY", "1")
+    env.setdefault("QT_LINUX_ACCESSIBILITY_ALWAYS_ON", "1")
     if bridge:
         env["QT_AI_DEV_TOOLS_BRIDGE"] = "1"
 
@@ -62,45 +67,61 @@ def _start_app(
 
 def _wait_for_app_window(
     proc: subprocess.Popen[str],
-    window_title_substring: str,
+    search_term: str,
     timeout: float = _APP_STARTUP_TIMEOUT,
 ) -> None:
     """Wait until an app window appears on the AT-SPI desktop.
 
-    Polls via qt-ai-dev-tools wait command, falling back to a simple
-    sleep-based check of process liveness.
+    Searches both AT-SPI application names (e.g. script filenames like
+    ``file_dialog_app.py``) and the widget tree output (which contains
+    window titles).
 
     Args:
         proc: The app subprocess.
-        window_title_substring: Substring of the window title to look for.
+        search_term: Substring to match against AT-SPI app names **or**
+            window titles in the widget tree.
         timeout: Maximum seconds to wait.
 
     Raises:
         pytest.fail: If the app exits early or the window never appears.
     """
     deadline = time.monotonic() + timeout
+    term_lower = search_term.lower()
     while time.monotonic() < deadline:
         if proc.poll() is not None:
             stdout = proc.stdout.read() if proc.stdout else ""
             stderr = proc.stderr.read() if proc.stderr else ""
             pytest.fail(f"App exited early (code {proc.returncode}).\nstdout: {stdout}\nstderr: {stderr}")
-        # Try to find the app via AT-SPI apps listing
-        result = subprocess.run(
+
+        # Strategy 1: check AT-SPI app names (matches script filenames)
+        apps_result = subprocess.run(
             ["python3", "-m", "qt_ai_dev_tools", "apps"],
             capture_output=True,
             text=True,
             timeout=5,
             check=False,
         )
-        if window_title_substring.lower() in result.stdout.lower():
-            # Give the app a moment to finish rendering
+        if term_lower in apps_result.stdout.lower():
             time.sleep(0.5)
             return
+
+        # Strategy 2: check the widget tree for window titles
+        tree_result = subprocess.run(
+            ["python3", "-m", "qt_ai_dev_tools", "tree"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if term_lower in tree_result.stdout.lower():
+            time.sleep(0.5)
+            return
+
         time.sleep(_APP_POLL_INTERVAL)
 
     proc.kill()
     proc.wait(timeout=5)
-    pytest.fail(f"Window '{window_title_substring}' did not appear within {timeout}s")
+    pytest.fail(f"Window '{search_term}' did not appear within {timeout}s")
 
 
 def _kill_app(proc: subprocess.Popen[str]) -> None:

@@ -19,12 +19,95 @@ pytestmark = pytest.mark.skipif(
 )
 
 _SOCKET_GLOB = "/tmp/qt-ai-dev-tools-bridge-*.sock"
+_APPS_DIR = Path(__file__).parent.parent / "apps"
+_MAIN_APP_PATH = Path(__file__).parent.parent.parent / "app" / "main.py"
+
+# How long to wait for an app to become visible on AT-SPI
+_APP_STARTUP_TIMEOUT = 15.0
+_APP_POLL_INTERVAL = 0.3
 
 
 def _clean_stale_sockets() -> None:
     """Remove any leftover bridge sockets."""
     for sock in glob_mod.glob(_SOCKET_GLOB):
         Path(sock).unlink(missing_ok=True)
+
+
+def _start_app(
+    app_path: Path,
+    *,
+    bridge: bool = False,
+) -> subprocess.Popen[str]:
+    """Start a PySide6 test app as a subprocess.
+
+    Args:
+        app_path: Path to the Python app file.
+        bridge: Whether to enable the bridge env var.
+
+    Returns:
+        The started Popen process.
+    """
+    env = dict(os.environ)
+    if bridge:
+        env["QT_AI_DEV_TOOLS_BRIDGE"] = "1"
+
+    return subprocess.Popen(
+        ["python3", str(app_path)],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def _wait_for_app_window(
+    proc: subprocess.Popen[str],
+    window_title_substring: str,
+    timeout: float = _APP_STARTUP_TIMEOUT,
+) -> None:
+    """Wait until an app window appears on the AT-SPI desktop.
+
+    Polls via qt-ai-dev-tools wait command, falling back to a simple
+    sleep-based check of process liveness.
+
+    Args:
+        proc: The app subprocess.
+        window_title_substring: Substring of the window title to look for.
+        timeout: Maximum seconds to wait.
+
+    Raises:
+        pytest.fail: If the app exits early or the window never appears.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            stdout = proc.stdout.read() if proc.stdout else ""
+            stderr = proc.stderr.read() if proc.stderr else ""
+            pytest.fail(f"App exited early (code {proc.returncode}).\nstdout: {stdout}\nstderr: {stderr}")
+        # Try to find the app via AT-SPI apps listing
+        result = subprocess.run(
+            ["python3", "-m", "qt_ai_dev_tools", "apps"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        if window_title_substring.lower() in result.stdout.lower():
+            # Give the app a moment to finish rendering
+            time.sleep(0.5)
+            return
+        time.sleep(_APP_POLL_INTERVAL)
+
+    proc.kill()
+    proc.wait(timeout=5)
+    pytest.fail(f"Window '{window_title_substring}' did not appear within {timeout}s")
+
+
+def _kill_app(proc: subprocess.Popen[str]) -> None:
+    """Kill an app subprocess and wait for it to exit."""
+    if proc.poll() is None:
+        proc.send_signal(signal.SIGKILL)
+        proc.wait(timeout=5)
 
 
 @pytest.fixture(scope="module")
@@ -35,20 +118,11 @@ def bridge_app() -> Generator[subprocess.Popen[str], None, None]:
     """
     _clean_stale_sockets()
 
-    # Start the sample app with bridge enabled
-    app_path = Path(__file__).parent.parent.parent / "app" / "main.py"
-    env = {**os.environ, "QT_AI_DEV_TOOLS_BRIDGE": "1"}
-    proc = subprocess.Popen(
-        ["python3", str(app_path)],
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    proc = _start_app(_MAIN_APP_PATH, bridge=True)
 
     # Wait for bridge socket to appear
     socket_found = False
-    deadline = time.monotonic() + 15.0
+    deadline = time.monotonic() + _APP_STARTUP_TIMEOUT
     while time.monotonic() < deadline:
         sockets = glob_mod.glob(_SOCKET_GLOB)
         if sockets:
@@ -59,18 +133,56 @@ def bridge_app() -> Generator[subprocess.Popen[str], None, None]:
             stdout = proc.stdout.read() if proc.stdout else ""
             stderr = proc.stderr.read() if proc.stderr else ""
             pytest.fail(f"App exited early (code {proc.returncode}).\nstdout: {stdout}\nstderr: {stderr}")
-        time.sleep(0.3)
+        time.sleep(_APP_POLL_INTERVAL)
 
     if not socket_found:
         proc.kill()
         stdout = proc.stdout.read() if proc.stdout else ""
         stderr = proc.stderr.read() if proc.stderr else ""
         proc.wait(timeout=5)
-        pytest.fail(f"Bridge socket did not appear within 15s.\nstdout: {stdout}\nstderr: {stderr}")
+        pytest.fail(f"Bridge socket did not appear within {_APP_STARTUP_TIMEOUT}s.\nstdout: {stdout}\nstderr: {stderr}")
 
     yield proc
 
-    # Teardown: kill the app
-    proc.send_signal(signal.SIGKILL)
-    proc.wait(timeout=5)
+    _kill_app(proc)
     _clean_stale_sockets()
+
+
+@pytest.fixture(scope="module")
+def file_dialog_app() -> Generator[subprocess.Popen[str], None, None]:
+    """Start the file dialog test app, yield process, then kill."""
+    app_path = _APPS_DIR / "file_dialog_app.py"
+    proc = _start_app(app_path, bridge=True)
+    _wait_for_app_window(proc, "File Dialog Test App")
+    yield proc
+    _kill_app(proc)
+
+
+@pytest.fixture(scope="module")
+def tray_app() -> Generator[subprocess.Popen[str], None, None]:
+    """Start the tray test app, yield process, then kill."""
+    app_path = _APPS_DIR / "tray_app.py"
+    proc = _start_app(app_path, bridge=True)
+    _wait_for_app_window(proc, "Tray Test App")
+    yield proc
+    _kill_app(proc)
+
+
+@pytest.fixture(scope="module")
+def audio_app() -> Generator[subprocess.Popen[str], None, None]:
+    """Start the audio test app, yield process, then kill."""
+    app_path = _APPS_DIR / "audio_app.py"
+    proc = _start_app(app_path, bridge=True)
+    _wait_for_app_window(proc, "Audio Test App")
+    yield proc
+    _kill_app(proc)
+
+
+@pytest.fixture(scope="module")
+def stt_app() -> Generator[subprocess.Popen[str], None, None]:
+    """Start the STT test app, yield process, then kill."""
+    app_path = _APPS_DIR / "stt_app.py"
+    proc = _start_app(app_path, bridge=True)
+    _wait_for_app_window(proc, "STT Test App")
+    yield proc
+    _kill_app(proc)

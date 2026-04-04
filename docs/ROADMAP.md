@@ -408,7 +408,7 @@ Chrome DevTools `evaluate_script` equivalent for Qt apps. Lets AI agents execute
 
 **Status:** Done.
 
-`src/qt_ai_dev_tools/bridge/`. Unix socket server on background thread, `QMetaObject.invokeMethod` dispatch to main thread, eval/exec with pre-populated namespace (app, widgets, find/findall helpers, PySide6 imports). JSON protocol. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE` env var.
+`src/qt_ai_dev_tools/bridge/` package. Unix socket server on daemon thread, Signal + `BlockingQueuedConnection` dispatch to Qt main thread, eval/exec engine with stdout capture and 64KB truncation. Pre-populated namespace (app, widgets dict, find/findall helpers, 30 PySide6 classes). JSON-over-socket protocol. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE` env var.
 
 #### 6.0c — [implement] CLI eval command
 
@@ -432,7 +432,7 @@ Write temp bootstrap script, inject via `sys.remote_exec(pid, path)`. Handles pa
 
 **Status:** Done.
 
-Test bridge lifecycle: start, connect, eval, exec, error handling, timeout, dev-mode enforcement. Test `sys.remote_exec` injection path.
+37 unit tests (protocol, eval engine, client with real socket mocks). 14 e2e tests inside VM against real PySide6 app (eval, widget access, button clicks, exec stdout, errors, CLI commands). 4 host-side proxy tests verifying transparent VM proxy for eval and bridge status. `make test-e2e` runs VM-side suite.
 
 #### 6.0g — [doc] Bridge guide
 

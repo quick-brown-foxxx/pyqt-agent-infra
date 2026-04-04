@@ -13,11 +13,9 @@ _TEMPLATE_DIR = "qt_ai_dev_tools.vagrant.templates"
 _TEMPLATES: dict[str, str] = {
     "Vagrantfile.j2": "Vagrantfile",
     "provision.sh.j2": "provision.sh",
-    "vm-run.sh.j2": "scripts/vm-run.sh",
-    "screenshot.sh.j2": "scripts/screenshot.sh",
 }
 
-_SHELL_SCRIPTS: set[str] = {"provision.sh", "scripts/vm-run.sh", "scripts/screenshot.sh"}
+_SHELL_SCRIPTS: set[str] = {"provision.sh"}
 
 
 @dataclass(slots=True)

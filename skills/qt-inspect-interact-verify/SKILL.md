@@ -15,7 +15,7 @@ Every UI interaction follows three phases:
 
 Never skip phases. Blind interaction without inspection leads to clicking wrong widgets. Interaction without verification means you don't know if it worked.
 
-All commands below run inside the VM via `qt-ai-dev-tools vm run "..."` unless you are already in a VM SSH session.
+All UI commands below auto-detect host vs VM and proxy transparently through SSH. Run them directly -- no `vm run` wrapping needed. Use `vm run` only for arbitrary non-qt-ai-dev-tools commands (launching apps, pytest, etc.).
 
 ## Phase 1: Inspect
 

@@ -36,7 +36,7 @@ uvx qt-ai-dev-tools --help
 
 ### Step 2: Initialize workspace
 
-Run `workspace init` inside your project directory. This generates a Vagrantfile, provision.sh, and helper scripts from templates.
+Run `workspace init` inside your project directory. This generates a Vagrantfile and provision.sh from templates.
 
 Default configuration (4GB RAM, 4 CPUs, libvirt):
 
@@ -65,8 +65,6 @@ qt-ai-dev-tools workspace init --path . --static-ip 192.168.121.100
 This creates:
 - `Vagrantfile` -- VM definition (Ubuntu 24.04, Xvfb, openbox, AT-SPI)
 - `provision.sh` -- VM setup script (installs PySide6, pytest, AT-SPI deps)
-- `scripts/vm-run.sh` -- run commands inside the VM
-- `scripts/screenshot.sh` -- take screenshots and copy to host
 
 ### Step 3: Fix libvirt DHCP (libvirt only, one-time)
 
@@ -113,10 +111,10 @@ Check that all services are running:
 qt-ai-dev-tools vm status
 ```
 
-Check that AT-SPI bus is accessible:
+Check that AT-SPI bus is accessible (auto-proxies to VM from host):
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools apps"
+qt-ai-dev-tools apps
 ```
 
 This should list AT-SPI applications on the bus. If no apps are listed, that is OK -- it just means no Qt app is running yet. The important thing is that the command succeeds without errors.
@@ -124,7 +122,7 @@ This should list AT-SPI applications on the bus. If no apps are listed, that is 
 Take a test screenshot to verify Xvfb display:
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools screenshot -o /tmp/test.png"
+qt-ai-dev-tools screenshot -o /tmp/test.png
 ```
 
 ### Step 6: Launch your Qt app
@@ -135,11 +133,11 @@ Sync your project files to the VM and start your app:
 # Sync files
 qt-ai-dev-tools vm sync
 
-# Start the app in the background
+# Start the app in the background (vm run for arbitrary commands)
 qt-ai-dev-tools vm run "python3 /vagrant/your_app.py &"
 
-# Wait for it to appear on AT-SPI bus
-qt-ai-dev-tools vm run "qt-ai-dev-tools wait --app your_app.py --timeout 15"
+# Wait for it to appear on AT-SPI bus (auto-proxies to VM)
+qt-ai-dev-tools wait --app your_app.py --timeout 15
 ```
 
 ### Step 7: Confirm interaction works
@@ -147,7 +145,7 @@ qt-ai-dev-tools vm run "qt-ai-dev-tools wait --app your_app.py --timeout 15"
 Dump the widget tree to verify the app is visible to AT-SPI:
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools tree"
+qt-ai-dev-tools tree
 ```
 
 You should see output like:
@@ -163,18 +161,18 @@ You should see output like:
 Take a screenshot to visually confirm:
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools screenshot -o /tmp/verify.png"
+qt-ai-dev-tools screenshot -o /tmp/verify.png
 ```
 
 ## Verification checklist
 
-After setup, confirm ALL of these work:
+After setup, confirm ALL of these work (UI commands auto-proxy to VM from host):
 
 1. `qt-ai-dev-tools vm status` -- shows VM running
-2. `qt-ai-dev-tools vm run "qt-ai-dev-tools apps"` -- executes without error
-3. `qt-ai-dev-tools vm run "qt-ai-dev-tools screenshot"` -- produces a PNG file
-4. After launching your app: `qt-ai-dev-tools vm run "qt-ai-dev-tools tree"` -- shows widget tree
-5. After launching your app: `qt-ai-dev-tools vm run "qt-ai-dev-tools click --role 'push button' --name 'YourButton'"` -- clicks a button
+2. `qt-ai-dev-tools apps` -- executes without error
+3. `qt-ai-dev-tools screenshot` -- produces a PNG file
+4. After launching your app: `qt-ai-dev-tools tree` -- shows widget tree
+5. After launching your app: `qt-ai-dev-tools click --role "push button" --name "YourButton"` -- clicks a button
 
 ## Keeping files in sync
 
@@ -190,15 +188,21 @@ For automatic sync (watches for file changes):
 qt-ai-dev-tools vm sync-auto
 ```
 
-## Running commands inside the VM
+## Running commands
 
-All qt-ai-dev-tools CLI commands that inspect or interact with the UI must run inside the VM. Use `vm run`:
+UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM and proxy transparently. Run them directly:
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools tree"
-qt-ai-dev-tools vm run "qt-ai-dev-tools click --role 'push button' --name 'Save'"
-qt-ai-dev-tools vm run "qt-ai-dev-tools screenshot -o /tmp/shot.png"
+qt-ai-dev-tools tree
+qt-ai-dev-tools click --role "push button" --name "Save"
+qt-ai-dev-tools screenshot -o /tmp/shot.png
+```
+
+Use `vm run` only for arbitrary non-qt-ai-dev-tools commands:
+
+```bash
 qt-ai-dev-tools vm run "pytest /vagrant/tests/ -v"
+qt-ai-dev-tools vm run "python3 /vagrant/your_app.py &"
 ```
 
 Workspace management commands (`workspace init`, `vm up`, `vm status`, `vm sync`) run on the host.
@@ -232,9 +236,9 @@ sudo apt-get install -y libegl1 libxkbcommon0
 **Symptom:** `qt-ai-dev-tools tree` shows nothing or "App not found"
 
 **Causes and fixes:**
-- **App not running:** Launch it with `vm run "python3 /vagrant/app.py &"` and wait: `vm run "qt-ai-dev-tools wait --app app.py"`
-- **Xvfb not running:** Check with `vm run "pgrep Xvfb"`. If not running: `vm run "sudo systemctl start xvfb"`
-- **AT-SPI bus not active:** Check with `vm run "pgrep at-spi"`. Restart the desktop session: `vm run "systemctl --user restart desktop-session"`
+- **App not running:** Launch it with `qt-ai-dev-tools vm run "python3 /vagrant/app.py &"` and wait: `qt-ai-dev-tools wait --app app.py`
+- **Xvfb not running:** Check with `qt-ai-dev-tools vm run "pgrep Xvfb"`. If not running: `qt-ai-dev-tools vm run "sudo systemctl start xvfb"`
+- **AT-SPI bus not active:** Check with `qt-ai-dev-tools vm run "pgrep at-spi"`. Restart the desktop session: `qt-ai-dev-tools vm run "systemctl --user restart desktop-session"`
 - **Wrong DISPLAY:** Ensure the app runs on `:99`. The VM environment sets this automatically but custom scripts may need `DISPLAY=:99`
 
 ### App crashes silently in VM
@@ -244,7 +248,7 @@ sudo apt-get install -y libegl1 libxkbcommon0
 **Debug:** Run the app in foreground to see errors:
 
 ```bash
-qt-ai-dev-tools vm run "DISPLAY=:99 python3 /vagrant/your_app.py"
+qt-ai-dev-tools vm run "python3 /vagrant/your_app.py"
 ```
 
 ### Screenshot is blank or shows only desktop
@@ -254,7 +258,7 @@ qt-ai-dev-tools vm run "DISPLAY=:99 python3 /vagrant/your_app.py"
 **Fix:** The app window may not be focused or may be minimized. Try:
 
 ```bash
-qt-ai-dev-tools vm run "qt-ai-dev-tools tree"  # check if app is in the tree
+qt-ai-dev-tools tree                            # check if app is in the tree
 qt-ai-dev-tools vm run "xdotool search --name 'YourAppTitle' windowactivate"
 ```
 

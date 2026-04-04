@@ -11,6 +11,8 @@ Recommended workflow for AI agents using qt-ai-dev-tools to interact with Qt/PyS
 5. **Verify** -- check state and take screenshots to confirm results.
 6. **Iterate** -- repeat inspect/interact/verify as needed.
 
+UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM and proxy transparently through SSH. Run them directly from the host -- no `vm run` wrapping needed. Use `vm run` only for arbitrary non-qt-ai-dev-tools commands (launching apps, pytest, systemctl, etc.).
+
 ## Setup
 
 ```bash
@@ -24,12 +26,12 @@ qt-ai-dev-tools vm status          # confirm Xvfb, openbox, AT-SPI running
 ### Start an app and inspect it
 
 ```bash
-qt-ai-dev-tools vm run "python /vagrant/app/main.py &"
-qt-ai-dev-tools wait --app "main.py" --timeout 10
-qt-ai-dev-tools tree
+qt-ai-dev-tools vm run "python /vagrant/app/main.py &"   # vm run for launching apps
+qt-ai-dev-tools wait --app "main.py" --timeout 10         # auto-proxies to VM
+qt-ai-dev-tools tree                                       # auto-proxies to VM
 ```
 
-Always use `wait` before interacting with a newly launched app. AT-SPI needs time to register the application.
+Always use `wait` before interacting with a newly launched app. AT-SPI needs time to register the application. Note that `vm run` is used here only to launch the Python process -- the `wait` and `tree` commands auto-proxy to the VM.
 
 ### Inspect the widget tree
 
@@ -119,4 +121,4 @@ AT-SPI provides live data, but the tree you inspected may no longer reflect real
 1. Check if the app is still listed: `apps`.
 2. Take a screenshot to see the current display state.
 3. If the app is gone, relaunch it and start over.
-4. If the app is hung, you may need to kill and restart it: `vm run "pkill -f main.py"`.
+4. If the app is hung, you may need to kill and restart it: `qt-ai-dev-tools vm run "pkill -f main.py"`.

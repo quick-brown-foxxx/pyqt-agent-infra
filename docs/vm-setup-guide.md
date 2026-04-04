@@ -108,19 +108,21 @@ The vagrant-libvirt DHCP bug. Either:
 ### AT-SPI not seeing the app
 
 - The app must run on the same display (`DISPLAY=:99`).
-- The D-Bus session bus must be active. Check with: `qt-ai-dev-tools vm run "dbus-monitor --session"`.
+- The D-Bus session bus must be active. Check with: `qt-ai-dev-tools vm run "dbus-monitor --session"` (use `vm run` for arbitrary diagnostic commands).
 - Verify AT-SPI is running: `qt-ai-dev-tools vm run "ps aux | grep at-spi"`.
 
 ### Screenshots are blank
 
-- Xvfb must be running: `qt-ai-dev-tools vm run "ps aux | grep Xvfb"`.
-- Openbox must be running: `qt-ai-dev-tools vm run "ps aux | grep openbox"`.
+- Xvfb must be running: `qt-ai-dev-tools vm run "pgrep Xvfb"`.
+- Openbox must be running: `qt-ai-dev-tools vm run "pgrep openbox"`.
 - An application must be launched and visible on display :99.
 
 ### xdotool reports wrong coordinates
 
 - Openbox must be running. Without a window manager, `xdotool mousemove --window` uses incorrect coordinates and `windowactivate` fails.
 - Verify with: `qt-ai-dev-tools vm run "pgrep openbox"`.
+
+**Note:** UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM and proxy transparently through SSH. No `vm run` wrapping is needed for qt-ai-dev-tools commands. The `vm run` examples in this troubleshooting section are for arbitrary diagnostic commands only.
 
 ### Slow file sync
 

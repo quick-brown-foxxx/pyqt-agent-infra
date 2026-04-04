@@ -7,8 +7,8 @@ from unittest import mock
 from unittest.mock import patch
 
 from qt_ai_dev_tools.vagrant.vm import (
-    _find_workspace,
     _vagrant,
+    find_workspace,
     vm_destroy,
     vm_run,
     vm_status,
@@ -21,21 +21,21 @@ from qt_ai_dev_tools.vagrant.vm import (
 class TestFindWorkspace:
     def test_explicit_path_with_vagrantfile(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        result = _find_workspace(tmp_path)
+        result = find_workspace(tmp_path)
         assert result == tmp_path
 
     def test_explicit_path_without_vagrantfile_raises(self, tmp_path: Path) -> None:
         import pytest
 
         with pytest.raises(FileNotFoundError, match="No Vagrantfile found in"):
-            _find_workspace(tmp_path)
+            find_workspace(tmp_path)
 
     def test_walks_up_to_find_vagrantfile(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
         nested = tmp_path / "sub" / "deep"
         nested.mkdir(parents=True)
         with patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested):
-            result = _find_workspace()
+            result = find_workspace()
         assert result == tmp_path
 
     def test_no_vagrantfile_anywhere_raises(self, tmp_path: Path) -> None:
@@ -47,7 +47,7 @@ class TestFindWorkspace:
             patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested),
             pytest.raises(FileNotFoundError, match="No Vagrantfile found in current directory or parents"),
         ):
-            _find_workspace()
+            find_workspace()
 
 
 class TestVagrant:
@@ -125,27 +125,7 @@ class TestVmSync:
 
 
 class TestVmRun:
-    def test_uses_vm_run_script_when_present(self, tmp_path: Path) -> None:
-        (tmp_path / "Vagrantfile").touch()
-        scripts_dir = tmp_path / "scripts"
-        scripts_dir.mkdir()
-        vm_run_script = scripts_dir / "vm-run.sh"
-        vm_run_script.write_text("#!/bin/bash\n")
-        vm_run_script.chmod(0o755)
-
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            mock_run.return_value.stdout = "output"
-            vm_run("echo hello", tmp_path)
-            mock_run.assert_called_once_with(
-                [str(vm_run_script), "echo hello"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-    def test_fallback_vagrant_ssh_without_script(self, tmp_path: Path) -> None:
+    def test_vagrant_ssh_with_env_prefix(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
 
         with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
@@ -158,6 +138,7 @@ class TestVmRun:
             assert cmd[1] == "ssh"
             assert cmd[2] == "-c"
             assert "DISPLAY=:99" in cmd[3]
+            assert "QT_AI_DEV_TOOLS_VM=1" in cmd[3]
             assert "echo hello" in cmd[3]
 
 

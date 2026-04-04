@@ -31,17 +31,11 @@ class TestDefaultConfig:
 
 
 class TestRenderWorkspace:
-    def test_creates_all_four_files(self, tmp_path: Path) -> None:
+    def test_creates_all_files(self, tmp_path: Path) -> None:
         created = render_workspace(tmp_path)
-        assert len(created) == 4
+        assert len(created) == 2
         assert (tmp_path / "Vagrantfile").is_file()
         assert (tmp_path / "provision.sh").is_file()
-        assert (tmp_path / "scripts" / "vm-run.sh").is_file()
-        assert (tmp_path / "scripts" / "screenshot.sh").is_file()
-
-    def test_scripts_subdirectory_created(self, tmp_path: Path) -> None:
-        render_workspace(tmp_path)
-        assert (tmp_path / "scripts").is_dir()
 
     def test_vagrantfile_contains_defaults(self, tmp_path: Path) -> None:
         render_workspace(tmp_path)
@@ -58,23 +52,12 @@ class TestRenderWorkspace:
         assert "1920x1080x24" in content
         assert "PySide6" in content
 
-    def test_vm_run_contains_display(self, tmp_path: Path) -> None:
-        render_workspace(tmp_path)
-        content = (tmp_path / "scripts" / "vm-run.sh").read_text()
-        assert "DISPLAY=:99" in content
-
-    def test_screenshot_contains_display(self, tmp_path: Path) -> None:
-        render_workspace(tmp_path)
-        content = (tmp_path / "scripts" / "screenshot.sh").read_text()
-        assert "DISPLAY=:99" in content
-
     def test_shell_scripts_are_executable(self, tmp_path: Path) -> None:
         render_workspace(tmp_path)
-        for script in ["provision.sh", "scripts/vm-run.sh", "scripts/screenshot.sh"]:
-            mode = (tmp_path / script).stat().st_mode
-            assert mode & stat.S_IXUSR, f"{script} should be user-executable"
-            assert mode & stat.S_IXGRP, f"{script} should be group-executable"
-            assert mode & stat.S_IXOTH, f"{script} should be other-executable"
+        mode = (tmp_path / "provision.sh").stat().st_mode
+        assert mode & stat.S_IXUSR, "provision.sh should be user-executable"
+        assert mode & stat.S_IXGRP, "provision.sh should be group-executable"
+        assert mode & stat.S_IXOTH, "provision.sh should be other-executable"
 
     def test_vagrantfile_not_executable(self, tmp_path: Path) -> None:
         render_workspace(tmp_path)
@@ -97,11 +80,7 @@ class TestRenderWorkspace:
     def test_custom_display(self, tmp_path: Path) -> None:
         config = WorkspaceConfig(display=":42")
         render_workspace(tmp_path, config=config)
-        vm_run = (tmp_path / "scripts" / "vm-run.sh").read_text()
-        screenshot = (tmp_path / "scripts" / "screenshot.sh").read_text()
         provision = (tmp_path / "provision.sh").read_text()
-        assert "DISPLAY=:42" in vm_run
-        assert "DISPLAY=:42" in screenshot
         assert "DISPLAY=:42" in provision
 
     def test_returns_created_paths(self, tmp_path: Path) -> None:
@@ -109,8 +88,6 @@ class TestRenderWorkspace:
         expected = {
             tmp_path / "Vagrantfile",
             tmp_path / "provision.sh",
-            tmp_path / "scripts" / "vm-run.sh",
-            tmp_path / "scripts" / "screenshot.sh",
         }
         assert set(created) == expected
 

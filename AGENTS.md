@@ -32,11 +32,9 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
   - `vagrant/` — Vagrant subsystem
     - `workspace.py` — `WorkspaceConfig` + `render_workspace()` template rendering
     - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
-    - `templates/` — Jinja2 templates for Vagrantfile, provision.sh, scripts
+    - `templates/` — Jinja2 templates for Vagrantfile, provision.sh
 - `app/main.py` — sample PySide6 todo app (test subject)
 - `tests/` — pytest-qt + AT-SPI + CLI integration tests
-- `scripts/vm-run.sh` — run commands inside Vagrant VM (generated from template)
-- `scripts/screenshot.sh` — take screenshot in VM, copy to host (generated from template)
 - `pyproject.toml` — build config, deps, linting, CLI entry point
 - `provision.sh` — VM setup: Xvfb, openbox, AT-SPI, PySide6 (generated from template)
 - `Vagrantfile` — Ubuntu 24.04 VM (libvirt, 4GB RAM, 4 CPUs) (generated from template)
@@ -57,7 +55,8 @@ Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **Xvfb :99** is the virtual display. All tools need `DISPLAY=:99`.
 - **scrot** for screenshots. Output is ~14-22KB PNG.
 - **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
-- **Jinja2 templates** — Vagrantfile, provision.sh, scripts are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
+- **Jinja2 templates** — Vagrantfile and provision.sh are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
+- **Transparent VM proxy** — UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set inside the VM). On the host, they proxy through SSH to the VM. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
 - **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
 
 ## AI Skills
@@ -69,7 +68,7 @@ Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
 
 ## Running things
 
-**Note:** `make workspace-init` must be run before other make targets that use VM scripts (generates Vagrantfile, provision.sh, etc. from templates).
+**Note:** `make workspace-init` must be run before other make targets that depend on the VM (generates Vagrantfile, provision.sh from templates).
 
 ```bash
 make up            # start VM (~10min first time)
@@ -85,8 +84,10 @@ make destroy       # tear down VM
 
 ### CLI usage
 
+UI commands auto-detect host vs VM and proxy transparently. Run them directly from the host -- no `vm run` wrapping needed.
+
 ```bash
-# In the VM (via vm-run.sh or make ssh):
+# UI commands (work the same from host or VM -- auto-proxy):
 qt-ai-dev-tools tree                          # full widget tree
 qt-ai-dev-tools tree --role "push button"     # filtered by role
 qt-ai-dev-tools find --role "label" --json    # find + JSON output
@@ -97,25 +98,23 @@ qt-ai-dev-tools screenshot -o /tmp/shot.png
 qt-ai-dev-tools apps                          # list AT-SPI apps
 qt-ai-dev-tools wait --app "main.py"          # wait for app
 
-# Workspace management (generate Vagrant infra from templates):
-qt-ai-dev-tools workspace init --path .                    # default config
-qt-ai-dev-tools workspace init --memory 8192 --cpus 8      # custom VM resources
-
-# VM lifecycle:
-qt-ai-dev-tools vm up                         # start VM
-qt-ai-dev-tools vm status                     # check VM status
-qt-ai-dev-tools vm ssh                        # SSH into VM
-qt-ai-dev-tools vm sync                       # rsync files to VM
-qt-ai-dev-tools vm run "pytest /vagrant/tests/"  # run command in VM
-qt-ai-dev-tools vm destroy                    # destroy VM
-
-# Compound commands:
+# Compound commands (also auto-proxy):
 qt-ai-dev-tools fill "hello" --role text --name input   # focus + clear + type
 qt-ai-dev-tools do click "Save" --role "push button" --verify "label:status contains Saved"
 qt-ai-dev-tools do click "Add" --screenshot              # click + screenshot
 
-# Auto-sync:
-qt-ai-dev-tools vm sync-auto                             # background file sync
+# Workspace management (runs on host):
+qt-ai-dev-tools workspace init --path .                    # default config
+qt-ai-dev-tools workspace init --memory 8192 --cpus 8      # custom VM resources
+
+# VM lifecycle (runs on host):
+qt-ai-dev-tools vm up                         # start VM
+qt-ai-dev-tools vm status                     # check VM status
+qt-ai-dev-tools vm ssh                        # SSH into VM
+qt-ai-dev-tools vm sync                       # rsync files to VM
+qt-ai-dev-tools vm sync-auto                  # background file sync
+qt-ai-dev-tools vm run "pytest /vagrant/tests/"  # arbitrary command in VM
+qt-ai-dev-tools vm destroy                    # destroy VM
 ```
 
 ## Workflow for improving this project

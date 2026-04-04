@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shlex
+import sys
 import time
 import typing
 from pathlib import Path
@@ -53,6 +56,93 @@ def _widget_dict(widget: AtspiNode) -> dict[str, object]:
     }
 
 
+def _is_in_vm() -> bool:
+    """Check if we're running inside the Vagrant VM."""
+    return os.environ.get("QT_AI_DEV_TOOLS_VM") == "1"
+
+
+def _proxy_to_vm(workspace: Path | None = None) -> None:
+    """If running on host, re-execute this command inside the VM and exit.
+
+    Reconstructs the full CLI invocation from sys.argv and runs it
+    via vm_run(). Relays stdout/stderr and exit code.
+    """
+    if _is_in_vm():
+        return
+
+    from qt_ai_dev_tools.vagrant.vm import vm_run
+
+    cmd = "qt-ai-dev-tools " + " ".join(shlex.quote(a) for a in sys.argv[1:])
+    result = vm_run(cmd, workspace)
+    if result.stdout:
+        typer.echo(result.stdout, nl=False)
+    if result.returncode != 0 and result.stderr:
+        typer.echo(result.stderr, err=True, nl=False)
+    raise typer.Exit(code=result.returncode)
+
+
+def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
+    """Proxy screenshot command: run scrot in VM, SCP file back to host.
+
+    Unlike _proxy_to_vm, this needs special handling because the screenshot
+    file is created inside the VM and must be transferred to the host.
+    """
+    if _is_in_vm():
+        return
+
+    import subprocess
+
+    from qt_ai_dev_tools.vagrant.vm import find_workspace, vm_run
+
+    ws = find_workspace(workspace)
+
+    # Take screenshot in VM to a temp path
+    remote_path = "/tmp/qt-ai-dev-tools-screenshot.png"  # noqa: S108
+    result = vm_run(f"qt-ai-dev-tools screenshot -o {remote_path}", ws)
+    if result.returncode != 0:
+        if result.stderr:
+            typer.echo(result.stderr, err=True, nl=False)
+        raise typer.Exit(code=result.returncode)
+
+    # Generate SSH config if needed
+    ssh_config = ws / ".vagrant-ssh-config"
+    if not ssh_config.exists():
+        subprocess.run(
+            ["vagrant", "ssh-config"],
+            cwd=ws,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        # Write ssh config
+        config_result = subprocess.run(
+            ["vagrant", "ssh-config"],
+            cwd=ws,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if config_result.returncode == 0:
+            ssh_config.write_text(config_result.stdout)
+
+    # SCP screenshot from VM to host
+    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
+    scp_result = subprocess.run(
+        ["scp", "-F", str(ssh_config), f"default:{remote_path}", output],
+        cwd=ws,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if scp_result.returncode != 0:
+        typer.echo(f"Failed to copy screenshot from VM: {scp_result.stderr}", err=True)
+        raise typer.Exit(code=1)
+
+    size = os.path.getsize(output)
+    typer.echo(f"Screenshot: {output} ({size} bytes)")
+    raise typer.Exit(code=0)
+
+
 # ── Commands ────────────────────────────────────────────────────────
 
 
@@ -64,6 +154,7 @@ def tree(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Print the widget tree of a running Qt app."""
+    _proxy_to_vm()
     pilot = _get_pilot(app_name)
     if role:
         widgets = pilot.find(role=role)
@@ -87,6 +178,7 @@ def find(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Find widgets by role and/or name."""
+    _proxy_to_vm()
     if not role and not name:
         typer.echo("Error: specify at least --role or --name", err=True)
         raise typer.Exit(code=1)
@@ -109,6 +201,7 @@ def click_cmd(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Click a widget by role and optional name."""
+    _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
         widget = pilot.find_one(role=role, name=name)
@@ -124,6 +217,7 @@ def type_cmd(
     text: typing.Annotated[str, typer.Argument(help="Text to type")],
 ) -> None:
     """Type text into the currently focused widget."""
+    _proxy_to_vm()
     from qt_ai_dev_tools.interact import type_text
 
     type_text(text)
@@ -135,6 +229,7 @@ def key(
     key_name: typing.Annotated[str, typer.Argument(help="Key to press (e.g. Return, Tab, ctrl+a)")],
 ) -> None:
     """Press a key via xdotool."""
+    _proxy_to_vm()
     from qt_ai_dev_tools.interact import press_key
 
     press_key(key_name)
@@ -148,6 +243,7 @@ def focus(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Focus a widget by role and optional name."""
+    _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
         widget = pilot.find_one(role=role, name=name)
@@ -166,6 +262,7 @@ def state(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Read state of a widget (name, text, extents)."""
+    _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
         widget = pilot.find_one(role=role, name=name)
@@ -188,6 +285,7 @@ def text(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Get text content of a widget."""
+    _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
         widget = pilot.find_one(role=role, name=name)
@@ -202,6 +300,7 @@ def screenshot(
     output: typing.Annotated[str, typer.Option("--output", "-o", help="Output path")] = "/tmp/screenshot.png",  # noqa: S108
 ) -> None:
     """Take a screenshot of the Xvfb display."""
+    _proxy_screenshot(output)
     from qt_ai_dev_tools.screenshot import take_screenshot
 
     path = take_screenshot(output)
@@ -213,6 +312,7 @@ def apps(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """List all AT-SPI accessible applications on the bus."""
+    _proxy_to_vm()
     from qt_ai_dev_tools._atspi import AtspiNode
 
     desktop = AtspiNode.desktop()
@@ -233,6 +333,7 @@ def wait(
     timeout: typing.Annotated[int, typer.Option("--timeout", help="Timeout in seconds")] = 10,
 ) -> None:
     """Wait for an app to appear on the AT-SPI bus."""
+    _proxy_to_vm()
     from qt_ai_dev_tools._atspi import AtspiNode
 
     start = time.time()
@@ -259,6 +360,7 @@ def fill(
     no_clear: typing.Annotated[bool, typer.Option("--no-clear", help="Don't clear field first")] = False,
 ) -> None:
     """Focus a text widget, clear it, and type a value (compound action)."""
+    _proxy_to_vm()
     try:
         pilot = _get_pilot(app_name)
         pilot.fill(role=role, name=name, value=value, clear_first=not no_clear)
@@ -287,6 +389,7 @@ def do_action(
         qt-ai-dev-tools do click "Save" --verify "label:status contains Saved"
         qt-ai-dev-tools do click "Add" --screenshot
     """
+    _proxy_to_vm()
     try:
         pilot = _get_pilot(app_name)
 

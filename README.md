@@ -14,9 +14,12 @@ Chrome DevTools for Qt apps -- let AI agents inspect widgets, click buttons, typ
 ```
   AI Agent (Claude Code, etc.)
        |
-       |  shell commands
+       |  shell commands (same commands on host or in VM)
        v
   qt-ai-dev-tools CLI
+       |
+       |  auto-detects host vs VM
+       |  (proxies through SSH when on host)
        |
        +---> AT-SPI (widget tree: roles, names, coords, text)
        +---> xdotool (clicks, keystrokes, text input)
@@ -29,6 +32,8 @@ Chrome DevTools for Qt apps -- let AI agents inspect widgets, click buttons, typ
 ```
 
 AT-SPI provides the accessibility tree -- the same tree screen readers use. xdotool sends X11 input events. scrot captures the framebuffer. The agent never imports or instruments the target app.
+
+**Transparent VM proxy:** UI commands (tree, click, type, screenshot, etc.) auto-detect whether they are running on the host or inside the VM. On the host, they automatically proxy through SSH to the VM. No manual wrapping with `vm run` is needed for qt-ai-dev-tools commands.
 
 ## Quick start
 
@@ -46,7 +51,7 @@ git clone https://github.com/quick-brown-foxxx/qt-ai-dev-tools.git
 cd qt-ai-dev-tools
 uv sync
 
-# Generate workspace files (Vagrantfile, provision.sh, scripts)
+# Generate workspace files (Vagrantfile, provision.sh)
 qt-ai-dev-tools workspace init --path .
 
 # Start the VM (~10 min first boot)
@@ -59,13 +64,13 @@ qt-ai-dev-tools vm status
 ### First interaction
 
 ```bash
-# Launch the sample app inside the VM
+# Launch the sample app inside the VM (vm run is for arbitrary commands)
 qt-ai-dev-tools vm run "python /vagrant/app/main.py &"
 
-# Wait for it to register with AT-SPI
+# Wait for it to register with AT-SPI (auto-proxies to VM from host)
 qt-ai-dev-tools wait --app "main.py" --timeout 10
 
-# Inspect the widget tree
+# Inspect the widget tree (runs directly -- auto-proxies to VM)
 qt-ai-dev-tools tree
 
 # Click a button
@@ -78,9 +83,11 @@ qt-ai-dev-tools fill --role "text" --value "Buy groceries"
 qt-ai-dev-tools screenshot -o /tmp/shot.png
 ```
 
+UI commands work the same from host or VM -- they auto-detect and proxy transparently. Use `vm run` only for arbitrary non-qt-ai-dev-tools commands (e.g., launching apps, running pytest, systemctl).
+
 ## CLI reference
 
-All commands run inside the VM via `qt-ai-dev-tools vm run` or directly after `qt-ai-dev-tools vm ssh`.
+UI commands (tree, click, type, find, screenshot, etc.) auto-detect host vs VM and proxy transparently -- just run them directly. Use `vm run` only for arbitrary non-qt-ai-dev-tools commands.
 
 ### Inspection
 
@@ -123,7 +130,7 @@ All commands run inside the VM via `qt-ai-dev-tools vm run` or directly after `q
 
 | Command | Description |
 |---------|-------------|
-| `workspace init --path .` | Generate Vagrantfile, provision.sh, and scripts from templates |
+| `workspace init --path .` | Generate Vagrantfile and provision.sh from templates |
 | `workspace init --memory 8192 --cpus 8` | Custom VM resources |
 | `workspace init --provider libvirt` | Specify Vagrant provider |
 | `workspace init --static-ip 192.168.121.100` | Use static IP (avoids DHCP issues) |
@@ -137,7 +144,7 @@ All commands run inside the VM via `qt-ai-dev-tools vm run` or directly after `q
 | `vm ssh` | SSH into the VM |
 | `vm sync` | Rsync files to the VM |
 | `vm sync-auto` | Background file sync (watches for changes) |
-| `vm run "command"` | Run a command inside the VM |
+| `vm run "command"` | Run an arbitrary command inside the VM (not needed for qt-ai-dev-tools commands) |
 | `vm destroy` | Destroy the VM |
 
 ## AI agent skills
@@ -162,6 +169,7 @@ Skills are the primary integration point. An agent with the right skill can use 
 - **Known libvirt DHCP bug.** vagrant-libvirt creates a network with a DHCP range starting at `.1`, colliding with the host bridge IP. Workaround: pre-create the network with a corrected range, or use `--static-ip` to bypass DHCP entirely. See [VM setup guide](docs/vm-setup-guide.md).
 - **Screenshots are small.** scrot output is ~14-22 KB PNG -- cheap to capture and send to an LLM.
 - **Each CLI command is stateless.** No persistent state between invocations. The agent chains commands via shell.
+- **Transparent VM proxy.** UI commands auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set automatically inside the VM). On the host, they proxy through SSH to the VM. On the VM, they run directly. No manual `vm run` wrapping needed for qt-ai-dev-tools commands.
 
 ## Project status
 
@@ -190,7 +198,7 @@ make screenshot    # capture current VM display
 make destroy       # tear down VM
 ```
 
-Note: `make workspace-init` must run before VM-dependent make targets (generates Vagrantfile, provision.sh, etc. from templates).
+Note: `make workspace-init` must run before VM-dependent make targets (generates Vagrantfile, provision.sh from templates).
 
 ### Project structure
 
@@ -206,7 +214,7 @@ src/qt_ai_dev_tools/
   vagrant/
     workspace.py   # WorkspaceConfig + template rendering
     vm.py          # VM lifecycle commands
-    templates/     # Jinja2 templates (Vagrantfile, provision.sh, scripts)
+    templates/     # Jinja2 templates (Vagrantfile, provision.sh)
 skills/            # AI agent skills (inspect-interact-verify, widget patterns, setup)
 app/main.py        # Sample PySide6 todo app (test target)
 tests/             # pytest-qt + AT-SPI + CLI integration tests

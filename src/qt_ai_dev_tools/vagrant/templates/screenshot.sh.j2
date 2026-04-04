@@ -23,7 +23,7 @@ ssh -F "$SSH_CONFIG" \
     -o ControlPath="/tmp/vagrant-qt-dev-%r@%h:%p" \
     -o ControlPersist=10m \
     default \
-    "DISPLAY=:99 scrot '$REMOTE_PATH'"
+    "DISPLAY={{ display }} scrot '$REMOTE_PATH'"
 
 # Copy to host
 scp -F "$SSH_CONFIG" \

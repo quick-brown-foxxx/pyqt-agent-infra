@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "colorlog>=6.10.1",
     "typer>=0.12.0",
+    "jinja2>=3.1.0",
 ]
 
 # System deps (not pip-installable, installed via apt):
@@ -45,12 +46,11 @@ reportAny = "error"
 reportImplicitStringConcatenation = "none"
 reportUnusedCallResult = "none"
 reportUnnecessaryIsInstance = "none"
-# gi.repository.Atspi is a system package with no type stubs.
-# These errors are unavoidable at the AT-SPI boundary.
-reportUnknownMemberType = "none"
-reportUnknownArgumentType = "none"
-reportUnknownVariableType = "none"
-reportMissingTypeStubs = "none"
+reportUnnecessaryTypeIgnoreComment = "error"
+reportPrivateUsage = "error"
+reportOptionalMemberAccess = "error"
+reportOptionalCall = "error"
+reportAttributeAccessIssue = "error"
 exclude = [
     "**/__pycache__", ".venv", "venv", "build", "dist", "wrktrs",
 ]

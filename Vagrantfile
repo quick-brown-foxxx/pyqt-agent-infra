@@ -1,5 +1,5 @@
 Vagrant.configure("2") do |config|
-  config.vm.box = "bento/ubuntu-24.04"  # already downloaded, libvirt-compatible
+  config.vm.box = "bento/ubuntu-24.04"
   config.vm.hostname = "qt-dev"
 
   config.vm.provider "libvirt" do |v|

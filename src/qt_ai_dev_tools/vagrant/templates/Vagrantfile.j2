@@ -1,0 +1,19 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "{{ box }}"
+  config.vm.hostname = "{{ hostname }}"
+
+  config.vm.provider "{{ provider }}" do |v|
+    v.default_prefix = "{{ hostname }}"
+    v.memory = {{ memory }}
+    v.cpus   = {{ cpus }}
+    v.management_network_mac = "{{ mac_address }}"
+  end
+
+  # shared folder via rsync (no guest additions needed)
+  config.vm.synced_folder "{{ shared_folder }}", "/vagrant", type: "rsync",
+    rsync__exclude: [{% for exc in rsync_excludes %}"{{ exc }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+
+  config.ssh.insert_key = true
+
+  config.vm.provision "shell", path: "provision.sh"
+end

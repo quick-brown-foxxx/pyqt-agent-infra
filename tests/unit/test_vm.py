@@ -1,0 +1,159 @@
+"""Tests for VM management functions."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import patch
+
+from qt_ai_dev_tools.vagrant.vm import (
+    _find_workspace,
+    _vagrant,
+    vm_destroy,
+    vm_run,
+    vm_status,
+    vm_sync,
+    vm_up,
+)
+
+
+class TestFindWorkspace:
+    def test_explicit_path_with_vagrantfile(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        result = _find_workspace(tmp_path)
+        assert result == tmp_path
+
+    def test_explicit_path_without_vagrantfile_raises(self, tmp_path: Path) -> None:
+        import pytest
+
+        with pytest.raises(FileNotFoundError, match="No Vagrantfile found in"):
+            _find_workspace(tmp_path)
+
+    def test_walks_up_to_find_vagrantfile(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        nested = tmp_path / "sub" / "deep"
+        nested.mkdir(parents=True)
+        with patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested):
+            result = _find_workspace()
+        assert result == tmp_path
+
+    def test_no_vagrantfile_anywhere_raises(self, tmp_path: Path) -> None:
+        import pytest
+
+        nested = tmp_path / "empty" / "dir"
+        nested.mkdir(parents=True)
+        with (
+            patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested),
+            pytest.raises(FileNotFoundError, match="No Vagrantfile found in current directory or parents"),
+        ):
+            _find_workspace()
+
+
+class TestVagrant:
+    def test_vagrant_helper_calls_subprocess(self, tmp_path: Path) -> None:
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            _vagrant(["status"], tmp_path)
+            mock_run.assert_called_once_with(
+                ["vagrant", "status"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+
+class TestVmUp:
+    def test_calls_vagrant_up_with_provider(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            vm_up(tmp_path)
+            mock_run.assert_called_once_with(
+                ["vagrant", "up", "--provider=libvirt"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+
+class TestVmStatus:
+    def test_calls_vagrant_status(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            vm_status(tmp_path)
+            mock_run.assert_called_once_with(
+                ["vagrant", "status"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+
+class TestVmDestroy:
+    def test_calls_vagrant_destroy_force(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            vm_destroy(tmp_path)
+            mock_run.assert_called_once_with(
+                ["vagrant", "destroy", "-f"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+
+class TestVmSync:
+    def test_calls_vagrant_rsync(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            vm_sync(tmp_path)
+            mock_run.assert_called_once_with(
+                ["vagrant", "rsync"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+
+class TestVmRun:
+    def test_uses_vm_run_script_when_present(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        scripts_dir = tmp_path / "scripts"
+        scripts_dir.mkdir()
+        vm_run_script = scripts_dir / "vm-run.sh"
+        vm_run_script.write_text("#!/bin/bash\n")
+        vm_run_script.chmod(0o755)
+
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "output"
+            vm_run("echo hello", tmp_path)
+            mock_run.assert_called_once_with(
+                [str(vm_run_script), "echo hello"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+    def test_fallback_vagrant_ssh_without_script(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "output"
+            vm_run("echo hello", tmp_path)
+            call_args = mock_run.call_args
+            cmd = call_args[0][0]
+            assert cmd[0] == "vagrant"
+            assert cmd[1] == "ssh"
+            assert cmd[2] == "-c"
+            assert "DISPLAY=:99" in cmd[3]
+            assert "echo hello" in cmd[3]

@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import time
 import typing
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
 
 if TYPE_CHECKING:
+    from qt_ai_dev_tools._atspi import AtspiNode
     from qt_ai_dev_tools.pilot import QtPilot
 
 app = typer.Typer(
@@ -30,23 +32,23 @@ def _get_pilot(app_name: str | None = None, retries: int = 5) -> QtPilot:
         raise typer.Exit(code=1) from exc
 
 
-def _widget_line(widget: object) -> str:
-    """Format a single widget as a display line."""
-    from qt_ai_dev_tools.state import get_extents, get_name, get_role
+def _widget_line(widget: AtspiNode) -> str:
+    """Format a single widget as a display line.
 
-    ext = get_extents(widget)
-    return f'[{get_role(widget)}] "{get_name(widget)}" @({ext.x},{ext.y} {ext.width}x{ext.height})'
+    Note: AtspiNode is used as a type hint via TYPE_CHECKING.
+    At runtime, the widget is an AtspiNode instance passed from pilot/AT-SPI commands.
+    """
+    ext = widget.get_extents()
+    return f'[{widget.role_name}] "{widget.name}" @({ext.x},{ext.y} {ext.width}x{ext.height})'
 
 
-def _widget_dict(widget: object) -> dict[str, object]:
+def _widget_dict(widget: AtspiNode) -> dict[str, object]:
     """Convert a widget to a JSON-serializable dict."""
-    from qt_ai_dev_tools.state import get_extents, get_name, get_role, get_text
-
-    ext = get_extents(widget)
+    ext = widget.get_extents()
     return {
-        "role": get_role(widget),
-        "name": get_name(widget),
-        "text": get_text(widget),
+        "role": widget.role_name,
+        "name": widget.name,
+        "text": widget.get_text(),
         "extents": {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height},
     }
 
@@ -173,11 +175,9 @@ def state(
     if output_json:
         typer.echo(json.dumps(_widget_dict(widget), indent=2, ensure_ascii=False))
     else:
-        from qt_ai_dev_tools.state import get_extents, get_name, get_role, get_text
-
-        ext = get_extents(widget)
-        typer.echo(f'[{get_role(widget)}] "{get_name(widget)}"')
-        typer.echo(f"  text: {get_text(widget)}")
+        ext = widget.get_extents()
+        typer.echo(f'[{widget.role_name}] "{widget.name}"')
+        typer.echo(f"  text: {widget.get_text()}")
         typer.echo(f"  extents: ({ext.x},{ext.y} {ext.width}x{ext.height})")
 
 
@@ -194,9 +194,7 @@ def text(
     except LookupError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    from qt_ai_dev_tools.state import get_text
-
-    typer.echo(get_text(widget))
+    typer.echo(widget.get_text())
 
 
 @app.command()
@@ -215,17 +213,10 @@ def apps(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """List all AT-SPI accessible applications on the bus."""
-    import gi  # type: ignore[import-untyped]  # rationale: system GObject introspection
+    from qt_ai_dev_tools._atspi import AtspiNode
 
-    gi.require_version("Atspi", "2.0")  # type: ignore[reportUnknownMemberType]  # rationale: gi has no stubs
-    from gi.repository import Atspi  # type: ignore[import-untyped]  # rationale: system AT-SPI bindings
-
-    desktop: object = Atspi.get_desktop(0)  # type: ignore[reportUnknownMemberType]  # rationale: gi has no stubs
-    app_list: list[str] = []
-    for i in range(desktop.get_child_count()):  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-        child: object = desktop.get_child_at_index(i)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-        if child:
-            app_list.append(child.get_name() or "(unnamed)")  # type: ignore[union-attr, reportUnknownMemberType, reportUnknownArgumentType]  # rationale: AT-SPI Accessible has no stubs
+    desktop = AtspiNode.desktop()
+    app_list = [child.name or "(unnamed)" for child in desktop.children]
     if output_json:
         typer.echo(json.dumps(app_list, ensure_ascii=False))
     else:
@@ -242,21 +233,147 @@ def wait(
     timeout: typing.Annotated[int, typer.Option("--timeout", help="Timeout in seconds")] = 10,
 ) -> None:
     """Wait for an app to appear on the AT-SPI bus."""
-    import gi  # type: ignore[import-untyped]  # rationale: system GObject introspection
-
-    gi.require_version("Atspi", "2.0")  # type: ignore[reportUnknownMemberType]  # rationale: gi has no stubs
-    from gi.repository import Atspi  # type: ignore[import-untyped]  # rationale: system AT-SPI bindings
+    from qt_ai_dev_tools._atspi import AtspiNode
 
     start = time.time()
     while time.time() - start < timeout:
-        desktop: object = Atspi.get_desktop(0)  # type: ignore[reportUnknownMemberType]  # rationale: gi has no stubs
-        for i in range(desktop.get_child_count()):  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-            child: object = desktop.get_child_at_index(i)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-            if child:
-                child_name: str = child.get_name() or ""  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-                if app_name in child_name:
-                    typer.echo(f"Found: {child_name}")
-                    return
+        desktop = AtspiNode.desktop()
+        for child in desktop.children:
+            if app_name in child.name:
+                typer.echo(f"Found: {child.name}")
+                return
         time.sleep(0.5)
     typer.echo(f"Timeout: '{app_name}' not found after {timeout}s", err=True)
     raise typer.Exit(code=1)
+
+
+# ── Workspace commands ──────────────────────────────────────────────
+
+workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.")
+app.add_typer(workspace_app, name="workspace")
+
+
+@workspace_app.command(name="init")
+def workspace_init(
+    path: typing.Annotated[Path, typer.Option("--path", help="Target directory")] = Path("."),
+    box: typing.Annotated[str, typer.Option(help="Vagrant box")] = "bento/ubuntu-24.04",
+    provider: typing.Annotated[str, typer.Option(help="Vagrant provider")] = "libvirt",
+    memory: typing.Annotated[int, typer.Option(help="VM memory in MB")] = 4096,
+    cpus: typing.Annotated[int, typer.Option(help="VM CPUs")] = 4,
+    hostname: typing.Annotated[str, typer.Option(help="VM hostname")] = "qt-dev",
+    display: typing.Annotated[str, typer.Option(help="X display")] = ":99",
+    resolution: typing.Annotated[str, typer.Option(help="Display resolution")] = "1920x1080x24",
+) -> None:
+    """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
+    from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
+
+    config = WorkspaceConfig(
+        box=box,
+        provider=provider,
+        memory=memory,
+        cpus=cpus,
+        hostname=hostname,
+        display=display,
+        resolution=resolution,
+    )
+    created = render_workspace(path, config)
+    for f in created:
+        typer.echo(f"  Created: {f}")
+    typer.echo(f"Workspace initialized in {path}")
+
+
+# ── VM commands ─────────────────────────────────────────────────────
+
+vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.")
+app.add_typer(vm_app, name="vm")
+
+
+@vm_app.command(name="up")
+def vm_up_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Start the VM."""
+    from qt_ai_dev_tools.vagrant.vm import vm_up
+
+    result = vm_up(workspace)
+    typer.echo(result.stdout)
+    if result.returncode != 0:
+        typer.echo(result.stderr, err=True)
+        raise typer.Exit(code=result.returncode)
+
+
+@vm_app.command(name="status")
+def vm_status_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Check VM status."""
+    from qt_ai_dev_tools.vagrant.vm import vm_status
+
+    result = vm_status(workspace)
+    typer.echo(result.stdout)
+
+
+@vm_app.command(name="ssh")
+def vm_ssh_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """SSH into the VM."""
+    from qt_ai_dev_tools.vagrant.vm import vm_ssh
+
+    vm_ssh(workspace)
+
+
+@vm_app.command(name="destroy")
+def vm_destroy_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Destroy the VM."""
+    from qt_ai_dev_tools.vagrant.vm import vm_destroy
+
+    result = vm_destroy(workspace)
+    typer.echo(result.stdout)
+    if result.returncode != 0:
+        typer.echo(result.stderr, err=True)
+        raise typer.Exit(code=result.returncode)
+
+
+@vm_app.command(name="sync")
+def vm_sync_cmd(
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Sync files to VM."""
+    from qt_ai_dev_tools.vagrant.vm import vm_sync
+
+    result = vm_sync(workspace)
+    typer.echo(result.stdout or "Synced.")
+    if result.returncode != 0:
+        typer.echo(result.stderr, err=True)
+        raise typer.Exit(code=result.returncode)
+
+
+@vm_app.command(name="run")
+def vm_run_cmd(
+    command: typing.Annotated[str, typer.Argument(help="Command to run inside VM")],
+    workspace: typing.Annotated[
+        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
+    ] = None,
+) -> None:
+    """Run a command inside the VM."""
+    from qt_ai_dev_tools.vagrant.vm import vm_run
+
+    result = vm_run(command, workspace)
+    if result.stdout:
+        typer.echo(result.stdout)
+    if result.returncode != 0:
+        typer.echo(result.stderr, err=True)
+        raise typer.Exit(code=result.returncode)

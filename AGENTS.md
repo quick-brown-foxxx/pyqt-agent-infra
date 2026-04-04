@@ -7,34 +7,42 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 ## Quick orientation
 
 - `src/qt_ai_dev_tools/` — Python package: AT-SPI tree traversal, xdotool interaction, CLI
-  - `pilot.py` — `QtPilot` class: connect to Qt app, find/click/type/read widgets
-  - `cli.py` — Typer CLI: `qt-ai-dev-tools tree`, `click`, `find`, `screenshot`, etc.
-  - `interact.py` — xdotool click/type/key, AT-SPI actions
-  - `state.py` — read widget name, role, extents, text
+  - `_atspi.py` — `AtspiNode` typed wrapper: ALL raw `gi.repository.Atspi` access confined here
+  - `pilot.py` — `QtPilot` class: connect to Qt app, find/click/type/read widgets (uses `AtspiNode`)
+  - `cli.py` — Typer CLI: `qt-ai-dev-tools tree`, `click`, `find`, `screenshot`, `workspace`, `vm`
+  - `interact.py` — xdotool click/type/key, AT-SPI actions (accepts `AtspiNode`)
+  - `state.py` — read widget name, role, extents, text (accepts `AtspiNode`)
   - `screenshot.py` — screenshot via scrot
   - `models.py` — `Extents`, `WidgetInfo` data types
+  - `vagrant/` — Vagrant subsystem
+    - `workspace.py` — `WorkspaceConfig` + `render_workspace()` template rendering
+    - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
+    - `templates/` — Jinja2 templates for Vagrantfile, provision.sh, scripts
 - `app/main.py` — sample PySide6 todo app (test subject)
 - `tests/` — pytest-qt + AT-SPI + CLI integration tests
-- `scripts/vm-run.sh` — run commands inside Vagrant VM
-- `scripts/screenshot.sh` — take screenshot in VM, copy to host
+- `scripts/vm-run.sh` — run commands inside Vagrant VM (generated from template)
+- `scripts/screenshot.sh` — take screenshot in VM, copy to host (generated from template)
 - `pyproject.toml` — build config, deps, linting, CLI entry point
-- `provision.sh` — VM setup: Xvfb, openbox, AT-SPI, PySide6
-- `Vagrantfile` — Ubuntu 24.04 VM (libvirt, 4GB RAM, 4 CPUs)
+- `provision.sh` — VM setup: Xvfb, openbox, AT-SPI, PySide6 (generated from template)
+- `Vagrantfile` — Ubuntu 24.04 VM (libvirt, 4GB RAM, 4 CPUs) (generated from template)
 - `RESULTS.md` — proof-of-concept evaluation
 - `docs/ROADMAP.md` — project roadmap
 
 ## Current state
 
-Phase 1 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). Agents interact with Qt apps using one-liner commands instead of Python heredocs. The next milestone is VM workflow improvements (Phase 2) and agent integration (Phase 3).
+Phases 1–3 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with `workspace init` and `vm *` CLI commands. The next milestone is VM environment improvements (Phase 4) and agent integration (Phase 5).
 
 ## Key technical facts
 
 - **AT-SPI** provides the widget tree (roles, names, coordinates). Use `gi.repository.Atspi`, NOT `pyatspi` (broken on Python 3.12).
+- **`AtspiNode` wrapper** (`_atspi.py`) — ALL raw Atspi access is confined here. The rest of the codebase uses `AtspiNode` with typed properties (`name`, `role_name`, `children`, `get_extents()`, `get_text()`, `do_action()`). This keeps `# type: ignore` comments out of business logic.
+- **basedpyright strict** — project runs with strict type checking. No global suppressions. Only `_atspi.py` has type ignores (confined AT-SPI boundary).
 - **xdotool** for text input and clicks by coordinate. AT-SPI's `editable_text.insert_text()` does NOT work with Qt — it updates the accessibility layer but not Qt's internal model.
 - **Openbox** window manager is required for correct xdotool coordinates.
 - **Xvfb :99** is the virtual display. All tools need `DISPLAY=:99`.
 - **scrot** for screenshots. Output is ~14-22KB PNG.
-- **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 6.
+- **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
+- **Jinja2 templates** — Vagrantfile, provision.sh, scripts are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
 
 ## Running things
 
@@ -63,6 +71,18 @@ qt-ai-dev-tools key Return
 qt-ai-dev-tools screenshot -o /tmp/shot.png
 qt-ai-dev-tools apps                          # list AT-SPI apps
 qt-ai-dev-tools wait --app "main.py"          # wait for app
+
+# Workspace management (generate Vagrant infra from templates):
+qt-ai-dev-tools workspace init --path .                    # default config
+qt-ai-dev-tools workspace init --memory 8192 --cpus 8      # custom VM resources
+
+# VM lifecycle:
+qt-ai-dev-tools vm up                         # start VM
+qt-ai-dev-tools vm status                     # check VM status
+qt-ai-dev-tools vm ssh                        # SSH into VM
+qt-ai-dev-tools vm sync                       # rsync files to VM
+qt-ai-dev-tools vm run "pytest /vagrant/tests/"  # run command in VM
+qt-ai-dev-tools vm destroy                    # destroy VM
 ```
 
 ## Workflow for improving this project

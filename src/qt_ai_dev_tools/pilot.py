@@ -4,14 +4,10 @@ from __future__ import annotations
 
 import time
 
-import gi  # type: ignore[import-untyped]  # rationale: system GObject introspection
-
 from qt_ai_dev_tools import interact, state
+from qt_ai_dev_tools._atspi import AtspiNode
 from qt_ai_dev_tools.models import Extents
 from qt_ai_dev_tools.screenshot import take_screenshot
-
-gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi  # type: ignore[import-untyped]  # noqa: E402  # rationale: system AT-SPI bindings
 
 
 class QtPilot:
@@ -28,27 +24,20 @@ class QtPilot:
     """
 
     def __init__(self, app_name: str | None = None, retries: int = 5, delay: float = 1.0) -> None:
-        self.app: object | None = None
+        self.app: AtspiNode | None = None
         for _ in range(retries):
-            desktop = Atspi.get_desktop(0)
-            for i in range(desktop.get_child_count()):
-                candidate = desktop.get_child_at_index(i)
-                if candidate is None:
-                    continue
-                if app_name is None or app_name in (candidate.get_name() or ""):
-                    self.app = candidate
+            desktop = AtspiNode.desktop(0)
+            for child in desktop.children:
+                if app_name is None or app_name in child.name:
+                    self.app = child
                     break
             if self.app:
                 break
             time.sleep(delay)
 
         if not self.app:
-            apps: list[str] = []
-            desktop = Atspi.get_desktop(0)
-            for i in range(desktop.get_child_count()):
-                c = desktop.get_child_at_index(i)
-                if c:
-                    apps.append(c.get_name())
+            desktop = AtspiNode.desktop(0)
+            apps = [child.name for child in desktop.children]
             msg = f"App '{app_name}' not found on AT-SPI bus. Visible apps: {apps}"
             raise RuntimeError(msg)
 
@@ -58,14 +47,14 @@ class QtPilot:
         self,
         role: str | None = None,
         name: str | None = None,
-        root: object | None = None,
-    ) -> list[object]:
+        root: AtspiNode | None = None,
+    ) -> list[AtspiNode]:
         """Find all widgets matching role and/or name (substring match)."""
         root = root or self.app
         if root is None:
             msg = "No app connected"
             raise RuntimeError(msg)
-        results: list[object] = []
+        results: list[AtspiNode] = []
         self._walk(root, role, name, results)
         return results
 
@@ -73,8 +62,8 @@ class QtPilot:
         self,
         role: str | None = None,
         name: str | None = None,
-        root: object | None = None,
-    ) -> object:
+        root: AtspiNode | None = None,
+    ) -> AtspiNode:
         """Find exactly one widget. Raises if 0 or >1 found."""
         found = self.find(role, name, root)
         if len(found) == 0:
@@ -82,7 +71,7 @@ class QtPilot:
             raise LookupError(msg)
         if len(found) > 1:
             descs = [
-                f'[{w.get_role_name()}] "{w.get_name()}"'  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
+                f'[{w.role_name}] "{w.name}"'
                 for w in found
             ]
             msg = f"Multiple widgets found for role={role}, name={name}: {descs}"
@@ -91,7 +80,7 @@ class QtPilot:
 
     def dump_tree(
         self,
-        root: object | None = None,
+        root: AtspiNode | None = None,
         indent: int = 0,
         max_depth: int = 8,
     ) -> str:
@@ -106,13 +95,13 @@ class QtPilot:
         print(text)
         return text
 
-    def get_children(self, widget: object) -> list[object]:
+    def get_children(self, widget: AtspiNode) -> list[AtspiNode]:
         """Get direct children of a widget."""
-        return state.get_children(widget)
+        return widget.children
 
     # ── Interaction ──────────────────────────────────────────────
 
-    def click(self, widget: object, pause: float = 0.2) -> None:
+    def click(self, widget: AtspiNode, pause: float = 0.2) -> None:
         """Click the center of a widget using xdotool."""
         interact.click(widget, pause)
 
@@ -124,29 +113,29 @@ class QtPilot:
         """Press a key via xdotool (e.g. 'Return', 'Tab', 'ctrl+a')."""
         interact.press_key(key, pause)
 
-    def action(self, widget: object, action_name: str = "Press", pause: float = 0.3) -> None:
+    def action(self, widget: AtspiNode, action_name: str = "Press", pause: float = 0.3) -> None:
         """Invoke an AT-SPI action by name (e.g. 'Press', 'SetFocus')."""
         interact.action(widget, action_name, pause)
 
-    def focus(self, widget: object, pause: float = 0.2) -> None:
+    def focus(self, widget: AtspiNode, pause: float = 0.2) -> None:
         """Focus a widget via AT-SPI SetFocus, falling back to click."""
         interact.focus(widget, pause)
 
     # ── State ────────────────────────────────────────────────────
 
-    def get_name(self, widget: object) -> str:
+    def get_name(self, widget: AtspiNode) -> str:
         """Get the accessible name of a widget."""
         return state.get_name(widget)
 
-    def get_role(self, widget: object) -> str:
+    def get_role(self, widget: AtspiNode) -> str:
         """Get the role name of a widget."""
         return state.get_role(widget)
 
-    def get_extents(self, widget: object) -> Extents:
+    def get_extents(self, widget: AtspiNode) -> Extents:
         """Get screen position and size of a widget."""
         return state.get_extents(widget)
 
-    def get_text(self, widget: object) -> str:
+    def get_text(self, widget: AtspiNode) -> str:
         """Get text content from a widget."""
         return state.get_text(widget)
 
@@ -160,19 +149,19 @@ class QtPilot:
 
     def _walk(
         self,
-        node: object,
+        node: AtspiNode,
         role: str | None,
         name: str | None,
-        results: list[object],
+        results: list[AtspiNode],
     ) -> None:
-        for i in range(node.get_child_count()):  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-            c = node.get_child_at_index(i)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
+        for i in range(node.child_count):
+            c = node.child_at(i)
             if c is None:
                 continue
             match = True
-            if role and c.get_role_name() != role:
+            if role and c.role_name != role:
                 match = False
-            if name and name not in (c.get_name() or ""):
+            if name and name not in c.name:
                 match = False
             if match:
                 results.append(c)
@@ -180,22 +169,22 @@ class QtPilot:
 
     def _dump(
         self,
-        node: object,
+        node: AtspiNode,
         indent: int,
         max_depth: int,
         lines: list[str],
     ) -> None:
         if indent > max_depth:
             return
-        widget_name = node.get_name() or ""  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-        role = node.get_role_name()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
+        widget_name = node.name
+        role = node.role_name
         try:
-            ext = node.get_extents(Atspi.CoordType.SCREEN)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
+            ext = node.get_extents()
             pos = f" @({ext.x},{ext.y} {ext.width}x{ext.height})"
         except Exception:
             pos = ""
         lines.append(f'{"  " * indent}[{role}] "{widget_name}"{pos}')
-        for i in range(node.get_child_count()):  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
-            c = node.get_child_at_index(i)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible
+        for i in range(node.child_count):
+            c = node.child_at(i)
             if c:
                 self._dump(c, indent + 1, max_depth, lines)

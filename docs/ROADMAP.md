@@ -391,7 +391,42 @@ Based on real usage, document the recommended workflow and common patterns.
 
 ## Phase 6: Advanced capabilities
 
+**Status:** In progress. Bridge eval design (6.0a) complete.
 **Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems. **Use-case driven:** agree with user on 3-5 most popular/valuable use cases, implement those first. Additional use cases go to the backlog for future work.
+
+### 6.0 — Bridge: Runtime Code Execution
+
+Chrome DevTools `evaluate_script` equivalent for Qt apps. Lets AI agents execute arbitrary Python code inside a running Qt/PySide app via a Unix socket bridge. Two start methods:
+1. **App-installed:** `from qt_ai_dev_tools.bridge import start; start()` (any Python)
+2. **Auto-injected:** `sys.remote_exec()` (Python 3.14+, preferred when available)
+
+#### 6.0a — [explore] Bridge eval design
+
+**Status:** Done. Design exploration in `docs/superpowers/specs/2026-04-05-bridge-eval-design.md`. Researched embedded REPL server, sys.remote_exec (PEP 768), Chrome DevTools evaluate_script equivalents. Decided on Unix socket bridge with two start methods.
+
+#### 6.0b — [implement] Bridge server module
+
+`src/qt_ai_dev_tools/bridge.py`. Unix socket server on background thread, `QMetaObject.invokeMethod` dispatch to main thread, eval/exec with pre-populated namespace (app, widgets, find/findall helpers, PySide6 imports). JSON protocol. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE` env var.
+
+#### 6.0c — [implement] CLI eval command
+
+`qt-ai-dev-tools eval <code>`, `eval --file <path>`, `eval --file -` (stdin). Auto-detects bridge socket. Auto-injects via `sys.remote_exec` on 3.14+ if no bridge found. Fail-fast with setup instructions for <3.14.
+
+#### 6.0d — [implement] CLI bridge subcommand
+
+`qt-ai-dev-tools bridge status` (detect running bridge), `bridge inject` (manual `sys.remote_exec` injection).
+
+#### 6.0e — [implement] sys.remote_exec bootstrap
+
+Write temp bootstrap script, inject via `sys.remote_exec(pid, path)`. Handles path setup and starts bridge server inside target process.
+
+#### 6.0f — [test] Bridge integration tests
+
+Test bridge lifecycle: start, connect, eval, exec, error handling, timeout, dev-mode enforcement. Test `sys.remote_exec` injection path.
+
+#### 6.0g — [doc] Bridge guide
+
+`docs/bridge-guide.md`: setup, usage, examples, security notes, troubleshooting. Update skills with eval-based recipes.
 
 ### 6.1 — [explore] Complex widget support
 

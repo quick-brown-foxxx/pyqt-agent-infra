@@ -71,9 +71,8 @@ Phases 1-5 complete. Phase 6 in progress — bridge eval (6.0) is complete. The 
 ## AI Skills
 
 Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
-- `install-qt-ai-dev-tools` — autonomous setup of the toolkit in a project
-- `qt-inspect-interact-verify` — core inspect->interact->verify loop
-- `qt-widget-patterns` — widget identification strategies and common recipes
+- `qt-dev-tools-setup` — install toolkit, configure VM, verify environment
+- `qt-app-interaction` — inspect widgets, interact, verify results (the core workflow loop)
 
 ## Running things
 
@@ -210,6 +209,4 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 
 - `docs/PHILOSOPHY.md` — foundational development principles
 - `docs/ROADMAP.md` — project roadmap and task tracking
-- `docs/vm-setup-guide.md` — VM environment setup
-- `docs/agent-workflow.md` — recommended agent workflow
-- `docs/bridge-guide.md` — bridge feature: runtime code execution in Qt apps
+- `DEVELOPMENT.md` — development environment setup and make targets

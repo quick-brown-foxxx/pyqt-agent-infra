@@ -4,42 +4,42 @@
     "building-multi-ui-apps": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "e6be82ede7c110ef7993113af9e7d75f41c941a6fa0f29c3a6516d96be6be595"
+      "computedHash": "849ab1a7a92c243d82111535f0809604fdd6e5f98651182f8a242b090c4897bd"
     },
     "building-qt-apps": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "7c6caca1c2d3183b69f2c8acd125924591a516cff6049f37770f2e0f4347a359"
+      "computedHash": "dd6f5674c1940233c8c60459052673291871afbe458ac282c4b862453aa2c2e6"
     },
     "setting-up-logging": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "c1587ef9505afb5fe9ac8a7d8079430ad1ee84eaa290a572499699656b602ba0"
+      "computedHash": "b098ced71a53673aae2a7e35442248623894c6dfee9d864ac873beb7af85ce51"
     },
     "setting-up-python-projects": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "5992b6144177f214be9513a7a63c4e6f0de1b4bcb054aa6e43f64f0fb7770bfc"
+      "computedHash": "affc5a2884eb81aa70b537ff84445300ddf6490eb9ba688922fb09b9765c9f57"
     },
     "setting-up-shortcuts": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "3d78e9ec1e71317401b232ebad8bbfcb9d8aa5f5e25814418535df1455de23fe"
+      "computedHash": "1b3299f592708e274021bb61f7d6cd7d3a80de62b9d216e5bbcb21566983fc6a"
     },
     "testing-python": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "9912bfe254989958707bd0928cae2e682fdb6e8c85ee392cddf6ab280c1e568c"
+      "computedHash": "a19b320fe5e61d5eeb770b56d7488d616f709dc87f2313948ba43c18b08d3700"
     },
     "writing-python-code": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "fbf9764dd5cfab14ebb9bf60b73148b2103baec8f5878f99f66e8a110dc6124d"
+      "computedHash": "b4dca0b5b79fabb75b2d056f2a34dd5a932efa870acf0d180739d062fe15b464"
     },
     "writing-python-scripts": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "3f1d01dc7f3f214529c769a6214a1414d87da7a03553deaf5d00ba81327bfaca"
+      "computedHash": "92245e6ff30fed6f695d1ce3e50a2453a3ec9c2b1a3113ad6360fd83b17a88af"
     }
   }
 }

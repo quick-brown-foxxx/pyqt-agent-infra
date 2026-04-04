@@ -2,13 +2,21 @@
 Минимальное PySide6 приложение для проверки тестовой инфраструктуры.
 Намеренно содержит несколько виджетов с разным state для полезных тестов.
 """
+
 import sys
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QListWidget
-)
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class MainWindow(QMainWindow):

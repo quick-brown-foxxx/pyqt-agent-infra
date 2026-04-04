@@ -506,9 +506,7 @@ app.add_typer(vm_app, name="vm")
 
 @vm_app.command(name="up")
 def vm_up_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
     provider: typing.Annotated[str, typer.Option("--provider", help="Vagrant provider")] = "libvirt",
 ) -> None:
     """Start the VM."""
@@ -526,9 +524,7 @@ def vm_up_cmd(
 
 @vm_app.command(name="status")
 def vm_status_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Check VM status."""
     from qt_ai_dev_tools.vagrant.vm import vm_status
@@ -539,9 +535,7 @@ def vm_status_cmd(
 
 @vm_app.command(name="ssh")
 def vm_ssh_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """SSH into the VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_ssh
@@ -551,9 +545,7 @@ def vm_ssh_cmd(
 
 @vm_app.command(name="destroy")
 def vm_destroy_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Destroy the VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_destroy
@@ -567,9 +559,7 @@ def vm_destroy_cmd(
 
 @vm_app.command(name="sync")
 def vm_sync_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Sync files to VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_sync
@@ -583,9 +573,7 @@ def vm_sync_cmd(
 
 @vm_app.command(name="sync-auto")
 def vm_sync_auto_cmd(
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Start background rsync-auto to keep VM files in sync."""
     from qt_ai_dev_tools.vagrant.vm import vm_sync_auto
@@ -603,9 +591,7 @@ def vm_sync_auto_cmd(
 @vm_app.command(name="run")
 def vm_run_cmd(
     command: typing.Annotated[str, typer.Argument(help="Command to run inside VM")],
-    workspace: typing.Annotated[
-        Path | None, typer.Option("--workspace", "-w", help="Workspace path")
-    ] = None,
+    workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Run a command inside the VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_run
@@ -616,3 +602,130 @@ def vm_run_cmd(
     if result.returncode != 0:
         typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
+
+
+# ── Bridge commands ────────────────────────────────────────────────
+
+
+def _no_bridge_error(pid: int | None) -> typing.NoReturn:
+    """Print helpful error when no bridge is found and exit."""
+    if pid is not None:
+        typer.echo(f"Error: No bridge found for PID {pid}.", err=True)
+    else:
+        typer.echo("Error: No bridge found.", err=True)
+    typer.echo("", err=True)
+    typer.echo("Start a bridge by adding to your app:", err=True)
+    typer.echo("  from qt_ai_dev_tools.bridge import start; start()", err=True)
+    typer.echo("", err=True)
+    typer.echo("Or set QT_AI_DEV_TOOLS_BRIDGE=1 if bridge.start() is already in the code.", err=True)
+    raise typer.Exit(code=1)
+
+
+@app.command(name="eval")
+def eval_cmd(
+    code: typing.Annotated[str | None, typer.Argument(help="Python code to execute")] = None,
+    file: typing.Annotated[
+        str | None, typer.Option("--file", "-f", help="Execute code from file (use - for stdin)")
+    ] = None,
+    pid: typing.Annotated[int | None, typer.Option("--pid", help="Target process PID")] = None,
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    timeout: typing.Annotated[float, typer.Option("--timeout", help="Execution timeout in seconds")] = 30.0,
+) -> None:
+    """Execute Python code inside a running Qt app via bridge.
+
+    Requires an active bridge. Start one by adding to your app:
+      from qt_ai_dev_tools.bridge import start; start()
+
+    Or inject into a running Python 3.14+ app:
+      qt-ai-dev-tools bridge inject --pid <PID>
+    """
+    _proxy_to_vm()
+
+    # Resolve code from argument, file, or stdin
+    if code is None and file is None:
+        typer.echo("Error: provide code argument or --file", err=True)
+        raise typer.Exit(code=1)
+
+    if file is not None:
+        if file == "-":
+            actual_code = sys.stdin.read()
+        else:
+            f = Path(file)
+            if not f.exists():
+                typer.echo(f"Error: file not found: {file}", err=True)
+                raise typer.Exit(code=1)
+            actual_code = f.read_text()
+    else:
+        assert code is not None  # narrowed above
+        actual_code = code
+
+    from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
+
+    # Find bridge socket
+    try:
+        sock = find_bridge_socket(pid)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if sock is None:
+        _no_bridge_error(pid)
+
+    response = eval_code(sock, actual_code, timeout=timeout)
+
+    if output_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps(asdict(response), indent=2, ensure_ascii=False))
+    else:
+        if response.ok:
+            if response.stdout:
+                typer.echo(response.stdout, nl=False)
+            if response.result is not None and response.result != "None":
+                typer.echo(response.result)
+        else:
+            typer.echo(f"Error: {response.error}", err=True)
+            if response.traceback_str:
+                typer.echo(response.traceback_str, err=True)
+            raise typer.Exit(code=1)
+
+
+bridge_app = typer.Typer(help="Manage bridge lifecycle.")
+app.add_typer(bridge_app, name="bridge")
+
+
+@bridge_app.command(name="status")
+def bridge_status_cmd(
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """List active bridge connections."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.bridge._client import bridge_status
+
+    bridges = bridge_status()
+    if not bridges:
+        typer.echo("No active bridges found.")
+        return
+
+    if output_json:
+        typer.echo(json.dumps(bridges, indent=2, ensure_ascii=False))
+    else:
+        for b in bridges:
+            status = b.get("alive", "unknown")
+            typer.echo(f"  PID {b['pid']}: {b['socket_path']} ({status})")
+
+
+@bridge_app.command(name="inject")
+def bridge_inject_cmd(
+    pid: typing.Annotated[int | None, typer.Option("--pid", help="Target process PID")] = None,
+) -> None:
+    """Inject bridge into a running Python 3.14+ process."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.bridge._bootstrap import inject_bridge
+
+    try:
+        bridge_socket_path = inject_bridge(pid)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Bridge injected. Socket: {bridge_socket_path}")

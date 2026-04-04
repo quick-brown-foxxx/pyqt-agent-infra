@@ -83,9 +83,7 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     )
 
 
-def vm_run(
-    command: str, workspace: Path | None = None, display: str = ":99"
-) -> subprocess.CompletedProcess[str]:
+def vm_run(command: str, workspace: Path | None = None, display: str = ":99") -> subprocess.CompletedProcess[str]:
     """Run a command inside the VM with proper Qt/AT-SPI environment."""
     ws = find_workspace(workspace)
     env_prefix = (

@@ -94,6 +94,12 @@ def main():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
+
+    # Enable bridge for AI agent eval access (requires QT_AI_DEV_TOOLS_BRIDGE=1)
+    from qt_ai_dev_tools.bridge import start
+
+    start()
+
     sys.exit(app.exec())
 
 

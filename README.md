@@ -13,6 +13,7 @@ qt-ai-dev-tools bridges that gap. Your AI agent can:
 - **See the full widget tree** — every button, label, text field, menu, and dialog, with roles, names, and coordinates, via the AT-SPI accessibility protocol
 - **Interact with the app** — click buttons, type into fields, press keys, fill forms, navigate menus — all through real X11 input events
 - **Take screenshots** — visual verification after any interaction (~14-22 KB PNG, cheap to send to an LLM)
+- **Execute code inside the app** — run arbitrary Python inside the target process via a Unix socket bridge, accessing widgets, properties, and Qt internals directly
 - **Run in an isolated VM** — Vagrant VM with Xvfb, window manager, and AT-SPI pre-configured. No host contamination, reproducible environment
 
 The agent never modifies or instruments the target app. It uses the same accessibility tree that screen readers use, from the outside.
@@ -76,7 +77,7 @@ If you prefer to set up manually or your agent doesn't support skills, read `ski
 
 ## Project status
 
-Phases 1–5 are complete (CLI, type system, Vagrant subsystem, VM improvements, agent integration). Next: Phase 6 (complex widget support, runtime code execution bridge) and Phase 7 (streamlined distribution).
+Phases 1–5 are complete. Phase 6 in progress — the bridge (runtime code execution inside Qt apps) is done. Next: remaining Phase 6 work (complex widget support, Linux subsystem access) and Phase 7 (streamlined distribution).
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full plan.
 

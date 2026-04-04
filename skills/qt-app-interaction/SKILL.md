@@ -75,6 +75,8 @@ Perform the action.
 
 **`do click "Save" --role "push button" --verify "label:Status contains Saved"`** -- click + verify in one command. Add `--screenshot` to also capture after clicking.
 
+**`eval "expression"`** -- execute Python code inside the running app via the bridge. See [references/bridge.md](references/bridge.md) for setup and usage.
+
 ### When to use which
 
 | Goal | Command |
@@ -88,6 +90,7 @@ Perform the action.
 | Close a dialog | `key Escape` |
 | Select all text | `key "ctrl+a"` |
 | Click and verify result | `do click "Save" --verify "label:Status contains Saved"` |
+| Run code inside the app | `eval "app.windowTitle()"` |
 
 ## Phase 3: Verify
 

@@ -391,7 +391,7 @@ Based on real usage, document the recommended workflow and common patterns.
 
 ## Phase 6: Advanced capabilities
 
-**Status:** In progress. Bridge eval design (6.0a) complete.
+**Status:** In progress. Bridge eval (6.0) complete. Design (6.0a) done, server module (6.0b) done, CLI eval command (6.0c) done, bridge subcommand (6.0d) done, sys.remote_exec bootstrap (6.0e) done, integration tests (6.0f) done, bridge guide (6.0g) done.
 **Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems. **Use-case driven:** agree with user on 3-5 most popular/valuable use cases, implement those first. Additional use cases go to the backlog for future work.
 
 ### 6.0 — Bridge: Runtime Code Execution
@@ -406,25 +406,37 @@ Chrome DevTools `evaluate_script` equivalent for Qt apps. Lets AI agents execute
 
 #### 6.0b — [implement] Bridge server module
 
-`src/qt_ai_dev_tools/bridge.py`. Unix socket server on background thread, `QMetaObject.invokeMethod` dispatch to main thread, eval/exec with pre-populated namespace (app, widgets, find/findall helpers, PySide6 imports). JSON protocol. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE` env var.
+**Status:** Done.
+
+`src/qt_ai_dev_tools/bridge/` package. Unix socket server on daemon thread, Signal + `BlockingQueuedConnection` dispatch to Qt main thread, eval/exec engine with stdout capture and 64KB truncation. Pre-populated namespace (app, widgets dict, find/findall helpers, 30 PySide6 classes). JSON-over-socket protocol. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE` env var.
 
 #### 6.0c — [implement] CLI eval command
+
+**Status:** Done.
 
 `qt-ai-dev-tools eval <code>`, `eval --file <path>`, `eval --file -` (stdin). Auto-detects bridge socket. Auto-injects via `sys.remote_exec` on 3.14+ if no bridge found. Fail-fast with setup instructions for <3.14.
 
 #### 6.0d — [implement] CLI bridge subcommand
 
+**Status:** Done.
+
 `qt-ai-dev-tools bridge status` (detect running bridge), `bridge inject` (manual `sys.remote_exec` injection).
 
 #### 6.0e — [implement] sys.remote_exec bootstrap
+
+**Status:** Done.
 
 Write temp bootstrap script, inject via `sys.remote_exec(pid, path)`. Handles path setup and starts bridge server inside target process.
 
 #### 6.0f — [test] Bridge integration tests
 
-Test bridge lifecycle: start, connect, eval, exec, error handling, timeout, dev-mode enforcement. Test `sys.remote_exec` injection path.
+**Status:** Done.
+
+37 unit tests (protocol, eval engine, client with real socket mocks). 14 e2e tests inside VM against real PySide6 app (eval, widget access, button clicks, exec stdout, errors, CLI commands). 4 host-side proxy tests verifying transparent VM proxy for eval and bridge status. `make test-e2e` runs VM-side suite.
 
 #### 6.0g — [doc] Bridge guide
+
+**Status:** Done.
 
 `docs/bridge-guide.md`: setup, usage, examples, security notes, troubleshooting. Update skills with eval-based recipes.
 

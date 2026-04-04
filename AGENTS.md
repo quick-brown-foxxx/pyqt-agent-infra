@@ -83,7 +83,14 @@ This tool is built FOR AI agents BY AI agents. When working on it:
 
 **BEFORE writing ANY code, ALWAYS check available skills and USE every skill that matches your scope.** Skills are project standards — code that ignores them WILL fail review. When delegating to subagents, tell them which skills to use.
 
-Example key skills: `writing-python-code`, `setting-up-python-projects`, `superpowers/dispatching-parallel-agents`, ` superpowers/executing-plans`
+#### Python
+
+- `writing-python-code` — ALWAYS load when writing/editing Python. NEVER write Python without this.
+- `testing-python` — ALWAYS load when writing tests or fixtures. NEVER write pytest tests without this.
+- `setting-up-python-projects` — ALWAYS load when bootstrapping a new package. NEVER set up pyproject.toml manually.
+- `writing-python-scripts` — ALWAYS load when creating standalone scripts. NEVER write single-file CLI tools without this.
+- `setting-up-logging` — DO load when adding or changing logging. DON'T configure logging manually.
+- `building-multi-ui-apps` — DO load when app has both CLI and/or GUI and/or API sharing logic. DON'T duplicate business logic across interfaces.
 
 ### Code style
 

@@ -45,7 +45,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. AI skills in `.skills/` teach agents the inspect-interact-verify workflow. The next milestone is Phase 6 (advanced capabilities) and Phase 7 (distribution).
+Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`). All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. AI skills in `skills/` teach agents the inspect-interact-verify workflow. The next milestone is Phase 6 (advanced capabilities) and Phase 7 (distribution).
 
 ## Key technical facts
 
@@ -62,7 +62,7 @@ Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 
 ## AI Skills
 
-Agent skills in `.skills/` teach AI agents the qt-ai-dev-tools workflow:
+Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
 - `install-qt-ai-dev-tools` — autonomous setup of the toolkit in a project
 - `qt-inspect-interact-verify` — core inspect->interact->verify loop
 - `qt-widget-patterns` — widget identification strategies and common recipes

@@ -4,7 +4,7 @@
 
 **Goal:** Make the VM workflow robust and ergonomic (Phase 4), then build agent integration — skills, compound commands, and workflow docs (Phase 5). Also fix code quality backlog items from Phase 2-3.
 
-**Architecture:** Incremental improvements to existing package. No new modules — extend `vm.py`, `workspace.py`, `cli.py`, templates. Skills go in `.skills/` at repo root. Compound commands add to `cli.py`.
+**Architecture:** Incremental improvements to existing package. No new modules — extend `vm.py`, `workspace.py`, `cli.py`, templates. Skills go in `skills/` at repo root. Compound commands add to `cli.py`.
 
 **Tech Stack:** Python 3.12, typer, Jinja2, colorlog, basedpyright strict, pytest
 
@@ -23,9 +23,9 @@
 | `src/qt_ai_dev_tools/cli.py` | Modify | Add compound commands (fill, do), auto-sync cmd |
 | `Makefile` | Modify | Fix broken script references |
 | `README.md` | Rewrite | English, current structure |
-| `.skills/install-qt-ai-dev-tools/SKILL.md` | Create | Setup skill |
-| `.skills/qt-inspect-interact-verify/SKILL.md` | Create | Core workflow skill |
-| `.skills/qt-widget-patterns/SKILL.md` | Create | Widget identification patterns |
+| `skills/install-qt-ai-dev-tools/SKILL.md` | Create | Setup skill |
+| `skills/qt-inspect-interact-verify/SKILL.md` | Create | Core workflow skill |
+| `skills/qt-widget-patterns/SKILL.md` | Create | Widget identification patterns |
 | `pyproject.toml` | Modify | Add pytest markers |
 | `tests/unit/test_vm.py` | Modify | Fix after vm.py changes |
 | `docs/vm-setup-guide.md` | Create | VM setup documentation |
@@ -110,9 +110,9 @@
 ## Task 6: AI Skills (Phase 5.1)
 
 **Files:**
-- Create: `.skills/install-qt-ai-dev-tools/SKILL.md`
-- Create: `.skills/qt-inspect-interact-verify/SKILL.md`
-- Create: `.skills/qt-widget-patterns/SKILL.md`
+- Create: `skills/install-qt-ai-dev-tools/SKILL.md`
+- Create: `skills/qt-inspect-interact-verify/SKILL.md`
+- Create: `skills/qt-widget-patterns/SKILL.md`
 
 - [ ] **Step 1:** Write install skill — autonomous setup instructions for agents.
 - [ ] **Step 2:** Write inspect-interact-verify skill — core workflow loop.

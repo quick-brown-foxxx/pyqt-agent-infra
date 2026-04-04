@@ -310,7 +310,7 @@ Document setup for each supported provider. Known issues and workarounds.
 
 ### 5.1 — [implement] AI skills
 
-**Status:** Done. Three skills created in `.skills/`: `install-qt-ai-dev-tools`, `qt-inspect-interact-verify`, `qt-widget-patterns`.
+**Status:** Done. Three skills created in `skills/`: `install-qt-ai-dev-tools`, `qt-inspect-interact-verify`, `qt-widget-patterns`.
 
 Create agent skills that teach the full qt-ai-dev-tools workflow. These are the primary integration point — skills turn a generic agent into one that knows how to drive Qt apps.
 
@@ -488,9 +488,9 @@ A `cli` script with `#!/usr/bin/env -S uv run --script` shebang that can be run 
 
 `pip install qt-ai-dev-tools` — installs the library + CLI system-wide. For users who prefer traditional package management or need it as a library dependency.
 
-### 7.5 — [implement] Skills in `.skills/` directory
+### 7.5 — [implement] Skills in `skills/` directory
 
-Maintain a `.skills/` directory at the top of the public GitHub repo. `npx -y skills add ghuser/repo` handles discovery and installation automatically — no separate packaging needed. Skills are also bundled into the shadcn-style toolkit copy.
+Maintain a `skills/` directory at the top of the public GitHub repo. `npx -y skills add ghuser/repo` handles discovery and installation automatically — no separate packaging needed. Skills are also bundled into the shadcn-style toolkit copy.
 
 ### 7.6 — [doc] Distribution guide (which method when)
 

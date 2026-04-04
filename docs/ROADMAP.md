@@ -391,8 +391,12 @@ Based on real usage, document the recommended workflow and common patterns.
 
 ## Phase 6: Advanced capabilities
 
-**Status:** In progress. Bridge eval (6.0) complete. Design (6.0a) done, server module (6.0b) done, CLI eval command (6.0c) done, bridge subcommand (6.0d) done, sys.remote_exec bootstrap (6.0e) done, integration tests (6.0f) done, bridge guide (6.0g) done.
+**Status:** In progress. Bridge eval (6.0) complete. Subsystem design and implementation plan done — see specs below. Remaining work: complex widgets (6.1-6.2), subsystem modules (6.3), e2e tests (6.4), visual diffing (6.5), state snapshots (6.6), complex app testing (6.7).
 **Goal:** Beyond basic inspect/interact — handle complex Qt patterns and Linux subsystems. **Use-case driven:** agree with user on 3-5 most popular/valuable use cases, implement those first. Additional use cases go to the backlog for future work.
+
+**Design references:**
+- Design: `docs/superpowers/specs/2026-04-05-linux-subsystems-design.md`
+- Plan: `docs/superpowers/plans/2026-04-05-phases-6-6.5-7.md`
 
 ### 6.0 — Bridge: Runtime Code Execution
 
@@ -454,18 +458,91 @@ Research interaction patterns for:
 
 Add helpers as needed based on 6.1 findings. Only for widgets where the basic click/type isn't enough.
 
-### 6.3 — [explore] Linux subsystem access
+### 6.3 — [implement] Linux subsystem modules
 
-Research agent access to (VM gives full OS — use it):
-- **D-Bus** — system/session bus interaction (notifications, media controls)
-- **PulseAudio/PipeWire** — audio state (is sound playing?)
-- **System tray** — tray icon interaction
-- **File dialogs** — native file picker automation
-- **Clipboard** — read/write clipboard content
+Five subsystem modules in `src/qt_ai_dev_tools/subsystems/` wrapping system CLI tools (xclip, pw-cat, sox, busctl, etc.) via typed Python APIs. CLI commands added as typer subcommand groups. Architecture: `@dataclass(slots=True)` for types, `_proxy_to_vm()` for transparent VM proxying.
 
-### 6.4 — [prototype] Subsystem helpers
+#### 6.3a — [implement] VM provision updates
 
-Add `qt-ai-dev-tools dbus`, `qt-ai-dev-tools clipboard`, etc. as proven useful.
+**Status:** Not started.
+
+Add system packages to `provision.sh.j2`: sox, ffmpeg, xclip, dunst, pipewire (pipewire-pulse, wireplumber). Add dunst and PipeWire autostart to provision template.
+
+#### 6.3b — [implement] Subsystems package scaffold + shared types + subprocess helper
+
+**Status:** Not started.
+
+Create `src/qt_ai_dev_tools/subsystems/` package with `__init__.py`, `models.py` (ClipboardError, FileDialogInfo, FileDialogResult, TrayItem, TrayMenuEntry, Notification, NotificationAction, VirtualMicInfo, AudioSource, AudioStream, AudioVerification), and `_subprocess.py` (check_tool, run_tool typed helpers).
+
+#### 6.3c — [implement] Clipboard module + CLI + unit tests
+
+**Status:** Not started.
+
+`subsystems/clipboard.py` — xclip wrapper: `write(text)`, `read()` with DISPLAY env handling. CLI subcommand group: `clipboard write`, `clipboard read`. Unit tests with mocked subprocess calls.
+
+#### 6.3d — [implement] File dialog module + CLI + test app + unit tests
+
+**Status:** Not started.
+
+`subsystems/file_dialog.py` — AT-SPI automation of QFileDialog: `detect(pilot)`, `fill(pilot, path)`, `accept(pilot)`, `cancel(pilot)`. CLI subcommand group: `file-dialog detect/fill/accept/cancel`. Test app `tests/apps/file_dialog_app.py` with open/save buttons. Unit tests with mocked QtPilot.
+
+#### 6.3e — [implement] System tray module + CLI + test app + unit tests
+
+**Status:** Not started.
+
+`subsystems/tray.py` — SNI/XEmbed tray interaction via busctl: `list_items()`, `click(app_name)`, `menu(app_name)`, `select(app_name, item_label)`. Includes SNI research (check if openbox VM has SNI watcher, install snixembed/stalonetray if needed). CLI subcommand group: `tray list/click/menu/select`. Test app `tests/apps/tray_app.py` with tray icon, context menu, notifications.
+
+#### 6.3f — [implement] Notifications module + CLI + unit tests
+
+**Status:** Not started.
+
+`subsystems/notify.py` — D-Bus notification interaction via dbus-monitor/busctl: `listen(timeout)`, `dismiss(notification_id)`, `action(notification_id, action_key)`. CLI subcommand group: `notify listen/dismiss/action`. Unit tests with mocked subprocess calls.
+
+#### 6.3g — [implement] Audio module (PipeWire virtual mic, record, verify) + CLI + test app + unit tests
+
+**Status:** Not started.
+
+`subsystems/audio.py` — PipeWire audio via pw-loopback, pw-cat, sox: `virtual_mic_start()`, `virtual_mic_stop()`, `virtual_mic_play(path)`, `record(duration, output)`, `sources()`, `status()`, `verify_not_silence(path)`. CLI subcommand group: `audio virtual-mic start/stop/play`, `audio record`, `audio sources`, `audio status`, `audio verify`. Test app `tests/apps/audio_app.py` with record/play buttons.
+
+### 6.4 — [test] Subsystem e2e tests
+
+E2E tests run in the VM against real PySide6 test apps. Follow test flows from design spec.
+
+#### 6.4a — [test] E2E fixtures for subsystem test apps
+
+**Status:** Not started.
+
+Module-scoped fixtures in `tests/e2e/conftest.py` that start test apps as subprocesses, wait for AT-SPI, yield, kill on teardown. One fixture per test app: `file_dialog_app`, `clipboard_app`, `tray_app`, `audio_app`, `stt_app`.
+
+#### 6.4b — [test] Clipboard e2e tests (flows 2A, 2B, 2C)
+
+**Status:** Not started.
+
+Flow 2A: write to clipboard + paste into app. Flow 2B: copy from app + read clipboard. Flow 2C: cross-app clipboard transfer.
+
+#### 6.4c — [test] File dialog e2e tests (flows 1A, 1B, 1C)
+
+**Status:** Not started.
+
+Flow 1A: open file via dialog. Flow 1B: save file via dialog. Flow 1C: cancel dialog.
+
+#### 6.4d — [test] Tray e2e tests (flows 3A, 3B, 3C, 3D)
+
+**Status:** Not started.
+
+Flow 3A: restore window from tray click. Flow 3B: open tray context menu + select item. Flow 3C: read notification. Flow 3D: invoke notification action.
+
+#### 6.4e — [test] Audio e2e tests (flows 4A, 4B)
+
+**Status:** Not started.
+
+Flow 4A: virtual mic audio feed into app. Flow 4B: loopback record + verify non-silence with sox.
+
+#### 6.4f — [test] STT integration test app + e2e test (flow 4C)
+
+**Status:** Not started.
+
+Create fake STT test app (`tests/apps/stt_app.py`). Flow 4C: virtual mic feed → app transcribes → read result → clipboard paste.
 
 ### 6.5 — [implement] Visual diffing
 
@@ -560,36 +637,47 @@ Key properties:
 - **Secondary: `pip install qt-ai-dev-tools`** for users who want system-wide CLI or library usage
 - Update story: re-run `uvx qt-ai-dev-tools init` to update, or `qt-ai-dev-tools self-update` from within the toolkit
 
-### 7.1 — [implement] shadcn-style installer (`uvx qt-ai-dev-tools init`)
+### 7.1 — [implement] pip package (PyPI metadata + version module + build test)
 
-Single command that copies the full toolkit into a project directory. Scaffolds the layout above, resolves dependencies, generates Vagrantfile from templates.
+**Status:** Not started.
 
-### 7.2 — [implement] Self-contained cli shebang script (`uv run --script`)
+Add PyPI metadata to `pyproject.toml`: description, readme, license, requires-python, classifiers, urls, build-system. Create `src/qt_ai_dev_tools/__version__.py`. Test local `uv pip install -e .` and `uv publish --dry-run`.
+
+### 7.2 — [implement] shadcn-style installer (`uvx qt-ai-dev-tools init`)
+
+**Status:** Not started.
+
+Create `src/qt_ai_dev_tools/installer.py` with `init_toolkit(target, memory, cpus)` — copies source, templates, skills, config into target directory. Add `init` CLI command. Generates pyproject.toml, Vagrantfile, config.toml, cli shebang script.
+
+### 7.3 — [implement] Self-contained cli shebang script (`uv run --script`)
+
+**Status:** Not started.
 
 A `cli` script with `#!/usr/bin/env -S uv run --script` shebang that can be run directly without activating a venv. `uv` resolves deps from inline metadata or co-located pyproject.toml.
 
-### 7.3 — [implement] Update/upgrade mechanism
+### 7.4 — [implement] Self-update mechanism
 
-`uvx qt-ai-dev-tools init` re-run to update, or `qt-ai-dev-tools self-update` from within the toolkit. Preserves user customizations (config.toml, notes/, modified templates).
+**Status:** Not started.
 
-### 7.4 — [implement] pip package (secondary distribution)
-
-`pip install qt-ai-dev-tools` — installs the library + CLI system-wide. For users who prefer traditional package management or need it as a library dependency.
+`qt-ai-dev-tools self-update` — re-runs init, preserves user customizations (config.toml, notes/, modified templates).
 
 ### 7.5 — [implement] Skills in `skills/` directory
 
+**Status:** Not started.
+
 Maintain a `skills/` directory at the top of the public GitHub repo. `npx -y skills add ghuser/repo` handles discovery and installation automatically — no separate packaging needed. Skills are also bundled into the shadcn-style toolkit copy.
 
-### 7.6 — [doc] Distribution guide (which method when)
+### 7.6 — [doc] Documentation updates (subsystems guide, CLAUDE.md, README.md, ROADMAP.md)
 
-Document when to use each distribution method:
-- **shadcn-style copy** (primary): agent-driven development, per-project customization, full source access
-- **pip install** (secondary): library usage, system-wide CLI, CI/CD pipelines
-- **Skills only**: agent already has tooling, just needs Qt knowledge
+**Status:** Not started.
 
-### 7.7 — [test] Install-from-scratch test on clean machine
+Write `docs/subsystems-guide.md` documenting all five subsystems (clipboard, file-dialog, tray, notify, audio) with CLI examples and Python API. Update CLAUDE.md with subsystem orientation and CLI usage. Update README.md with subsystem features. Update ROADMAP.md with completion status.
 
-Verify `uvx qt-ai-dev-tools init` works on a fresh machine with only `uv` installed. Verify `pip install` works. Test the full lifecycle: install → init workspace → vm up → interact → screenshot.
+### 7.7 — [test] Manual testing in isolated environments
+
+**Status:** Not started.
+
+For each subsystem, run manual test in isolated directory (`/tmp/qt-ai-dev-tools-test-*`): copy project, boot VM, deploy test app, run through design spec test flows, verify input/output is simple and robust. Test subsets: clipboard flows 2A-2C, file dialog flows 1A-1C, tray flows 3A-3D, audio flows 4A-4C. Also test `uvx qt-ai-dev-tools init` and `pip install` on clean environment.
 
 ---
 

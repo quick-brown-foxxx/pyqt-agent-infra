@@ -58,6 +58,7 @@ Phases 1-5 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **scrot** for screenshots. Output is ~14-22KB PNG.
 - **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
 - **Jinja2 templates** — Vagrantfile, provision.sh, scripts are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
+- **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
 
 ## AI Skills
 

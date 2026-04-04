@@ -50,6 +50,8 @@ qt-ai-dev-tools vm destroy
 - **xdotool** handles interaction -- clicks by coordinate, text input, key presses. AT-SPI's own text insertion does not work with Qt's internal model.
 - **scrot** captures screenshots from the virtual display.
 - **Vagrant VM** (Ubuntu 24.04, libvirt) provides full OS isolation with Xvfb, openbox, D-Bus, and AT-SPI. This is the primary environment -- no container or host assumptions.
+
+> **Note:** Only the libvirt (QEMU/KVM) Vagrant provider has been tested. VirtualBox support is included but unverified.
 - **Jinja2 templates** generate Vagrantfile, provision.sh, and shell scripts via `workspace init`.
 
 ## Development

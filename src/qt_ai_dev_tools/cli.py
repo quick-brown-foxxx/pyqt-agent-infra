@@ -376,6 +376,9 @@ def workspace_init(
     """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
 
+    if provider == "virtualbox":
+        typer.echo("WARNING: VirtualBox provider is NOT TESTED. Only libvirt has been verified.", err=True)
+
     config = WorkspaceConfig(
         box=box,
         provider=provider,
@@ -407,6 +410,9 @@ def vm_up_cmd(
 ) -> None:
     """Start the VM."""
     from qt_ai_dev_tools.vagrant.vm import vm_up
+
+    if provider == "virtualbox":
+        typer.echo("WARNING: VirtualBox provider is NOT TESTED. Only libvirt has been verified.", err=True)
 
     result = vm_up(workspace, provider=provider)
     typer.echo(result.stdout)

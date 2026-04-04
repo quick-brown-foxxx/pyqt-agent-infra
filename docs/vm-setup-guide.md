@@ -51,6 +51,8 @@ Alternatively, use a static IP in your workspace config to bypass DHCP entirely 
 
 ### VirtualBox (secondary)
 
+> **WARNING:** VirtualBox support is NOT TESTED. Only libvirt (QEMU/KVM) has been verified. VirtualBox configuration is provided for convenience but may require adjustments.
+
 Cross-platform. Install VirtualBox from your package manager or https://www.virtualbox.org/. No special network workarounds needed.
 
 ```bash

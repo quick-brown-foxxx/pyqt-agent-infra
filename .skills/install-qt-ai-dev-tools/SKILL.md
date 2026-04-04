@@ -13,7 +13,7 @@ You are working on a Qt/PySide6 project and need to inspect, interact with, or t
 
 - **Linux host** (Fedora, Ubuntu, Arch, etc.). This tool uses AT-SPI and xdotool which are Linux-only.
 - **uv** package manager installed (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
-- **Vagrant** installed with either **libvirt** (recommended on Linux) or **VirtualBox** as the provider.
+- **Vagrant** installed with either **libvirt** (recommended on Linux) or **VirtualBox** as the provider. **Note:** Only libvirt has been tested. VirtualBox support is included but unverified.
   - For libvirt: `vagrant`, `vagrant-libvirt`, `qemu`, `libvirt` packages.
   - For VirtualBox: `vagrant`, `virtualbox` packages.
 - The Qt/PySide6 project you want to test.

@@ -84,6 +84,7 @@ class TestMainWindowLogic:
 def test_atspi_accessibility_tree(qtbot):
     try:
         import gi
+
         gi.require_version("Atspi", "2.0")
         from gi.repository import Atspi
     except (ImportError, ValueError):
@@ -123,7 +124,8 @@ def test_screenshot_via_scrot(qtbot, tmp_path):
     screenshot_path = str(tmp_path / "screen.png")
     result = subprocess.run(
         ["scrot", screenshot_path],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
 
     assert result.returncode == 0, f"scrot failed: {result.stderr}"

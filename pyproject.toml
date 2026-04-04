@@ -1,0 +1,85 @@
+[project]
+name = "qt-ai-dev-tools"
+description = "AI agent infrastructure for Qt/PySide apps — inspect, interact, screenshot via AT-SPI"
+version = "0.1.0"
+license = { text = "GPL-3.0" }
+requires-python = ">=3.12"
+dependencies = [
+    "colorlog>=6.10.1",
+    "typer>=0.12.0",
+]
+
+# System deps (not pip-installable, installed via apt):
+#   gir1.2-atspi-2.0, python3-gi  → gi.repository.Atspi
+#   xdotool                        → X11 interaction
+#   scrot                          → screenshots
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-qt>=4.5.0",
+    "ruff>=0.14.6",
+    "basedpyright>=1.34.0",
+    "pre-commit",
+    "poethepoet",
+]
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qt_ai_dev_tools"]
+
+[project.scripts]
+qt-ai-dev-tools = "qt_ai_dev_tools.cli:app"
+
+[tool.basedpyright]
+pythonPlatform = "Linux"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "strict"
+reportAny = "error"
+reportImplicitStringConcatenation = "none"
+reportUnusedCallResult = "none"
+reportUnnecessaryIsInstance = "none"
+exclude = [
+    "**/__pycache__", ".venv", "venv", "build", "dist", "wrktrs",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [
+    "venv", ".venv", "*.egg", "*.egg-info", "**/dist", "**/build",
+    "**/__pycache__", "wrktrs", ".git", ".pytest_cache",
+]
+
+[tool.ruff.lint]
+extend-select = [
+    "E", "F", "W", "I", "N", "UP", "ASYNC", "S", "B", "A", "C4",
+    "SIM", "PT", "PERF", "RUF",
+]
+ignore = ["S101", "RUF001", "S603", "S607"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PT018"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+qt_api = "pyside6"
+timeout = 30
+log_cli = true
+log_cli_level = "INFO"
+
+[tool.poe.tasks]
+test = "pytest"
+app = "python -m qt_ai_dev_tools"
+
+[tool.poe.tasks.lint_full]
+shell = "basedpyright src/ && ruff check --fix . && ruff format ."

@@ -1,6 +1,6 @@
 # qt-ai-dev-tools
 
-Chrome DevTools for Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
+[chrome-dev-tools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp/) for Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
 
 ## The problem
 
@@ -40,7 +40,7 @@ The agent never modifies or instruments the target app. It uses the same accessi
   Target Qt/PySide App (unmodified)
 ```
 
-The CLI auto-detects whether it's running on the host or inside the VM. On the host, commands proxy transparently through SSH — the agent doesn't need to think about where things run.
+CLI allows to execute any commands in VM, simplifying ssh connection.
 
 ## Host requirements
 
@@ -77,14 +77,24 @@ If you prefer to set up manually or your agent doesn't support skills, read `ski
 
 ## Project status
 
-Phases 1–5 are complete. Phase 6 in progress — the bridge (runtime code execution inside Qt apps) is done. Next: remaining Phase 6 work (complex widget support, Linux subsystem access) and Phase 7 (streamlined distribution).
+**Working now:**
+- CLI with one-liner commands — `tree`, `click`, `type`, `screenshot`, `fill`, `do`, etc.
+- Python library (`QtPilot`) with strict typing (basedpyright strict, typed AT-SPI wrapper)
+- Vagrant VM environment — Xvfb + openbox + AT-SPI, templated with Jinja2, multi-provider support
+- Workspace init & VM lifecycle management from the CLI
+- Compound commands — `fill` (focus + clear + type), `do` (click + verify/screenshot)
+- Bridge — execute arbitrary Python inside running Qt apps via Unix socket (chrome-dev-tools MCP `evaluate_script` equivalent)
+- AI skills — teach agents the inspect→interact→verify workflow
 
-See [ROADMAP.md](docs/ROADMAP.md) for the full plan.
+**Not yet built:**
+- Complex widget helpers (combo boxes, tables, tabs, menus, scroll areas)
+- Linux subsystem access (D-Bus, clipboard, audio, system tray)
+- Visual diffing & state snapshots
+- Distribution (`uvx qt-ai-dev-tools init` installer, pip package)
+- Container & direct-host environments (lighter alternatives to VM)
+
+See [ROADMAP.md](docs/ROADMAP.md) for the full plan and phase details.
 
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, make targets, and contribution guidance.
-
-## Not to be confused with
-
-[qt-pilot](https://github.com/neatobandit0/qt-pilot) is a different project that uses an in-process Qt test harness requiring `setObjectName()` on widgets. qt-ai-dev-tools uses AT-SPI externally, works with any Qt app without modification, and can access Linux subsystems beyond the application.

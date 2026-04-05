@@ -179,3 +179,257 @@ class TestQtPilotNoApp:
             pilot.app = None
             with pytest.raises(RuntimeError, match="No app connected"):
                 pilot.dump_tree()
+
+
+# ── Helper to build a QtPilot with find_one/find mocked ─────────
+
+
+def _make_pilot_with_mock_find() -> QtPilot:
+    """Create a QtPilot and return it (app set to a dummy node).
+
+    Callers should patch find_one / find on the returned pilot.
+    """
+    app_native = _make_node("test-app", "application")
+    desktop_native = _make_node("desktop", "desktop", children=[app_native])
+    with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+        return QtPilot(app_name="test-app", retries=1, delay=0.0)
+
+
+def _make_atspi_node_mock(
+    name: str = "",
+    role_name: str = "",
+    children: list[MagicMock] | None = None,
+) -> MagicMock:
+    """Create a MagicMock that behaves like an AtspiNode."""
+    node = MagicMock(spec=AtspiNode)
+    node.name = name
+    node.role_name = role_name
+    node.children = children or []
+    node.child_count = len(node.children)
+    return node
+
+
+# ── Tests for select_combo_item ──────────────────────────────────
+
+
+class TestSelectComboItem:
+    """Test QtPilot.select_combo_item."""
+
+    def test_selects_matching_child(self) -> None:
+        """Should call select_child with the correct index."""
+        child_a = _make_atspi_node_mock(name="Apple")
+        child_b = _make_atspi_node_mock(name="Banana")
+        combo = _make_atspi_node_mock(name="fruit", role_name="combo box", children=[child_a, child_b])
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=combo):
+            pilot.select_combo_item("Banana", role="combo box", name="fruit")
+
+        combo.select_child.assert_called_once_with(1)
+
+    def test_raises_when_item_not_found(self) -> None:
+        """Should raise LookupError when no child matches item_text."""
+        child = _make_atspi_node_mock(name="Apple")
+        combo = _make_atspi_node_mock(name="fruit", role_name="combo box", children=[child])
+
+        pilot = _make_pilot_with_mock_find()
+        with (
+            patch.object(pilot, "find_one", return_value=combo),
+            pytest.raises(LookupError, match="not found in combo box"),
+        ):
+            pilot.select_combo_item("Cherry")
+
+
+# ── Tests for switch_tab ─────────────────────────────────────────
+
+
+class TestSwitchTab:
+    """Test QtPilot.switch_tab."""
+
+    def test_selects_matching_tab_by_substring(self) -> None:
+        """Should select the tab whose name contains tab_text."""
+        tab_a = _make_atspi_node_mock(name="General Settings")
+        tab_b = _make_atspi_node_mock(name="Advanced Options")
+        tab_list = _make_atspi_node_mock(name="tabs", role_name="page tab list", children=[tab_a, tab_b])
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=tab_list):
+            pilot.switch_tab("Advanced")
+
+        tab_list.select_child.assert_called_once_with(1)
+
+    def test_raises_when_tab_not_found(self) -> None:
+        """Should raise LookupError when no tab contains tab_text."""
+        tab = _make_atspi_node_mock(name="General")
+        tab_list = _make_atspi_node_mock(name="tabs", role_name="page tab list", children=[tab])
+
+        pilot = _make_pilot_with_mock_find()
+        with (
+            patch.object(pilot, "find_one", return_value=tab_list),
+            pytest.raises(LookupError, match="not found"),
+        ):
+            pilot.switch_tab("Network")
+
+
+# ── Tests for get_table_cell ─────────────────────────────────────
+
+
+class TestGetTableCell:
+    """Test QtPilot.get_table_cell."""
+
+    def test_returns_cell_text(self) -> None:
+        """Should return text of the cell at (row, col)."""
+        cell = _make_atspi_node_mock(name="cell-0-1")
+        cell.get_text.return_value = "hello"
+
+        table = _make_atspi_node_mock(name="data", role_name="table")
+        table.get_cell_at.return_value = cell
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=table):
+            result = pilot.get_table_cell(0, 1)
+
+        assert result == "hello"
+        table.get_cell_at.assert_called_once_with(0, 1)
+
+    def test_raises_for_none_cell(self) -> None:
+        """Should raise LookupError when cell is None."""
+        table = _make_atspi_node_mock(name="data", role_name="table")
+        table.get_cell_at.return_value = None
+
+        pilot = _make_pilot_with_mock_find()
+        with (
+            patch.object(pilot, "find_one", return_value=table),
+            pytest.raises(LookupError, match="No cell at"),
+        ):
+            pilot.get_table_cell(5, 5)
+
+
+# ── Tests for get_table_size ─────────────────────────────────────
+
+
+class TestGetTableSize:
+    """Test QtPilot.get_table_size."""
+
+    def test_returns_rows_and_cols(self) -> None:
+        """Should return (rows, columns) tuple."""
+        table = _make_atspi_node_mock(name="data", role_name="table")
+        table.get_n_rows.return_value = 3
+        table.get_n_columns.return_value = 5
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=table):
+            result = pilot.get_table_size()
+
+        assert result == (3, 5)
+
+
+# ── Tests for check_checkbox ─────────────────────────────────────
+
+
+class TestCheckCheckbox:
+    """Test QtPilot.check_checkbox."""
+
+    def test_invokes_toggle_action(self) -> None:
+        """Should call do_action('Toggle') on the checkbox."""
+        widget = _make_atspi_node_mock(name="Accept", role_name="check box")
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=widget):
+            pilot.check_checkbox(checked=True, name="Accept")
+
+        widget.do_action.assert_called_once_with("Toggle")
+
+    def test_falls_back_to_press_when_toggle_unavailable(self) -> None:
+        """Should fall back to do_action('Press') when Toggle raises."""
+        widget = _make_atspi_node_mock(name="Accept", role_name="check box")
+        widget.do_action.side_effect = [LookupError("no Toggle"), None]
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=widget):
+            pilot.check_checkbox(name="Accept")
+
+        assert widget.do_action.call_count == 2
+        widget.do_action.assert_any_call("Toggle")
+        widget.do_action.assert_any_call("Press")
+
+
+# ── Tests for set_slider_value ───────────────────────────────────
+
+
+class TestSetSliderValue:
+    """Test QtPilot.set_slider_value."""
+
+    def test_calls_set_value(self) -> None:
+        """Should call set_value on the widget."""
+        widget = _make_atspi_node_mock(name="volume", role_name="slider")
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=widget):
+            pilot.set_slider_value(75.0, name="volume")
+
+        widget.set_value.assert_called_once_with(75.0)
+
+
+# ── Tests for get_widget_value ───────────────────────────────────
+
+
+class TestGetWidgetValue:
+    """Test QtPilot.get_widget_value."""
+
+    def test_returns_value(self) -> None:
+        """Should return the numeric value from the widget."""
+        widget = _make_atspi_node_mock(name="volume", role_name="slider")
+        widget.get_value.return_value = 42.0
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=widget):
+            result = pilot.get_widget_value(role="slider", name="volume")
+
+        assert result == 42.0
+
+    def test_returns_none_when_no_value_iface(self) -> None:
+        """Should return None when widget has no Value interface."""
+        widget = _make_atspi_node_mock(name="label", role_name="label")
+        widget.get_value.return_value = None
+
+        pilot = _make_pilot_with_mock_find()
+        with patch.object(pilot, "find_one", return_value=widget):
+            result = pilot.get_widget_value(role="label", name="label")
+
+        assert result is None
+
+
+# ── Tests for select_menu_item ───────────────────────────────────
+
+
+class TestSelectMenuItem:
+    """Test QtPilot.select_menu_item."""
+
+    def test_clicks_through_menu_path(self) -> None:
+        """Should find and click each item in the menu path."""
+        file_item = _make_atspi_node_mock(name="File", role_name="menu")
+        save_item = _make_atspi_node_mock(name="Save", role_name="menu item")
+
+        pilot = _make_pilot_with_mock_find()
+        with (
+            patch.object(pilot, "find", side_effect=[[file_item], [save_item]]),
+            patch.object(pilot, "click") as mock_click,
+        ):
+            pilot.select_menu_item("File", "Save", pause=0.1)
+
+        assert mock_click.call_count == 2
+        mock_click.assert_any_call(file_item, pause=0.1)
+        mock_click.assert_any_call(save_item, pause=0.1)
+
+    def test_raises_when_menu_item_not_found(self) -> None:
+        """Should raise LookupError when a path item is not found."""
+        file_item = _make_atspi_node_mock(name="File", role_name="menu")
+
+        pilot = _make_pilot_with_mock_find()
+        with (
+            patch.object(pilot, "find", side_effect=[[file_item], []]),
+            patch.object(pilot, "click"),
+            pytest.raises(LookupError, match="not found"),
+        ):
+            pilot.select_menu_item("File", "Nonexistent")

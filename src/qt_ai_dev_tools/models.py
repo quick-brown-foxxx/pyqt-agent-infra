@@ -52,3 +52,46 @@ class WidgetInfo:
             d["text"] = self.text
         d["children_count"] = self.children_count
         return d
+
+
+@dataclass(slots=True)
+class SnapshotEntry:
+    """Single widget in a tree snapshot."""
+
+    role: str
+    name: str
+    text: str | None = None
+    children_count: int = 0
+
+    def to_dict(self) -> dict[str, object]:
+        """Convert to JSON-serializable dict, omitting None text."""
+        d: dict[str, object] = {"role": self.role, "name": self.name}
+        if self.text is not None:
+            d["text"] = self.text
+        d["children_count"] = self.children_count
+        return d
+
+    @staticmethod
+    def from_dict(d: dict[str, object]) -> SnapshotEntry:
+        """Reconstruct from a dict (e.g. loaded from JSON)."""
+        raw_count = d.get("children_count", 0)
+        return SnapshotEntry(
+            role=str(d["role"]),
+            name=str(d["name"]),
+            text=str(d["text"]) if d.get("text") is not None else None,
+            children_count=int(raw_count),  # type: ignore[arg-type]  # rationale: raw JSON value is object, validated by int()
+        )
+
+
+@dataclass(slots=True)
+class SnapshotDiff:
+    """Difference between two tree snapshots."""
+
+    added: list[SnapshotEntry]
+    removed: list[SnapshotEntry]
+    changed: list[tuple[SnapshotEntry, SnapshotEntry]]
+
+    @property
+    def has_changes(self) -> bool:
+        """True if any additions, removals, or changes detected."""
+        return bool(self.added or self.removed or self.changed)

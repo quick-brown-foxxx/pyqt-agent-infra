@@ -94,6 +94,7 @@ def vm_run(command: str, workspace: Path | None = None, display: str = ":99") ->
         f"export DISPLAY={display} QT_QPA_PLATFORM=xcb QT_ACCESSIBILITY=1"
         " QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1"
         " QT_AI_DEV_TOOLS_VM=1"
+        " UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools"
         ' DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus";'
     )
     return _vagrant(["ssh", "-c", f"{env_prefix} {command}"], ws)

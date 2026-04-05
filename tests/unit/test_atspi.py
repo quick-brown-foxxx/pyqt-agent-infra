@@ -11,6 +11,13 @@ pytestmark = pytest.mark.unit
 
 # Mock gi and Atspi before importing _atspi, since gi is a system package
 # that may not be available in the test venv.
+#
+# setdefault is a no-op if real gi is already imported (VM environment).
+# When running without real gi (host), the mock is installed permanently
+# for this process. The _ensure_real_atspi fixture in e2e/conftest.py
+# cleans up if needed for serial pytest runs. With xdist (-n auto),
+# unit and e2e tests run in separate worker processes, so no cleanup
+# is needed.
 _mock_gi = MagicMock()
 _mock_atspi_module = MagicMock()
 _mock_gi.require_version = MagicMock()

@@ -7,7 +7,8 @@ All test commands run inside the Vagrant VM via `make` targets on the host:
 | Target | VM required? | Description |
 |---|---|---|
 | `make test` | Yes | Fast pytest-qt tests, offscreen (`QT_QPA_PLATFORM=offscreen`), no Xvfb needed. Runs `tests/test_main.py` excluding atspi/scrot markers. |
-| `make test-full` | Yes | All tests including AT-SPI, screenshots, CLI, and e2e. Runs `tests/ -v`. |
+| `make test-unit` | No | Unit tests only, parallel via xdist (`-n auto`). Disables pytest-qt plugin. |
+| `make test-full` | Yes | Two-phase: unit parallel + e2e/integration serial. Requires VM + Xvfb. |
 | `make test-cli` | Yes | CLI integration tests only (`tests/integration/`). |
 | `make test-e2e` | Yes | E2E bridge/subsystem tests (`tests/e2e/`). Real apps, real D-Bus. |
 | `make test-atspi` | Yes | AT-SPI smoke tests only (`-k atspi`). |
@@ -78,6 +79,37 @@ tests/
 Markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`. The e2e and integration directories apply their markers via module-level `pytestmark`.
 
 Timeout: `timeout = 30` (seconds) configured in `pyproject.toml`. Requires `pytest-timeout` plugin (installed in VM venv via `uv sync`).
+
+## Test parallelism (pytest-xdist)
+
+Unit tests run in parallel via pytest-xdist (`-n auto`). E2E and integration
+tests run serially — xdist workers crash when multiple processes initialize
+PySide6/AT-SPI simultaneously.
+
+`make test-full` uses a two-phase approach:
+1. Unit tests + test_main.py in parallel (`-n auto`)
+2. E2E + integration tests serially (no xdist)
+
+A `pytest_collection_modifyitems` hook in `tests/conftest.py` auto-groups
+e2e/integration tests with `@pytest.mark.xdist_group("serial_vm")` for
+anyone who wants to try `pytest -n auto --dist loadgroup` manually, but
+the default `make test-full` uses the more reliable two-phase approach.
+
+### Running modes
+
+| Command | Parallelism | Environment |
+|---------|-------------|-------------|
+| `make test-unit` | Parallel (`-n auto`) | Host or VM |
+| `make test-full` | Two-phase (unit parallel, then e2e serial) | VM only |
+| `make test-e2e` | Serial | VM only |
+| `uv run pytest tests/ -v` | Serial (no xdist) | VM only |
+
+### Host-side unit tests
+
+`make test-unit` uses `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` to prevent pytest-qt
+from importing PySide6 (which is not in the host venv). Only xdist and timeout
+plugins are loaded explicitly. This makes unit tests runnable on the host
+without VM access.
 
 ## VM test environment
 

@@ -336,3 +336,13 @@ def stt_app() -> Generator[subprocess.Popen[str], None, None]:
     _wait_for_app_window(proc, "stt_app.py")  # AT-SPI app name, not window title
     yield proc
     _kill_app(proc)
+
+
+@pytest.fixture(scope="module")
+def complex_app() -> Generator[subprocess.Popen[str], None, None]:
+    """Start the kitchen-sink complex test app."""
+    app_path = _APPS_DIR / "complex_app.py"
+    proc = _start_app(app_path, bridge=True)
+    _wait_for_app_window(proc, "complex_app.py")
+    yield proc
+    _kill_app(proc)

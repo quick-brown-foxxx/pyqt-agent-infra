@@ -112,6 +112,128 @@ class AtspiNode:
         """Whether the widget has an action interface."""
         return self._native.get_action_iface() is not None  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
 
+    # ------------------------------------------------------------------
+    # Value interface (sliders, spinners, progress bars)
+    # ------------------------------------------------------------------
+
+    @property
+    def has_value_iface(self) -> bool:
+        """Whether the widget has a value interface."""
+        return self._native.get_value_iface() is not None  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+
+    def get_value(self) -> float | None:
+        """Current value, or None if no Value interface."""
+        iface = self._native.get_value_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return None
+        return iface.get_current_value()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Value iface has no stubs
+
+    def set_value(self, value: float) -> None:
+        """Set the current value.
+
+        Raises:
+            RuntimeError: If the widget has no value interface.
+        """
+        iface = self._native.get_value_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            msg = f"Widget {self!r} has no value interface"
+            raise RuntimeError(msg)
+        iface.set_current_value(value)  # type: ignore[union-attr]  # rationale: AT-SPI Value iface has no stubs
+
+    def get_minimum_value(self) -> float | None:
+        """Minimum value, or None if no Value interface."""
+        iface = self._native.get_value_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return None
+        return iface.get_minimum_value()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Value iface has no stubs
+
+    def get_maximum_value(self) -> float | None:
+        """Maximum value, or None if no Value interface."""
+        iface = self._native.get_value_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return None
+        return iface.get_maximum_value()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Value iface has no stubs
+
+    # ------------------------------------------------------------------
+    # Selection interface (combo boxes, list widgets, tabs)
+    # ------------------------------------------------------------------
+
+    @property
+    def has_selection_iface(self) -> bool:
+        """Whether the widget has a selection interface."""
+        return self._native.get_selection_iface() is not None  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+
+    def get_n_selected_children(self) -> int:
+        """Number of selected children, or 0 if no Selection interface."""
+        iface = self._native.get_selection_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return 0
+        return iface.get_n_selected_children()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Selection iface has no stubs
+
+    def get_selected_child(self, index: int = 0) -> AtspiNode | None:
+        """Return the selected child at the given selection index."""
+        iface = self._native.get_selection_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return None
+        child = iface.get_selected_child(index)  # type: ignore[union-attr]  # rationale: AT-SPI Selection iface has no stubs
+        if child is None:
+            return None
+        return AtspiNode(child)  # type: ignore[reportUnknownArgumentType]  # rationale: AT-SPI selected child is untyped
+
+    def select_child(self, index: int) -> bool:
+        """Select a child by index. Returns False if no Selection interface."""
+        iface = self._native.get_selection_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return False
+        return iface.select_child(index)  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Selection iface has no stubs
+
+    def deselect_child(self, index: int) -> bool:
+        """Deselect a child by index. Returns False if no Selection interface."""
+        iface = self._native.get_selection_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return False
+        return iface.deselect_child(index)  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Selection iface has no stubs
+
+    def is_child_selected(self, index: int) -> bool:
+        """Check if a child is selected. Returns False if no Selection interface."""
+        iface = self._native.get_selection_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return False
+        return iface.is_child_selected(index)  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Selection iface has no stubs
+
+    # ------------------------------------------------------------------
+    # Table interface (tables, trees)
+    # ------------------------------------------------------------------
+
+    @property
+    def has_table_iface(self) -> bool:
+        """Whether the widget has a table interface."""
+        return self._native.get_table_iface() is not None  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+
+    def get_n_rows(self) -> int:
+        """Number of rows, or 0 if no Table interface."""
+        iface = self._native.get_table_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return 0
+        return iface.get_n_rows()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Table iface has no stubs
+
+    def get_n_columns(self) -> int:
+        """Number of columns, or 0 if no Table interface."""
+        iface = self._native.get_table_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return 0
+        return iface.get_n_columns()  # type: ignore[union-attr,no-any-return]  # rationale: AT-SPI Table iface has no stubs
+
+    def get_cell_at(self, row: int, col: int) -> AtspiNode | None:
+        """Return the accessible at the given row and column."""
+        iface = self._native.get_table_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+        if not iface:
+            return None
+        cell = iface.get_accessible_at(row, col)  # type: ignore[union-attr]  # rationale: AT-SPI Table iface has no stubs
+        if cell is None:
+            return None
+        return AtspiNode(cell)  # type: ignore[reportUnknownArgumentType]  # rationale: AT-SPI table cell is untyped
+
     @staticmethod
     def desktop(screen: int = 0) -> AtspiNode:
         """Get the AT-SPI desktop node."""

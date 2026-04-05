@@ -146,14 +146,6 @@ class TestTraySelect:
     but the target app segfaults, so it's marked xfail.
     """
 
-    @pytest.mark.xfail(
-        reason="tray.select() requires snixembed XEmbed proxy to embed icon in stalonetray "
-        "for xdotool right-click. Embedding depends on startup order timing between "
-        "stalonetray, snixembed, and the target app. Works in manual testing but "
-        "unreliable in fixture-managed lifecycle. The GUI approach (right-click icon → "
-        "AT-SPI menu → click item) is correct but the XEmbed embedding is flaky.",
-        strict=False,
-    )
     def test_tray_select_settings(self, tray_app: subprocess.Popen[str]) -> None:
         """Select 'Settings' from tray menu, verify app reacts."""
         from qt_ai_dev_tools.bridge._client import find_bridge_socket

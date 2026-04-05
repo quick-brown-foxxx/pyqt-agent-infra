@@ -46,6 +46,7 @@ class TrayMenuEntry:
     label: str
     enabled: bool
     index: int
+    dbus_id: int = -1
 
 
 @dataclass(slots=True)

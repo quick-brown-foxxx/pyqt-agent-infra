@@ -1,22 +1,17 @@
 """System tray interaction via D-Bus StatusNotifierItem (SNI).
 
 Left-click uses D-Bus Activate (fast, reliable).
-Right-click and menu selection use xdotool + AT-SPI on stalonetray/snixembed,
-avoiding D-Bus Event which crashes PySide6 apps (thread-safety issue).
+Right-click uses xdotool on stalonetray/snixembed to open context menus.
+Menu item selection uses D-Bus dbusmenu Event with correct item IDs.
 """
 
 from __future__ import annotations
 
 import logging
 import re
-import time
-from typing import TYPE_CHECKING
 
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
-
-if TYPE_CHECKING:
-    from qt_ai_dev_tools._atspi import AtspiNode
 
 # D-Bus interface for the SNI watcher
 _SNI_WATCHER_DEST = "org.kde.StatusNotifierWatcher"
@@ -25,9 +20,6 @@ _SNI_WATCHER_IFACE = "org.freedesktop.DBus.Properties"
 
 # D-Bus interface for SNI items
 _SNI_ITEM_IFACE = "org.kde.StatusNotifierItem"
-
-# Delay after right-click to wait for popup menu to appear
-_MENU_POPUP_DELAY: float = 0.8
 
 logger = logging.getLogger(__name__)
 
@@ -198,52 +190,6 @@ def _find_icon_center(stalone_wid: str, app_name: str) -> tuple[int, int]:
             return (cx, cy)
 
     msg = f"Tray icon for '{app_name}' not found in stalonetray. xwininfo output:\n{tree_output}"
-    raise LookupError(msg)
-
-
-def _find_snixembed_menu_item(label: str) -> AtspiNode:
-    """Find a menu item in snixembed's AT-SPI popup menu.
-
-    After right-clicking a tray icon, snixembed opens a GTK popup.
-    The menu items appear under the "snixembed" AT-SPI application
-    as [menu item] nodes.
-
-    Args:
-        label: Menu item label to find.
-
-    Returns:
-        The AtspiNode for the matching menu item.
-
-    Raises:
-        LookupError: If no matching menu item is found.
-    """
-    from qt_ai_dev_tools._atspi import AtspiNode
-
-    desktop = AtspiNode.desktop()
-
-    def _walk(node: AtspiNode) -> AtspiNode | None:
-        if node.role_name == "menu item" and label.lower() in node.name.lower():
-            return node
-        for child in node.children:
-            found = _walk(child)
-            if found is not None:
-                return found
-        return None
-
-    # Search under the "snixembed" application
-    for app_node in desktop.children:
-        if "snixembed" in app_node.name.lower():
-            result = _walk(app_node)
-            if result is not None:
-                return result
-
-    # Fallback: search all applications (in case the name differs)
-    for app_node in desktop.children:
-        result = _walk(app_node)
-        if result is not None:
-            return result
-
-    msg = f"Menu item '{label}' not found in snixembed AT-SPI tree"
     raise LookupError(msg)
 
 
@@ -443,30 +389,46 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
 def _parse_menu_output(output: str) -> list[TrayMenuEntry]:
     """Parse busctl GetLayout output into menu entries.
 
-    The output is complex nested data; we extract label strings
-    and create indexed entries.
+    The output is complex nested data. Each menu item appears as:
+        ``(ia{sv}av) <dbus_id> <num_props> "key" <type> <value> ...``
+
+    We extract the D-Bus item ID, label, and enabled flag from each item.
 
     Args:
         output: Raw busctl output from GetLayout call.
 
     Returns:
-        List of TrayMenuEntry objects.
+        List of TrayMenuEntry objects with correct D-Bus IDs.
     """
     entries: list[TrayMenuEntry] = []
-    # Look for "label" followed by a quoted string
+
+    # Match each menu item block: (ia{sv}av) <id> <nprops> ...
+    # Extract everything from the item marker to the next item marker (or end)
+    item_pattern = re.compile(r"\(ia\{sv\}av\)\s+(\d+)\s+(\d+)\s+(.*?)(?=\(ia\{sv\}av\)|$)", re.DOTALL)
     label_pattern = re.compile(r'"label"\s+[sv]\s+"([^"]*)"')
-    enabled_pattern = re.compile(r'"enabled"\s+[sv]\s+"?(\w+)"?')
+    enabled_pattern = re.compile(r'"enabled"\s+[bsv]\s+(\w+)')
 
-    labels: list[str] = [m.group(1) for m in label_pattern.finditer(output)]
-    enabled_flags: list[str] = [m.group(1) for m in enabled_pattern.finditer(output)]
+    entry_index = 0
+    for m in item_pattern.finditer(output):
+        dbus_id = int(m.group(1))
+        props_text = m.group(3)
 
-    for i, label in enumerate(labels):
+        # Extract label
+        label_match = label_pattern.search(props_text)
+        if not label_match:
+            continue
+        label = label_match.group(1)
         if not label or label.startswith("_"):
             continue
+
+        # Extract enabled flag
         enabled = True
-        if i < len(enabled_flags):
-            enabled = enabled_flags[i].lower() != "false"
-        entries.append(TrayMenuEntry(label=label, enabled=enabled, index=i))
+        enabled_match = enabled_pattern.search(props_text)
+        if enabled_match and enabled_match.group(1).lower() == "false":
+            enabled = False
+
+        entries.append(TrayMenuEntry(label=label, enabled=enabled, index=entry_index, dbus_id=dbus_id))
+        entry_index += 1
 
     return entries
 
@@ -474,11 +436,8 @@ def _parse_menu_output(output: str) -> list[TrayMenuEntry]:
 def select(app_name: str, item_label: str) -> None:
     """Select a context menu item from a tray icon.
 
-    Opens the context menu via right-click (xdotool on stalonetray),
-    then finds and clicks the menu item via AT-SPI (under snixembed).
-
-    This avoids the D-Bus dbusmenu Event which crashes PySide6 apps
-    due to thread-safety (menu action fires on D-Bus thread, not main thread).
+    Finds the menu item by label via D-Bus GetLayout, then triggers it
+    using a D-Bus dbusmenu Event call with the correct item ID.
 
     Args:
         app_name: Name substring to match against tray items.
@@ -486,25 +445,68 @@ def select(app_name: str, item_label: str) -> None:
 
     Raises:
         LookupError: If no matching tray icon or menu item is found.
-        RuntimeError: If required tools are not found or the action fails.
+        RuntimeError: If required tools are not found or the D-Bus call fails.
     """
-    # 1. Right-click to open context menu
-    click(app_name, button="right")
-    time.sleep(_MENU_POPUP_DELAY)
+    item = _find_item(app_name)
+    entries = menu(app_name)
 
-    # 2. Find menu item in AT-SPI (under snixembed app)
-    menu_item = _find_snixembed_menu_item(item_label)
+    # Find the entry with matching label
+    target: TrayMenuEntry | None = None
+    for entry in entries:
+        if item_label.lower() in entry.label.lower():
+            target = entry
+            break
+    if target is None:
+        available = [e.label for e in entries]
+        msg = f"Menu item '{item_label}' not found. Available: {available}"
+        raise LookupError(msg)
 
-    # 3. Click via xdotool at the menu item's screen coordinates.
-    #    Using AT-SPI do_action("click") would forward via D-Bus dbusmenu Event,
-    #    which crashes PySide6 apps (thread-safety). xdotool click goes through
-    #    X11 input events → snixembed GTK menu → safe D-Bus notification.
-    from qt_ai_dev_tools.interact import click_at
+    if target.dbus_id < 0:
+        msg = f"Menu item '{item_label}' has no valid D-Bus ID (parsing failed)"
+        raise RuntimeError(msg)
 
-    extents = menu_item.get_extents()
-    cx = extents.x + extents.width // 2
-    cy = extents.y + extents.height // 2
-    click_at(cx, cy, button=1)
+    # Trigger the menu item via D-Bus dbusmenu Event
+    menu_path = _resolve_menu_path(item)
+    check_tool("busctl")
+    try:
+        run_tool(
+            [
+                "busctl",
+                "--user",
+                "call",
+                "--",
+                item.bus_name,
+                menu_path,
+                "com.canonical.dbusmenu",
+                "Event",
+                "isvu",
+                str(target.dbus_id),
+                "clicked",
+                "s",
+                "",
+                "0",
+            ]
+        )
+    except RuntimeError:
+        # Fallback: try the item's own object path
+        run_tool(
+            [
+                "busctl",
+                "--user",
+                "call",
+                "--",
+                item.bus_name,
+                item.object_path,
+                "com.canonical.dbusmenu",
+                "Event",
+                "isvu",
+                str(target.dbus_id),
+                "clicked",
+                "s",
+                "",
+                "0",
+            ]
+        )
 
 
 def _find_item(app_name: str) -> TrayItem:

@@ -179,24 +179,93 @@ def file_dialog_app() -> Generator[subprocess.Popen[str], None, None]:
     _kill_app(proc)
 
 
-@pytest.fixture(scope="module")
-def clean_sni_watcher() -> Generator[None, None, None]:
-    """Restart snixembed and stalonetray to clear stale SNI entries before tray tests.
+def _is_process_running(name: str) -> bool:
+    """Check if a process with the given name is running."""
+    result = subprocess.run(["pgrep", name], capture_output=True, check=False)
+    return result.returncode == 0
 
-    stalonetray provides the XEmbed tray window (needed for xdotool icon clicks).
-    snixembed provides the SNI D-Bus watcher (needed for tray.list_items/click/menu).
-    Both must be running for the full tray workflow to work.
+
+def _wait_for_process(name: str, timeout: float = 5.0) -> None:
+    """Wait until a process with the given name is running."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _is_process_running(name):
+            return
+        time.sleep(0.3)
+    pytest.fail(f"Process '{name}' did not start within {timeout}s")
+
+
+def _wait_for_tray_embedding(app_name: str, timeout: float = 10.0) -> None:
+    """Wait until a tray icon for app_name appears embedded in stalonetray.
+
+    Polls xwininfo -tree on the stalonetray window until a child window
+    with a WM_CLASS matching app_name appears. This confirms that
+    snixembed has proxied the SNI icon into the XEmbed tray.
+
+    Args:
+        app_name: Application name to match in WM_CLASS (case-insensitive).
+        timeout: Maximum seconds to wait.
+
+    Raises:
+        pytest.fail: If the icon never appears.
     """
     env = {**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")}
-    # Kill and restart both services
-    subprocess.run(["killall", "snixembed", "stalonetray"], capture_output=True, check=False)
-    time.sleep(0.5)
-    subprocess.Popen(
-        ["stalonetray", "--kludges=force_icons_size", "-i", "24", "--grow-gravity=NE"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-    )
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        # Find stalonetray window ID
+        result = subprocess.run(
+            ["xdotool", "search", "--class", "stalonetray"],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        wid = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+        if not wid:
+            time.sleep(0.5)
+            continue
+
+        # Check xwininfo tree for the embedded icon
+        tree_result = subprocess.run(
+            ["xwininfo", "-tree", "-id", wid],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        if app_name.lower() in tree_result.stdout.lower():
+            return
+
+        time.sleep(0.5)
+
+    pytest.fail(f"Tray icon for '{app_name}' not embedded in stalonetray within {timeout}s")
+
+
+@pytest.fixture(scope="module")
+def clean_sni_watcher() -> Generator[None, None, None]:
+    """Ensure stalonetray is running and restart snixembed to clear stale SNI entries.
+
+    stalonetray provides the XEmbed tray window (needed for xdotool icon clicks).
+    It is stable from the desktop-session service and does not need restarting.
+    Only snixembed (the SNI D-Bus watcher) needs restart to clear stale entries.
+
+    If stalonetray is not running (e.g. killed during manual testing), it is
+    started fresh. snixembed is always killed and restarted.
+    """
+    env = {**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")}
+
+    # Ensure stalonetray is running (don't kill it — avoid XEmbed timing issues)
+    if not _is_process_running("stalonetray"):
+        subprocess.Popen(
+            ["stalonetray", "--kludges=force_icons_size", "-i", "24", "--grow-gravity=NE"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+        _wait_for_process("stalonetray")
+
+    # Always restart snixembed to clear stale SNI entries
+    subprocess.run(["killall", "snixembed"], capture_output=True, check=False)
     time.sleep(0.5)
     subprocess.Popen(
         ["snixembed", "--fork"],
@@ -217,6 +286,10 @@ def tray_app(clean_sni_watcher: None) -> Generator[subprocess.Popen[str], None, 
     app_path = _APPS_DIR / "tray_app.py"
     proc = _start_app(app_path, bridge=True)
     _wait_for_app_window(proc, "tray_app.py")  # AT-SPI app name, not window title
+    # Wait for snixembed to proxy the icon into stalonetray (XEmbed embedding)
+    # Without this, xdotool right-click on the icon fails because the icon
+    # isn't yet a child window of stalonetray.
+    _wait_for_tray_embedding("tray_app")
     yield proc
     _kill_app(proc)
 

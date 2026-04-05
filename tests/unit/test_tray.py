@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -274,7 +274,11 @@ class TestMenu:
         """menu() should resolve the menu path via the Menu property."""
         from qt_ai_dev_tools.subsystems.tray import menu
 
-        menu_output = '"label" s "Show"\n"enabled" s "true"\n"label" s "Quit"\n"enabled" s "true"'
+        menu_output = (
+            'u(ia{sv}av) 1 0 1 "children-display" s "submenu" 2 '
+            '(ia{sv}av) 4 2 "enabled" b true "label" s "Show" 0 '
+            '(ia{sv}av) 1 2 "enabled" b true "label" s "Quit" 0'
+        )
         side_effect = _make_run_tool_side_effect(
             list_output=_MOCK_BUSCTL_OUTPUT,
             menu_prop="/MenuBar",
@@ -298,7 +302,7 @@ class TestMenu:
         """menu() busctl call commands should include '--' before positional args."""
         from qt_ai_dev_tools.subsystems.tray import menu
 
-        menu_output = '"label" s "Show"\n"enabled" s "true"'
+        menu_output = '(ia{sv}av) 4 2 "enabled" b true "label" s "Show" 0'
         side_effect = _make_run_tool_side_effect(
             list_output=_MOCK_BUSCTL_OUTPUT,
             menu_output=menu_output,
@@ -317,16 +321,26 @@ class TestMenu:
 
 
 class TestParseMenuOutput:
-    def test_parse_menu_labels(self) -> None:
-        """_parse_menu_output should extract labeled entries."""
+    def test_parse_menu_labels_and_dbus_ids(self) -> None:
+        """_parse_menu_output should extract labels and D-Bus IDs."""
         from qt_ai_dev_tools.subsystems.tray import _parse_menu_output
 
-        output = '"label" s "Show"\n"enabled" s "true"\n"label" s "Quit"\n"enabled" s "true"'
+        # Realistic busctl GetLayout output
+        output = (
+            'u(ia{sv}av) 1 0 1 "children-display" s "submenu" 3 '
+            '(ia{sv}av) 4 3 "enabled" b true "label" s "Show" "visible" b true 0 '
+            '(ia{sv}av) 3 3 "enabled" b true "label" s "Settings" "visible" b true 0 '
+            '(ia{sv}av) 1 3 "enabled" b true "label" s "Quit" "visible" b true 0'
+        )
         entries = _parse_menu_output(output)
-        assert len(entries) == 2
+        assert len(entries) == 3
         assert entries[0].label == "Show"
+        assert entries[0].dbus_id == 4
         assert entries[0].enabled is True
-        assert entries[1].label == "Quit"
+        assert entries[1].label == "Settings"
+        assert entries[1].dbus_id == 3
+        assert entries[2].label == "Quit"
+        assert entries[2].dbus_id == 1
 
     def test_parse_menu_empty(self) -> None:
         """_parse_menu_output should return empty list for no labels."""
@@ -339,10 +353,11 @@ class TestParseMenuOutput:
         """_parse_menu_output should detect disabled entries."""
         from qt_ai_dev_tools.subsystems.tray import _parse_menu_output
 
-        output = '"label" s "Disabled Item"\n"enabled" s "false"'
+        output = '(ia{sv}av) 5 2 "label" s "Disabled Item" "enabled" b false 0'
         entries = _parse_menu_output(output)
         assert len(entries) == 1
         assert entries[0].enabled is False
+        assert entries[0].dbus_id == 5
 
 
 class TestFindStalonetrayWid:
@@ -418,98 +433,47 @@ class TestFindIconCenter:
             _find_icon_center("12345678", "nonexistent")
 
 
-def _make_mock_atspi_module(desktop_children: list[object]) -> MagicMock:
-    """Create a mock qt_ai_dev_tools._atspi module with a mock AtspiNode.
-
-    The mock AtspiNode.desktop() returns a node with the given children.
-    This is needed because _find_snixembed_menu_item does a local import
-    of AtspiNode from qt_ai_dev_tools._atspi (which requires gi.repository.Atspi).
-    """
-    mock_desktop = MagicMock(spec=["children"])
-    mock_desktop.children = desktop_children
-
-    mock_atspi_cls = MagicMock()
-    mock_atspi_cls.desktop.return_value = mock_desktop
-
-    mock_module = MagicMock()
-    mock_module.AtspiNode = mock_atspi_cls
-    return mock_module
-
-
-class TestFindSnixembedMenuItem:
-    def test_finds_menu_item_under_snixembed(self) -> None:
-        """_find_snixembed_menu_item should find a matching menu item node."""
-        # Build mock AT-SPI tree
-        mock_menu_item = MagicMock(spec=["name", "role_name", "children", "do_action"])
-        mock_menu_item.name = "Settings"
-        mock_menu_item.role_name = "menu item"
-        mock_menu_item.children = []
-
-        mock_menu = MagicMock(spec=["name", "role_name", "children"])
-        mock_menu.name = "menu"
-        mock_menu.role_name = "menu"
-        mock_menu.children = [mock_menu_item]
-
-        mock_window = MagicMock(spec=["name", "role_name", "children"])
-        mock_window.name = ""
-        mock_window.role_name = "window"
-        mock_window.children = [mock_menu]
-
-        mock_snixembed = MagicMock(spec=["name", "role_name", "children"])
-        mock_snixembed.name = "snixembed"
-        mock_snixembed.role_name = "application"
-        mock_snixembed.children = [mock_window]
-
-        mock_mod = _make_mock_atspi_module([mock_snixembed])
-
-        with patch.dict("sys.modules", {"qt_ai_dev_tools._atspi": mock_mod}):
-            from qt_ai_dev_tools.subsystems.tray import _find_snixembed_menu_item
-
-            result = _find_snixembed_menu_item("Settings")
-
-        assert result.name == "Settings"
-        assert result.role_name == "menu item"
-
-    def test_raises_when_not_found(self) -> None:
-        """_find_snixembed_menu_item should raise LookupError when no match."""
-        mock_mod = _make_mock_atspi_module([])
-
-        with patch.dict("sys.modules", {"qt_ai_dev_tools._atspi": mock_mod}):
-            from qt_ai_dev_tools.subsystems.tray import _find_snixembed_menu_item
-
-            with pytest.raises(LookupError, match="Menu item 'Settings' not found"):
-                _find_snixembed_menu_item("Settings")
-
-
 class TestSelect:
-    def test_select_right_clicks_then_atspi(self) -> None:
-        """select() should right-click, then find and click the AT-SPI menu item."""
+    def test_select_triggers_dbus_event(self) -> None:
+        """select() should find menu entry by label and trigger D-Bus Event."""
         from qt_ai_dev_tools.subsystems import tray as tray_mod
+        from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
 
-        mock_menu_item = MagicMock()
-        mock_menu_item.name = "Settings"
-        mock_menu_item.role_name = "menu item"
+        mock_item = TrayItem(name="tray_app.py", bus_name=":1.100", object_path="/StatusNotifierItem", protocol="SNI")
+        mock_entries = [
+            TrayMenuEntry(label="Show", enabled=True, index=0, dbus_id=4),
+            TrayMenuEntry(label="Settings", enabled=True, index=1, dbus_id=3),
+            TrayMenuEntry(label="Quit", enabled=True, index=2, dbus_id=1),
+        ]
 
         with (
-            patch.object(tray_mod, "click") as mock_click,
-            patch.object(tray_mod, "time") as mock_time,
-            patch.object(tray_mod, "_find_snixembed_menu_item", return_value=mock_menu_item) as mock_find,
+            patch.object(tray_mod, "_find_item", return_value=mock_item),
+            patch.object(tray_mod, "menu", return_value=mock_entries),
+            patch.object(tray_mod, "_resolve_menu_path", return_value="/MenuBar"),
+            patch.object(tray_mod, "check_tool"),
+            patch.object(tray_mod, "run_tool", return_value="") as mock_run,
         ):
             tray_mod.select("tray_app", "Settings")
 
-            mock_click.assert_called_once_with("tray_app", button="right")
-            mock_time.sleep.assert_called_once()
-            mock_find.assert_called_once_with("Settings")
-            mock_menu_item.do_action.assert_called_once_with("click")
+            # Verify the Event call uses the correct D-Bus ID (3 for Settings)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args[0][0]
+            assert "Event" in call_args
+            assert "3" in call_args  # D-Bus ID for Settings
 
     def test_select_raises_when_menu_item_not_found(self) -> None:
-        """select() should propagate LookupError from _find_snixembed_menu_item."""
+        """select() should raise LookupError when no matching menu entry exists."""
         from qt_ai_dev_tools.subsystems import tray as tray_mod
+        from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
+
+        mock_item = TrayItem(name="tray_app.py", bus_name=":1.100", object_path="/StatusNotifierItem", protocol="SNI")
+        mock_entries = [
+            TrayMenuEntry(label="Show", enabled=True, index=0, dbus_id=4),
+        ]
 
         with (
-            patch.object(tray_mod, "click"),
-            patch.object(tray_mod, "time"),
-            patch.object(tray_mod, "_find_snixembed_menu_item", side_effect=LookupError("not found")),
-            pytest.raises(LookupError, match="not found"),
+            patch.object(tray_mod, "_find_item", return_value=mock_item),
+            patch.object(tray_mod, "menu", return_value=mock_entries),
+            pytest.raises(LookupError, match="Menu item 'NonExistent' not found"),
         ):
             tray_mod.select("tray_app", "NonExistent")

@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import glob as glob_mod
-import importlib
 import os
 import signal
 import subprocess
-import sys
 import time
 from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,14 +21,20 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="session", autouse=True)
 def _ensure_real_atspi() -> None:
-    """Reload _atspi module to clear any mocks leaked from unit tests.
+    """Reload _atspi module if contaminated by unit test gi mocks.
 
-    Unit tests in ``tests/unit/test_atspi.py`` inject mock ``gi`` modules at
-    module level via ``sys.modules.setdefault``.  If unit tests run before e2e
-    tests in the same pytest process, the ``qt_ai_dev_tools._atspi`` module
-    holds a reference to the mocked ``Atspi`` forever.  This fixture detects
-    that contamination and forces a reload with the real ``gi`` bindings.
+    Unit tests (test_atspi.py) use sys.modules.setdefault() to inject mock
+    gi bindings. In serial pytest runs (without xdist), this can contaminate
+    _atspi.Atspi for e2e tests that need the real AT-SPI bindings.
+
+    With xdist (-n auto), unit and e2e tests run in separate worker
+    processes, so this fixture is a no-op. It exists as a safety net for
+    serial runs (debugging, CI without xdist, etc.).
     """
+    import importlib
+    import sys
+    from unittest.mock import MagicMock
+
     import qt_ai_dev_tools._atspi as _atspi_mod
 
     if isinstance(getattr(_atspi_mod, "Atspi", None), MagicMock):

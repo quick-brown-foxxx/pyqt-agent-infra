@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync run test test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
+.PHONY: up provision ssh sync run test test-unit test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
 
 SHELL := /bin/bash
 
@@ -47,8 +47,11 @@ run: ## launch app in VM (headless)
 test: ## fast pytest-qt tests (offscreen, no Xvfb)
 	uv run qt-ai-dev-tools vm run "cd /vagrant && QT_QPA_PLATFORM=offscreen uv run pytest tests/test_main.py -v -k 'not atspi and not scrot'"
 
-test-full: ## full tests including AT-SPI, screenshot, and CLI (requires Xvfb)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v"
+test-unit: ## unit tests only (parallel, no VM needed)
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/unit/ -v -n auto -p xdist -p timeout
+
+test-full: ## all tests: unit parallel, then e2e/integration serial (requires VM + Xvfb)
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto && uv run pytest tests/e2e/ tests/integration/ -v"
 
 test-atspi: ## AT-SPI smoke test only
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v -k atspi"

@@ -127,13 +127,30 @@ These are critical. Violating them is the most common source of bugs.
 - **`key Tab` navigates fields** in tab order. Useful for forms.
 - **Re-inspect the tree after focus changes.** Focus can change widget state (e.g., a combo box may expand its dropdown).
 
+## Debugging
+
+When interactions don't work as expected, use verbose mode to see the underlying commands:
+
+```bash
+# See exactly what xdotool/scrot commands are executed:
+qt-ai-dev-tools -v click --role "push button" --name "Save"
+
+# Full output including command stdout/stderr:
+qt-ai-dev-tools -vv fill "hello" --role "text" --name "Input"
+
+# Preview commands without executing (check what would happen):
+qt-ai-dev-tools --dry-run click --role "push button" --name "Save"
+```
+
+Logs are always written to `~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.log`. Check this file to trace what happened after unexpected behavior.
+
 ## Error Recovery Essentials
 
 The three most common problems and their fixes. See [references/troubleshooting.md](references/troubleshooting.md) for the full list.
 
 **Widget not found** -- `tree` to re-inspect. The name may have changed (labels are dynamic), or a modal dialog may be blocking interaction with the main window. Try partial name match: `find --role "push button" --name "Sav"`.
 
-**Click had no effect** -- take a `screenshot` to see what happened. Look for a modal dialog in the tree (`[dialog]` or `[alert]`). The widget may be disabled (grayed out) or outside the visible scroll area. Use `find --json` to verify you matched the right widget.
+**Click had no effect** -- take a `screenshot` to see what happened. Use `-v` to verify the correct xdotool coordinates were used. Look for a modal dialog in the tree (`[dialog]` or `[alert]`). The widget may be disabled (grayed out) or outside the visible scroll area. Use `find --json` to verify you matched the right widget.
 
 **Text went to wrong widget** -- use `fill` instead of manual focus+type. If a modal dialog appeared and stole focus, dismiss it first (`key Escape`). Always click the target text field before typing if not using `fill`.
 

@@ -147,6 +147,25 @@ uv run qt-ai-dev-tools screenshot -o /tmp/verify.png
 
 Setup is complete when both `tree` and `screenshot` show the running app.
 
+## Debugging
+
+When something goes wrong, use verbose mode to see exactly what commands are being executed:
+
+```bash
+# Show all shell commands (vagrant, xdotool, scrot, etc.):
+uv run qt-ai-dev-tools -v vm up
+
+# Show commands + their full stdout/stderr output:
+uv run qt-ai-dev-tools -vv vm status
+
+# Preview what would run without executing (useful for checking proxy behavior):
+uv run qt-ai-dev-tools --dry-run tree
+```
+
+Logs are always written to `~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.log`, even without `-v`. Check this file for post-mortem debugging.
+
+**Tip:** Use `-vv` during `vm up` on first boot to watch provisioning progress instead of waiting in silence for 10 minutes.
+
 ## File sync
 
 Keep host files in sync with the VM:

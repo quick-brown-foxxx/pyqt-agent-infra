@@ -9,7 +9,7 @@
     "building-qt-apps": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "dd6f5674c1940233c8c60459052673291871afbe458ac282c4b862453aa2c2e6"
+      "computedHash": "6daaacf1daf9cd86af554e4aa2cebd683f3ff0c8470835fe856ad87302239298"
     },
     "setting-up-logging": {
       "source": "quick-brown-foxxx/coding_rules_python",
@@ -19,7 +19,7 @@
     "setting-up-python-projects": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "f9a8ee1cf504069a7743d4a3343f6b2852021fc720cb20512f8630872b95938f"
+      "computedHash": "3bd561765e0831148ef014b45064c0588577fc699c3a1b6f54a7fe148c37794d"
     },
     "setting-up-shortcuts": {
       "source": "quick-brown-foxxx/coding_rules_python",
@@ -39,7 +39,7 @@
     "writing-python-scripts": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "bf4164e77b5c36da9d9295cd7786283d93f5a6791f8aaba0008d57fc7fda89b1"
+      "computedHash": "bdb9f09ed0aa9da94e9b08da09e8c3298987d331a8fdb657601a0b01060a3f4a"
     }
   }
 }

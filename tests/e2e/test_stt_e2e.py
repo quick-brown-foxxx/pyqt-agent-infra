@@ -24,7 +24,7 @@ class TestSttWorkflow:
         """Click Record, then Transcribe, verify result text appears."""
         from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=stt_app.pid)
         assert sock is not None, "No bridge socket found"
 
         # Click "Record Audio" button
@@ -58,7 +58,7 @@ class TestSttWorkflow:
         """Transcribe without recording first — should show error state."""
         from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=stt_app.pid)
         assert sock is not None, "No bridge socket found"
 
         # Reset the app state: clear the recording flag via bridge
@@ -90,7 +90,7 @@ class TestSttWithAudioSubsystem:
         from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
         from qt_ai_dev_tools.subsystems import audio
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=stt_app.pid)
         assert sock is not None, "No bridge socket found"
 
         node_name = "stt-e2e-mic"

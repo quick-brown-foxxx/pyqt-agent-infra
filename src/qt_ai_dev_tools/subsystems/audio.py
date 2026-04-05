@@ -302,26 +302,30 @@ def verify_not_silence(path: Path, threshold: float = 0.001) -> AudioVerificatio
 
     check_tool("sox")
 
-    # sox outputs stat info to stderr
+    # sox outputs stat info to stderr, but some builds/versions may use stdout
     result = subprocess.run(
         ["sox", str(path), "-n", "stat"],
         capture_output=True,
         text=True,
     )
 
-    return _parse_sox_stat(result.stderr, threshold)
+    # Combine both streams — stat output is on stderr, but check stdout as fallback
+    stat_output = result.stderr or result.stdout
+
+    return _parse_sox_stat(stat_output, threshold)
 
 
-def _parse_sox_stat(stderr: str, threshold: float) -> AudioVerification:
-    """Parse sox stat stderr output.
+def _parse_sox_stat(output: str, threshold: float) -> AudioVerification:
+    """Parse sox stat output (normally printed to stderr).
 
-    Expected format lines:
-        Maximum amplitude:   0.123456
-        RMS     amplitude:   0.012345
-        Length (seconds):    5.000000
+    Expected format lines (leading whitespace varies)::
+
+                 Maximum amplitude:  0.123456
+                 RMS     amplitude:  0.012345
+                 Length (seconds):      5.000000
 
     Args:
-        stderr: Raw sox stat stderr output.
+        output: Raw sox stat output text (usually from stderr).
         threshold: RMS amplitude threshold for silence detection.
 
     Returns:
@@ -331,15 +335,16 @@ def _parse_sox_stat(stderr: str, threshold: float) -> AudioVerification:
     rms_amp = 0.0
     duration = 0.0
 
-    max_match = re.search(r"Maximum amplitude:\s+([\d.eE+-]+)", stderr)
+    # Regexes handle variable whitespace and optional negative sign
+    max_match = re.search(r"Maximum amplitude:\s+(-?[\d.]+(?:[eE][+-]?\d+)?)", output)
     if max_match:
         max_amp = float(max_match.group(1))
 
-    rms_match = re.search(r"RMS\s+amplitude:\s+([\d.eE+-]+)", stderr)
+    rms_match = re.search(r"RMS\s+amplitude:\s+(-?[\d.]+(?:[eE][+-]?\d+)?)", output)
     if rms_match:
         rms_amp = float(rms_match.group(1))
 
-    dur_match = re.search(r"Length \(seconds\):\s+([\d.eE+-]+)", stderr)
+    dur_match = re.search(r"Length \(seconds\):\s+(-?[\d.]+(?:[eE][+-]?\d+)?)", output)
     if dur_match:
         duration = float(dur_match.group(1))
 

@@ -36,7 +36,7 @@ class TestFileDialogOpen:
         from qt_ai_dev_tools.pilot import QtPilot
         from qt_ai_dev_tools.subsystems import file_dialog
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=file_dialog_app.pid)
         assert sock is not None, "No bridge socket found"
 
         # Create a temp file with known content
@@ -77,7 +77,7 @@ class TestFileDialogSave:
         from qt_ai_dev_tools.pilot import QtPilot
         from qt_ai_dev_tools.subsystems import file_dialog
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=file_dialog_app.pid)
         assert sock is not None, "No bridge socket found"
 
         save_path = tmp_path / "test_save_output.txt"
@@ -112,7 +112,7 @@ class TestFileDialogCancel:
         from qt_ai_dev_tools.pilot import QtPilot
         from qt_ai_dev_tools.subsystems import file_dialog
 
-        sock = find_bridge_socket()
+        sock = find_bridge_socket(pid=file_dialog_app.pid)
         assert sock is not None, "No bridge socket found"
 
         # Set a known status

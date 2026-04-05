@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess as _subprocess
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -56,85 +57,81 @@ class TestFindWorkspace:
 
 class TestVagrant:
     def test_vagrant_helper_calls_subprocess(self, tmp_path: Path) -> None:
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            _vagrant(["status"], tmp_path)
-            mock_run.assert_called_once_with(
-                ["vagrant", "status"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
             )
+            _vagrant(["status"], tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "status"]
+            assert call_args[1]["cwd"] == tmp_path
 
 
 class TestVmUp:
     def test_calls_vagrant_up_with_provider(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            vm_up(tmp_path)
-            mock_run.assert_called_once_with(
-                ["vagrant", "up", "--provider=libvirt"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "up", "--provider=libvirt"], returncode=0, stdout="", stderr=""
             )
+            vm_up(tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
+            assert call_args[1]["cwd"] == tmp_path
 
 
 class TestVmStatus:
     def test_calls_vagrant_status(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            vm_status(tmp_path)
-            mock_run.assert_called_once_with(
-                ["vagrant", "status"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
             )
+            vm_status(tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "status"]
+            assert call_args[1]["cwd"] == tmp_path
 
 
 class TestVmDestroy:
     def test_calls_vagrant_destroy_force(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            vm_destroy(tmp_path)
-            mock_run.assert_called_once_with(
-                ["vagrant", "destroy", "-f"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "destroy", "-f"], returncode=0, stdout="", stderr=""
             )
+            vm_destroy(tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "destroy", "-f"]
+            assert call_args[1]["cwd"] == tmp_path
 
 
 class TestVmSync:
     def test_calls_vagrant_rsync(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            vm_sync(tmp_path)
-            mock_run.assert_called_once_with(
-                ["vagrant", "rsync"],
-                cwd=tmp_path,
-                capture_output=True,
-                text=True,
-                check=False,
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "rsync"], returncode=0, stdout="", stderr=""
             )
+            vm_sync(tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "rsync"]
+            assert call_args[1]["cwd"] == tmp_path
 
 
 class TestVmRun:
     def test_vagrant_ssh_with_env_prefix(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
 
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            mock_run.return_value.stdout = "output"
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "ssh", "-c", "..."], returncode=0, stdout="output", stderr=""
+            )
             vm_run("echo hello", tmp_path)
             call_args = mock_run.call_args
             cmd = call_args[0][0]
@@ -150,7 +147,7 @@ class TestVmSyncAuto:
     def test_starts_rsync_auto_process(self, tmp_path: Path) -> None:
         vagrantfile = tmp_path / "Vagrantfile"
         vagrantfile.touch()
-        with mock.patch("subprocess.Popen") as mock_popen:
+        with mock.patch("qt_ai_dev_tools.vagrant.vm.subprocess.Popen") as mock_popen:
             vm_sync_auto(tmp_path)
             mock_popen.assert_called_once()
             args = mock_popen.call_args

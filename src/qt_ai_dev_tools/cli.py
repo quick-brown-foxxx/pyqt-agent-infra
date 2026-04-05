@@ -24,6 +24,45 @@ app = typer.Typer(
 )
 
 
+@app.callback()
+def main_callback(
+    verbose: typing.Annotated[
+        int,
+        typer.Option(
+            "--verbose",
+            "-v",
+            count=True,
+            help="Increase verbosity (-v for commands, -vv for full output).",
+        ),
+    ] = 0,
+    dry_run: typing.Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show commands that would be run without executing them.",
+        ),
+    ] = False,
+) -> None:
+    """AI agent tools for Qt/PySide app interaction via AT-SPI."""
+    import logging
+
+    from qt_ai_dev_tools.logging import setup_file_logging, setup_stderr_logging
+    from qt_ai_dev_tools.run import set_dry_run
+
+    # File logging is always on
+    log_dir = Path("~/.local/state/qt-ai-dev-tools/logs").expanduser()
+    setup_file_logging(log_dir=log_dir, app_name="qt-ai-dev-tools")
+
+    # Stderr logging only when -v/-vv is given
+    if verbose >= 2:
+        setup_stderr_logging(level=logging.DEBUG)
+    elif verbose >= 1:
+        setup_stderr_logging(level=logging.INFO)
+
+    if dry_run:
+        set_dry_run(enabled=True)
+
+
 def _get_pilot(app_name: str | None = None, retries: int = 5) -> QtPilot:
     """Create a QtPilot instance, handling connection errors."""
     from qt_ai_dev_tools.pilot import QtPilot
@@ -90,8 +129,7 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
     if _is_in_vm():
         return
 
-    import subprocess
-
+    from qt_ai_dev_tools.run import run_command
     from qt_ai_dev_tools.vagrant.vm import find_workspace, vm_run
 
     ws = find_workspace(workspace)
@@ -107,25 +145,13 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
     # Generate SSH config if needed
     ssh_config = ws / ".vagrant-ssh-config"
     if not ssh_config.exists():
-        config_result = subprocess.run(
-            ["vagrant", "ssh-config"],
-            cwd=ws,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        config_result = run_command(["vagrant", "ssh-config"], cwd=ws)
         if config_result.returncode == 0:
             ssh_config.write_text(config_result.stdout)
 
     # SCP screenshot from VM to host
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
-    scp_result = subprocess.run(
-        ["scp", "-F", str(ssh_config), f"default:{remote_path}", output],
-        cwd=ws,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    scp_result = run_command(["scp", "-F", str(ssh_config), f"default:{remote_path}", output], cwd=ws)
     if scp_result.returncode != 0:
         typer.echo(f"Failed to copy screenshot from VM: {scp_result.stderr}", err=True)
         raise typer.Exit(code=1)
@@ -511,6 +537,10 @@ def workspace_init(
     display: typing.Annotated[str, typer.Option(help="X display")] = ":99",
     resolution: typing.Annotated[str, typer.Option(help="Display resolution")] = "1920x1080x24",
     static_ip: typing.Annotated[str, typer.Option("--static-ip", help="Static IP for VM (e.g. 192.168.121.100)")] = "",
+    management_network_name: typing.Annotated[str, typer.Option(help="Libvirt management network name")] = "default",
+    management_network_address: typing.Annotated[
+        str, typer.Option(help="Libvirt management network subnet (CIDR)")
+    ] = "192.168.122.0/24",
 ) -> None:
     """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
@@ -524,6 +554,8 @@ def workspace_init(
         memory=memory,
         cpus=cpus,
         hostname=hostname,
+        management_network_name=management_network_name,
+        management_network_address=management_network_address,
         static_ip=static_ip,
         display=display,
         resolution=resolution,

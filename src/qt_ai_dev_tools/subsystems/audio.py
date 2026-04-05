@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import re
 import signal
 import subprocess
 from pathlib import Path
 
+from qt_ai_dev_tools.run import run_command
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import (
     AudioSource,
@@ -16,6 +18,8 @@ from qt_ai_dev_tools.subsystems.models import (
     AudioVerification,
     VirtualMicInfo,
 )
+
+logger = logging.getLogger(__name__)
 
 # Module-level storage for virtual mic process PID
 _virtual_mic_pid: int | None = None
@@ -40,6 +44,7 @@ def virtual_mic_start(node_name: str = "virtual-mic") -> VirtualMicInfo:
     global _virtual_mic_pid
     check_tool("pw-loopback")
 
+    logger.info("$ pw-loopback ... (background)")
     process = subprocess.Popen(
         [
             "pw-loopback",
@@ -167,6 +172,7 @@ def record(
     args.append(str(output))
 
     # pw-record runs until interrupted; use timeout
+    logger.info("$ pw-record --rate=48000 --channels=1 %s (duration=%ss)", output, duration)
     with contextlib.suppress(subprocess.TimeoutExpired):
         subprocess.run(
             args,
@@ -306,12 +312,7 @@ def verify_not_silence(path: Path, threshold: float = 0.001) -> AudioVerificatio
 
     check_tool("sox")
 
-    # sox outputs stat info to stderr, but some builds/versions may use stdout
-    result = subprocess.run(
-        ["sox", str(path), "-n", "stat"],
-        capture_output=True,
-        text=True,
-    )
+    result = run_command(["sox", str(path), "-n", "stat"])
 
     # Combine both streams — stat output is on stderr, but check stdout as fallback
     stat_output = result.stderr or result.stdout

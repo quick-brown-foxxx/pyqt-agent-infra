@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def find_workspace(workspace: Path | None = None) -> Path:
@@ -30,13 +33,9 @@ def find_workspace(workspace: Path | None = None) -> Path:
 
 def _vagrant(args: list[str], workspace: Path) -> subprocess.CompletedProcess[str]:
     """Run a vagrant command in the workspace directory."""
-    return subprocess.run(
-        ["vagrant", *args],
-        cwd=workspace,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    from qt_ai_dev_tools.run import run_command
+
+    return run_command(["vagrant", *args], cwd=workspace)
 
 
 def vm_up(workspace: Path | None = None, provider: str = "libvirt") -> subprocess.CompletedProcess[str]:
@@ -54,6 +53,7 @@ def vm_status(workspace: Path | None = None) -> subprocess.CompletedProcess[str]
 def vm_ssh(workspace: Path | None = None) -> None:
     """SSH into the VM (interactive)."""
     ws = find_workspace(workspace)
+    logger.info("$ vagrant ssh (interactive)")
     subprocess.run(["vagrant", "ssh"], cwd=ws, check=False)
 
 
@@ -75,6 +75,7 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     Returns the Popen handle so caller can stop it later.
     """
     ws = find_workspace(workspace)
+    logger.info("$ vagrant rsync-auto (background)")
     return subprocess.Popen(
         ["vagrant", "rsync-auto"],
         cwd=ws,

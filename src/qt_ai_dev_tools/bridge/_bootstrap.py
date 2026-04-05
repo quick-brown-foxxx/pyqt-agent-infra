@@ -5,13 +5,13 @@ from __future__ import annotations
 import glob as glob_mod
 import logging
 import os
-import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
 
 from qt_ai_dev_tools.bridge._protocol import socket_path_for_pid
+from qt_ai_dev_tools.run import run_command
 
 logger = logging.getLogger(__name__)
 
@@ -55,14 +55,8 @@ def detect_python_version(pid: int) -> tuple[int, int]:
         raise RuntimeError(msg) from exc
 
     try:
-        result = subprocess.run(
-            [str(exe_path), "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+        result = run_command([str(exe_path), "--version"], timeout=5)
+    except RuntimeError as exc:
         msg = f"Cannot determine Python version for PID {pid}: {exc}"
         raise RuntimeError(msg) from exc
 

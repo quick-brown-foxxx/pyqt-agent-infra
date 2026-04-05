@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import re
+import shlex
 import subprocess
 
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import Notification, NotificationAction
+
+logger = logging.getLogger(__name__)
 
 # D-Bus destination for notification daemon
 _NOTIFY_DEST = "org.freedesktop.Notifications"
@@ -30,23 +34,22 @@ def listen(timeout: float = 5.0) -> list[Notification]:
         RuntimeError: If dbus-monitor is not found.
     """
     check_tool("dbus-monitor")
+    cmd = ["dbus-monitor", "--session", f"interface={_NOTIFY_IFACE},member=Notify"]
+    logger.info("$ %s (timeout=%ss)", shlex.join(cmd), timeout)
     try:
         result = subprocess.run(
-            [
-                "dbus-monitor",
-                "--session",
-                f"interface={_NOTIFY_IFACE},member=Notify",
-            ],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
         )
-        output = result.stdout
+        raw = result.stdout
     except subprocess.TimeoutExpired as exc:
         # Expected: dbus-monitor runs until killed/timeout
-        output = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+        raw = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
 
-    return _parse_notifications(output)
+    logger.debug("dbus-monitor output:\n%s", raw)
+    return _parse_notifications(raw)
 
 
 def _parse_notifications(output: str) -> list[Notification]:

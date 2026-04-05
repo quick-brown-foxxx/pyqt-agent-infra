@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import time
 
 from qt_ai_dev_tools._atspi import AtspiNode
+from qt_ai_dev_tools.run import run_command
 
 
 def _xdotool_env() -> dict[str, str]:
@@ -26,12 +26,12 @@ def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
         pause: Seconds to sleep after click for UI to settle.
     """
     env = _xdotool_env()
-    subprocess.run(
+    run_command(
         ["xdotool", "mousemove", "--screen", "0", str(x), str(y)],
-        check=True,
         env=env,
+        check=True,
     )
-    subprocess.run(["xdotool", "click", str(button)], check=True, env=env)
+    run_command(["xdotool", "click", str(button)], env=env, check=True)
     time.sleep(pause)
 
 
@@ -44,17 +44,17 @@ def click(widget: AtspiNode, pause: float = 0.2) -> None:
 
 def type_text(text: str, delay_ms: int = 20, pause: float = 0.2) -> None:
     """Type text via xdotool into the currently focused widget."""
-    subprocess.run(
+    run_command(
         ["xdotool", "type", "--delay", str(delay_ms), text],
-        check=True,
         env=_xdotool_env(),
+        check=True,
     )
     time.sleep(pause)
 
 
 def press_key(key: str, pause: float = 0.1) -> None:
     """Press a key via xdotool (e.g. 'Return', 'Tab', 'ctrl+a')."""
-    subprocess.run(["xdotool", "key", key], check=True, env=_xdotool_env())
+    run_command(["xdotool", "key", key], env=_xdotool_env(), check=True)
     time.sleep(pause)
 
 

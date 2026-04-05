@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
+
+from qt_ai_dev_tools.run import run_command
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ def take_screenshot(path: str = "/tmp/screenshot.png") -> str:  # noqa: S108
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     env = os.environ.copy()
     env.setdefault("DISPLAY", ":99")
-    subprocess.run(["scrot", path], check=True, env=env)
+    run_command(["scrot", path], env=env, check=True)
     size = os.path.getsize(path)
     logger.info("Screenshot saved: %s (%d bytes)", path, size)
     return path

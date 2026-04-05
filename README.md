@@ -111,6 +111,18 @@ pip install qt-ai-dev-tools
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full plan and phase details.
 
+### Debugging
+
+Use `-v` to see shell commands being executed, `-vv` for full output, and `--dry-run` to preview without executing:
+
+```bash
+qt-ai-dev-tools -v tree              # show commands on stderr
+qt-ai-dev-tools -vv vm up            # show commands + full output
+qt-ai-dev-tools --dry-run vm up      # preview without executing
+```
+
+Logs are always written to `~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.log`.
+
 ## Development
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for setup, make targets, and contribution guidance.

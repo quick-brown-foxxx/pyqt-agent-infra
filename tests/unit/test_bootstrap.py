@@ -51,13 +51,18 @@ class TestDetectPythonVersion:
 
     def test_parse_version_output(self) -> None:
         """Should parse 'Python X.Y.Z' from --version output."""
-        mock_result = MagicMock()
-        mock_result.stdout = "Python 3.14.1"
-        mock_result.stderr = ""
+        import subprocess
+
+        mock_result = subprocess.CompletedProcess(
+            args=["python3.14", "--version"],
+            returncode=0,
+            stdout="Python 3.14.1",
+            stderr="",
+        )
 
         with (
             patch("qt_ai_dev_tools.bridge._bootstrap.Path") as mock_path_cls,
-            patch("qt_ai_dev_tools.bridge._bootstrap.subprocess.run", return_value=mock_result),
+            patch("qt_ai_dev_tools.run.subprocess.run", return_value=mock_result),
         ):
             mock_exe_link = MagicMock()
             mock_exe_link.exists.return_value = True
@@ -70,13 +75,18 @@ class TestDetectPythonVersion:
 
     def test_not_python_process(self) -> None:
         """Should raise RuntimeError if exe is not Python."""
-        mock_result = MagicMock()
-        mock_result.stdout = "bash 5.2.0"
-        mock_result.stderr = ""
+        import subprocess
+
+        mock_result = subprocess.CompletedProcess(
+            args=["/usr/bin/bash", "--version"],
+            returncode=0,
+            stdout="bash 5.2.0",
+            stderr="",
+        )
 
         with (
             patch("qt_ai_dev_tools.bridge._bootstrap.Path") as mock_path_cls,
-            patch("qt_ai_dev_tools.bridge._bootstrap.subprocess.run", return_value=mock_result),
+            patch("qt_ai_dev_tools.run.subprocess.run", return_value=mock_result),
         ):
             mock_exe_link = MagicMock()
             mock_exe_link.exists.return_value = True

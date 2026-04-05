@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
 import shutil
-import subprocess
 from pathlib import Path
 
 
@@ -36,6 +34,8 @@ def run_tool(
 ) -> str:
     """Run a system tool and return its stdout.
 
+    Delegates to run_command() for logging, dry-run, and execution.
+
     Args:
         args: Command and arguments (e.g. ["xclip", "-selection", "clipboard"]).
         input_data: Optional string to pass on stdin.
@@ -48,29 +48,7 @@ def run_tool(
     Raises:
         RuntimeError: If the command fails (non-zero exit) or times out.
     """
-    merged_env: dict[str, str] | None = None
-    if env is not None:
-        merged_env = {**os.environ, **env}
+    from qt_ai_dev_tools.run import run_command
 
-    try:
-        result = subprocess.run(
-            args,
-            input=input_data,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=merged_env,
-        )
-    except subprocess.TimeoutExpired as exc:
-        msg = f"Command timed out after {timeout}s: {args}"
-        raise RuntimeError(msg) from exc
-    except FileNotFoundError as exc:
-        msg = f"Command not found: {args[0]}"
-        raise RuntimeError(msg) from exc
-
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        msg = f"Command failed (exit {result.returncode}): {args}\n{stderr}"
-        raise RuntimeError(msg)
-
+    result = run_command(args, input_data=input_data, timeout=timeout, env=env, check=True)
     return result.stdout

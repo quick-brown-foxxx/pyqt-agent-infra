@@ -6,15 +6,16 @@
 
 **Goal:** Add `-v`/`-vv` verbosity and `--dry-run` flags to the CLI so users can see every shell command spawned under the hood, view full command output, and preview what would be executed without running it.
 
-**Architecture:** Copy the reusable logging module into `src/qt_ai_dev_tools/logging/`. Wire a global typer callback to configure verbosity. Instrument the two central execution choke-points (`run_tool()` in `_subprocess.py` and `_vagrant()` in `vm.py`) plus scattered raw `subprocess.run()` calls in `interact.py` and `screenshot.py` — route them all through a single `run_command()` function that handles logging, dry-run, and output streaming. This is a **CLI tool**, so file logging is always on, stdout logging is **never** used — user-facing messages use `write_info`/`write_error` from the non-log output module. The `-v` flag controls whether `logger.info` (command lines) and `logger.debug` (full output) are echoed to stderr via a dedicated verbose handler.
+**Architecture:** Copy the reusable logging module into `src/qt_ai_dev_tools/logging/`. Wire a global typer callback to configure verbosity. Instrument the two central execution choke-points (`run_tool()` in `_subprocess.py` and `_vagrant()` in `vm.py`) plus scattered raw `subprocess.run()` calls in `interact.py` and `screenshot.py` — route them all through a single `run_command()` function that handles logging, dry-run, and output streaming.
 
 **Tech Stack:** typer (CLI), colorlog (colored output), Python logging (file + conditional stderr), subprocess (execution)
 
 **Key design decisions:**
+- This is a **CLI tool** — file logging always on, stdout logging **never** used. Verbose output goes to **stderr** via `setup_stderr_logging()` so stdout stays clean for piping.
 - `-v` shows commands being run (INFO to stderr). `-vv` shows commands + their full stdout/stderr (DEBUG to stderr).
-- Verbose output goes to **stderr**, not stdout — CLI output (widget trees, JSON, screenshots) stays clean on stdout for piping.
-- `--dry-run` prints commands that would run and returns synthetic empty results. It only applies to subprocess execution — AT-SPI queries and Python-level operations still execute.
-- File logging is always on at DEBUG level in `~/.local/state/qt-ai-dev-tools/logs/`. This means even without `-v`, users can check `qt-ai-dev-tools.log` after the fact.
+- `--dry-run` prints commands that would run and returns synthetic empty results. Only applies to subprocess execution.
+- File logging always on at DEBUG in `~/.local/state/qt-ai-dev-tools/logs/`.
+- **Existing unit tests** mock `subprocess.run` at module paths like `qt_ai_dev_tools.interact.subprocess.run` — after migration to `run_command()`, these mock paths must be updated to `qt_ai_dev_tools.run.subprocess.run`.
 
 ---
 
@@ -25,14 +26,48 @@
 | Create | `src/qt_ai_dev_tools/logging/__init__.py` | Public API re-exports |
 | Create | `src/qt_ai_dev_tools/logging/logger_setup.py` | `setup_file_logging()`, `setup_stderr_logging()`, `configure_logger_level()` |
 | Create | `src/qt_ai_dev_tools/logging/non_log_stdout_output.py` | `write_info()`, `write_success()`, `write_warning()`, `write_error()` |
-| Create | `src/qt_ai_dev_tools/run.py` | `run_command()` — single entry point for all subprocess calls with logging + dry-run |
-| Modify | `src/qt_ai_dev_tools/cli.py` | Add global `-v`/`-vv`/`--dry-run` callback, init logging on startup |
-| Modify | `src/qt_ai_dev_tools/subsystems/_subprocess.py` | `run_tool()` delegates to `run_command()` |
-| Modify | `src/qt_ai_dev_tools/vagrant/vm.py` | `_vagrant()` delegates to `run_command()` |
+| Create | `src/qt_ai_dev_tools/run.py` | `run_command()` — single entry point for all subprocess calls |
+| Modify | `src/qt_ai_dev_tools/cli.py:20-24` | Add global `-v`/`-vv`/`--dry-run` callback |
+| Modify | `src/qt_ai_dev_tools/subsystems/_subprocess.py:30-76` | `run_tool()` delegates to `run_command()` |
+| Modify | `src/qt_ai_dev_tools/vagrant/vm.py:31-39` | `_vagrant()` delegates to `run_command()` |
 | Modify | `src/qt_ai_dev_tools/interact.py` | Replace raw `subprocess.run()` with `run_command()` |
 | Modify | `src/qt_ai_dev_tools/screenshot.py` | Replace raw `subprocess.run()` with `run_command()` |
-| Create | `tests/test_run.py` | Tests for `run_command()` + dry-run |
-| Create | `tests/test_verbose.py` | Tests for CLI verbose flag integration |
+| Create | `tests/unit/test_run.py` | Unit tests for `run_command()` + dry-run |
+| Modify | `tests/unit/test_interact.py` | Update mock paths from `subprocess.run` to `run_command` |
+| Modify | `tests/unit/test_vm.py` | Update mock paths from `subprocess.run` to `run_command` |
+| Create | `tests/integration/test_verbose_dryrun.py` | CLI integration tests for flags |
+
+---
+
+## Test Plan
+
+### Test cases — categorized by importance
+
+**Critical (must have):**
+1. `run_command()` captures stdout/stderr and returns CompletedProcess
+2. `run_command()` raises RuntimeError on timeout
+3. `run_command()` raises RuntimeError on command not found
+4. `run_command(check=True)` raises on non-zero exit
+5. `run_command()` passes environment variables
+6. `run_command()` logs command at INFO level
+7. `run_command()` logs output at DEBUG level
+8. Dry-run mode returns synthetic result without executing
+9. Dry-run mode logs `[dry-run]` prefix
+10. `--verbose` and `--dry-run` appear in CLI `--help`
+11. `-v` flag causes command logging on stderr
+12. `--dry-run` flag prevents actual vagrant execution
+13. Existing `test_interact.py` tests still pass after migration
+14. Existing `test_vm.py` tests still pass after migration
+
+**Medium (should have):**
+15. `run_command()` passes cwd to subprocess
+16. `run_command()` passes input_data to subprocess
+17. `run_tool()` still works identically after delegation to `run_command()`
+
+**Discarded (not worth maintenance):**
+- Testing colorlog output format details
+- Testing file rotation parameters
+- Testing `write_info`/`write_error` color output (trivial wrappers)
 
 ---
 
@@ -43,9 +78,7 @@
 - Create: `src/qt_ai_dev_tools/logging/logger_setup.py`
 - Create: `src/qt_ai_dev_tools/logging/non_log_stdout_output.py`
 
-Copy from `coding_rules_python/reusable/logging/` and adapt imports.
-
-**Important adaptation:** The standard reusable module has `setup_stdout_logging()` for GUI/server use. We are a **CLI tool** — we never log to stdout. Instead, adapt `setup_stdout_logging()` into `setup_stderr_logging()` that sends verbose output to **stderr**. This keeps stdout clean for CLI output (widget trees, JSON, etc.) while allowing `-v` to show debug info on stderr.
+Copy from `coding_rules_python/reusable/logging/` and adapt. Key adaptation: rename `setup_stdout_logging()` to `setup_stderr_logging()` that writes to `sys.stderr` (we are a CLI tool — stdout is the user interface).
 
 - [ ] **Step 1: Create `src/qt_ai_dev_tools/logging/logger_setup.py`**
 
@@ -156,95 +189,7 @@ def configure_logger_level(logger_name: str, level: int, propagate: bool = True)
 
 - [ ] **Step 2: Create `src/qt_ai_dev_tools/logging/non_log_stdout_output.py`**
 
-Copy directly from `coding_rules_python/reusable/logging/non_log_stdout_output.py` — only update the module docstring import path:
-
-```python
-"""Colored stdout output helpers for CLI tools.
-
-These are NOT log entries — they're colored user-facing messages.
-Use instead of stdout logging in CLI tools to keep output clean for piping.
-
-Usage:
-    from qt_ai_dev_tools.logging import write_info, write_error
-
-    write_info("Processing 42 items...")
-    write_error("Connection failed")
-"""
-
-from __future__ import annotations
-
-import logging
-import sys
-
-import colorlog
-
-
-def _get_colored_text(message: str, level: str) -> str:
-    """Get colored version of message.
-
-    Args:
-        message: Text to color.
-        level: Level name ("INFO", "WARNING", "ERROR", "SUCCESS").
-
-    Returns:
-        Colored text string.
-    """
-    level_map = {
-        "INFO": logging.INFO,
-        "SUCCESS": logging.INFO,
-        "WARNING": logging.WARNING,
-        "ERROR": logging.ERROR,
-    }
-    log_level = level_map.get(level, logging.INFO)
-
-    formatter = colorlog.ColoredFormatter(
-        "%(log_color)s%(message)s%(reset)s",
-        log_colors={
-            "INFO": "green",
-            "SUCCESS": "green",
-            "WARNING": "yellow",
-            "ERROR": "red",
-        },
-        reset=True,
-        stream=sys.stdout,
-    )
-
-    record = logging.LogRecord(
-        name="stdout",
-        level=log_level,
-        pathname="",
-        lineno=0,
-        msg=message,
-        args=(),
-        exc_info=None,
-    )
-
-    return formatter.format(record)
-
-
-def write_info(message: str) -> None:
-    """Write green info message to stdout."""
-    colored = _get_colored_text(message, "INFO")
-    sys.stdout.write(f"{colored}\n")
-
-
-def write_success(message: str) -> None:
-    """Write green success message to stdout."""
-    colored = _get_colored_text(message, "SUCCESS")
-    sys.stdout.write(f"{colored}\n")
-
-
-def write_warning(message: str) -> None:
-    """Write yellow warning message to stdout."""
-    colored = _get_colored_text(message, "WARNING")
-    sys.stdout.write(f"{colored}\n")
-
-
-def write_error(message: str) -> None:
-    """Write red error message to stderr."""
-    colored = _get_colored_text(message, "ERROR")
-    sys.stderr.write(f"{colored}\n")
-```
+Copy from `coding_rules_python/reusable/logging/non_log_stdout_output.py`, update module docstring import path to `from qt_ai_dev_tools.logging import write_info, write_error`. Keep all function implementations identical.
 
 - [ ] **Step 3: Create `src/qt_ai_dev_tools/logging/__init__.py`**
 
@@ -286,25 +231,20 @@ Expected: New files pass lint. Fix any issues.
 
 ```bash
 git add src/qt_ai_dev_tools/logging/
-git commit -m "feat(logging): add logging module — file logging, stderr verbose, colored output
-
-Copy reusable logging infrastructure adapted for CLI tool:
-- File logging always on (~/.local/state/qt-ai-dev-tools/logs/)
-- Stderr logging for -v/-vv verbose mode (not stdout — keeps output clean)
-- Colored non-log output helpers (write_info, write_error, etc.)"
+git commit -m "feat(logging): add logging module — file logging, stderr verbose, colored output"
 ```
 
 ---
 
-## Task 2: Create `run_command()` — Central Subprocess Execution with Logging & Dry-Run
-
-This is the core of the feature. A single function that every subprocess call routes through.
+## Task 2: Create `run_command()` with Tests (TDD)
 
 **Files:**
 - Create: `src/qt_ai_dev_tools/run.py`
-- Create: `tests/test_run.py`
+- Create: `tests/unit/test_run.py`
 
-- [ ] **Step 1: Write failing tests for `run_command()`**
+- [ ] **Step 1: Write failing tests**
+
+Create `tests/unit/test_run.py`:
 
 ```python
 """Tests for the central run_command() subprocess wrapper."""
@@ -312,74 +252,121 @@ This is the core of the feature. A single function that every subprocess call ro
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import pytest
 
-from qt_ai_dev_tools.run import run_command, set_dry_run
+pytestmark = pytest.mark.unit
 
 
-class TestRunCommand:
-    """Tests for run_command() execution and logging."""
+class TestRunCommandExecution:
+    """Test that run_command() executes commands and captures output."""
 
     def test_captures_stdout(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         result = run_command(["echo", "hello"])
         assert result.stdout.strip() == "hello"
         assert result.returncode == 0
 
     def test_captures_stderr(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         result = run_command(["sh", "-c", "echo err >&2"])
         assert "err" in result.stderr
 
-    def test_returns_nonzero_exit_code(self) -> None:
+    def test_nonzero_exit_code_returned(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         result = run_command(["sh", "-c", "exit 42"])
         assert result.returncode == 42
 
-    def test_passes_env(self) -> None:
-        result = run_command(["sh", "-c", "echo $MY_VAR"], env={"MY_VAR": "test123"})
-        assert result.stdout.strip() == "test123"
+    def test_check_true_raises_on_failure(self) -> None:
+        from qt_ai_dev_tools.run import run_command
 
-    def test_passes_input_data(self) -> None:
+        with pytest.raises(RuntimeError, match="Command failed"):
+            run_command(["sh", "-c", "exit 1"], check=True)
+
+    def test_passes_env_variables(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        result = run_command(["sh", "-c", "echo $MY_TEST_VAR"], env={"MY_TEST_VAR": "xyz789"})
+        assert result.stdout.strip() == "xyz789"
+
+    def test_passes_input_data_to_stdin(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         result = run_command(["cat"], input_data="hello from stdin")
         assert result.stdout.strip() == "hello from stdin"
 
-    def test_timeout_raises(self) -> None:
+    def test_timeout_raises_runtime_error(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         with pytest.raises(RuntimeError, match="timed out"):
             run_command(["sleep", "10"], timeout=0.1)
 
-    def test_command_not_found_raises(self) -> None:
+    def test_command_not_found_raises_runtime_error(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         with pytest.raises(RuntimeError, match="not found"):
-            run_command(["nonexistent_binary_xyz"])
+            run_command(["nonexistent_binary_xyz_12345"])
+
+    def test_cwd_sets_working_directory(self, tmp_path: Path) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        result = run_command(["pwd"], cwd=tmp_path)
+        assert str(tmp_path) in result.stdout
+
+
+class TestRunCommandLogging:
+    """Test that run_command() logs commands and output."""
 
     def test_logs_command_at_info(self, caplog: pytest.LogCaptureFixture) -> None:
+        from qt_ai_dev_tools.run import run_command
+
         with caplog.at_level(logging.INFO, logger="qt_ai_dev_tools.run"):
             run_command(["echo", "hello"])
         assert "$ echo hello" in caplog.text
 
-    def test_logs_output_at_debug(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.DEBUG, logger="qt_ai_dev_tools.run"):
-            run_command(["echo", "hello"])
-        assert "hello" in caplog.text
+    def test_logs_stdout_at_debug(self, caplog: pytest.LogCaptureFixture) -> None:
+        from qt_ai_dev_tools.run import run_command
 
-    def test_cwd(self, tmp_path: object) -> None:
-        result = run_command(["pwd"], cwd=tmp_path)  # type: ignore[arg-type]
-        assert str(tmp_path) in result.stdout
+        with caplog.at_level(logging.DEBUG, logger="qt_ai_dev_tools.run"):
+            run_command(["echo", "debug_output_test"])
+        assert "debug_output_test" in caplog.text
+
+    def test_logs_exit_code_at_debug(self, caplog: pytest.LogCaptureFixture) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        with caplog.at_level(logging.DEBUG, logger="qt_ai_dev_tools.run"):
+            run_command(["sh", "-c", "exit 0"])
+        assert "exit code: 0" in caplog.text
 
 
 class TestDryRun:
-    """Tests for dry-run mode."""
+    """Test that dry-run mode prevents execution."""
 
     def test_dry_run_does_not_execute(self, caplog: pytest.LogCaptureFixture) -> None:
+        from qt_ai_dev_tools.run import run_command, set_dry_run
+
         set_dry_run(enabled=True)
         try:
             with caplog.at_level(logging.INFO, logger="qt_ai_dev_tools.run"):
-                result = run_command(["rm", "-rf", "/"])  # would be catastrophic if it ran
+                result = run_command(["sh", "-c", "echo should_not_appear > /tmp/_dryrun_test"])
             assert result.returncode == 0
             assert result.stdout == ""
+            assert result.stderr == ""
             assert "[dry-run]" in caplog.text
+            # File should NOT have been created
+            import os
+
+            assert not os.path.exists("/tmp/_dryrun_test")
         finally:
             set_dry_run(enabled=False)
 
-    def test_dry_run_shows_command(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_dry_run_logs_command(self, caplog: pytest.LogCaptureFixture) -> None:
+        from qt_ai_dev_tools.run import run_command, set_dry_run
+
         set_dry_run(enabled=True)
         try:
             with caplog.at_level(logging.INFO, logger="qt_ai_dev_tools.run"):
@@ -387,14 +374,25 @@ class TestDryRun:
             assert "vagrant up --provider=libvirt" in caplog.text
         finally:
             set_dry_run(enabled=False)
+
+    def test_set_dry_run_toggle(self) -> None:
+        from qt_ai_dev_tools.run import is_dry_run, set_dry_run
+
+        assert is_dry_run() is False
+        set_dry_run(enabled=True)
+        assert is_dry_run() is True
+        set_dry_run(enabled=False)
+        assert is_dry_run() is False
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/test_run.py -v`
-Expected: ImportError — `qt_ai_dev_tools.run` does not exist yet.
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/test_run.py -v`
+Expected: ImportError — `qt_ai_dev_tools.run` does not exist.
 
 - [ ] **Step 3: Implement `run_command()`**
+
+Create `src/qt_ai_dev_tools/run.py`:
 
 ```python
 """Central subprocess execution with logging and dry-run support.
@@ -512,23 +510,18 @@ def run_command(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/test_run.py -v`
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/test_run.py -v`
 Expected: All pass.
 
 - [ ] **Step 5: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass. Fix any issues.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/qt_ai_dev_tools/run.py tests/test_run.py
-git commit -m "feat(run): add central run_command() with logging and dry-run
-
-Single entry point for all subprocess execution. Logs command at INFO,
-full output at DEBUG. Dry-run mode skips execution and returns synthetic
-empty result."
+git add src/qt_ai_dev_tools/run.py tests/unit/test_run.py
+git commit -m "feat(run): add central run_command() with logging and dry-run"
 ```
 
 ---
@@ -536,11 +529,11 @@ empty result."
 ## Task 3: Wire Global `-v`/`-vv`/`--dry-run` into CLI
 
 **Files:**
-- Modify: `src/qt_ai_dev_tools/cli.py` (lines 20-24 — typer app definition, add callback)
+- Modify: `src/qt_ai_dev_tools/cli.py`
 
 - [ ] **Step 1: Add typer callback with verbosity and dry-run options**
 
-Add this right after the `app = typer.Typer(...)` definition (line 20-24 of cli.py). The callback runs before every command:
+Add right after `app = typer.Typer(...)` (line 20-24 of cli.py):
 
 ```python
 @app.callback()
@@ -574,7 +567,7 @@ def main_callback(
     setup_file_logging(log_dir=log_dir, app_name="qt-ai-dev-tools")
 
     # Stderr logging only when -v/-vv is given
-    if verbose >= 2:
+    if verbose >= 2:  # noqa: PLR2004
         setup_stderr_logging(level=logging.DEBUG)
     elif verbose >= 1:
         setup_stderr_logging(level=logging.INFO)
@@ -583,34 +576,20 @@ def main_callback(
         set_dry_run(enabled=True)
 ```
 
-Also remove `no_args_is_help=True` from the `typer.Typer()` call (line 23) — it conflicts with callbacks. Instead add `invoke_without_command=True` and handle the no-subcommand case in the callback:
-
-Actually, `no_args_is_help=True` should stay — it shows help when no subcommand is given, which is the right behavior. The callback is compatible with `no_args_is_help=True` in typer. Keep the Typer definition as-is and just add the callback.
-
-- [ ] **Step 2: Test the callback manually**
+- [ ] **Step 2: Verify help output**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run qt-ai-dev-tools --help`
-Expected: Shows `--verbose` / `-v` and `--dry-run` options in help output.
-
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run qt-ai-dev-tools -v vm status 2>/dev/null || true`
-Expected: Verbose output on stderr (may fail if no VM, but the flag should be recognized).
+Expected: Shows `--verbose` / `-v` and `--dry-run` in output.
 
 - [ ] **Step 3: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/qt_ai_dev_tools/cli.py
-git commit -m "feat(cli): add global -v/-vv and --dry-run flags
-
-Typer callback configures logging on every invocation:
-- File logging always on (~/.local/state/qt-ai-dev-tools/logs/)
-- -v: shows commands on stderr (INFO)
-- -vv: shows commands + full output on stderr (DEBUG)
-- --dry-run: prints commands without executing"
+git commit -m "feat(cli): add global -v/-vv and --dry-run flags via typer callback"
 ```
 
 ---
@@ -620,11 +599,9 @@ Typer callback configures logging on every invocation:
 **Files:**
 - Modify: `src/qt_ai_dev_tools/subsystems/_subprocess.py`
 
-`run_tool()` currently duplicates what `run_command()` does. Replace its implementation to delegate to `run_command()` while keeping the same public API (raises `RuntimeError` on failure, returns stdout string).
+- [ ] **Step 1: Rewrite `run_tool()` to delegate to `run_command()`**
 
-- [ ] **Step 1: Rewrite `run_tool()` to use `run_command()`**
-
-Replace the body of `run_tool()` (lines 30-76) with:
+Replace lines 30-76 with:
 
 ```python
 def run_tool(
@@ -656,38 +633,37 @@ def run_tool(
     return result.stdout
 ```
 
-Remove the now-unused imports: `os`, `subprocess`. Keep `shutil` and `Path` (used by `check_tool()`).
+Remove unused imports `os` and `subprocess`. Keep `shutil` and `Path` (used by `check_tool()`).
 
-- [ ] **Step 2: Run existing tests to verify nothing broke**
+- [ ] **Step 2: Run existing tests**
 
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/ -v -k "not atspi and not vm and not cli" --timeout=30`
-Expected: All passing tests still pass.
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/ -v --timeout=30`
+Expected: All passing tests still pass (subsystem tests mock `run_tool` not `subprocess.run`).
 
 - [ ] **Step 3: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add src/qt_ai_dev_tools/subsystems/_subprocess.py
-git commit -m "refactor(subprocess): delegate run_tool() to run_command()
-
-All subsystem tool calls (clipboard, tray, notify, audio) now go through
-the central run_command() — gets logging and dry-run for free."
+git commit -m "refactor(subprocess): delegate run_tool() to run_command()"
 ```
 
 ---
 
-## Task 5: Migrate `vagrant/vm.py` to Use `run_command()`
+## Task 5: Migrate `vagrant/vm.py` and Update `test_vm.py`
 
 **Files:**
 - Modify: `src/qt_ai_dev_tools/vagrant/vm.py`
+- Modify: `tests/unit/test_vm.py`
 
-- [ ] **Step 1: Rewrite `_vagrant()` and related functions**
+The existing `test_vm.py` mocks `qt_ai_dev_tools.vagrant.vm.subprocess.run`. After we change `_vagrant()` to use `run_command()`, these mock paths break. We must update them.
 
-Replace `_vagrant()` (lines 31-39) to use `run_command()`:
+- [ ] **Step 1: Rewrite `_vagrant()` and add logger**
+
+In `vm.py`, add `import logging` and `logger = logging.getLogger(__name__)` at module level. Rewrite `_vagrant()`:
 
 ```python
 def _vagrant(args: list[str], workspace: Path) -> subprocess.CompletedProcess[str]:
@@ -697,31 +673,21 @@ def _vagrant(args: list[str], workspace: Path) -> subprocess.CompletedProcess[st
     return run_command(["vagrant", *args], cwd=workspace)
 ```
 
-The return type and behavior stay the same — `CompletedProcess[str]` with captured output, no check (callers handle exit codes).
-
-For `vm_ssh()` (line 54-57) — this is interactive, so it CANNOT go through `run_command()` (which captures output). Keep it as raw `subprocess.run()` but add logging:
+For `vm_ssh()` — interactive, keep raw subprocess but log:
 
 ```python
 def vm_ssh(workspace: Path | None = None) -> None:
     """SSH into the VM (interactive)."""
-    import logging
-
-    logger = logging.getLogger(__name__)
-
     ws = find_workspace(workspace)
     logger.info("$ vagrant ssh (interactive)")
     subprocess.run(["vagrant", "ssh"], cwd=ws, check=False)
 ```
 
-For `vm_sync_auto()` (lines 72-84) — this is a background `Popen`, cannot go through `run_command()`. Add logging:
+For `vm_sync_auto()` — background Popen, keep but log:
 
 ```python
 def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     """Start background rsync-auto to keep VM files in sync."""
-    import logging
-
-    logger = logging.getLogger(__name__)
-
     ws = find_workspace(workspace)
     logger.info("$ vagrant rsync-auto (background)")
     return subprocess.Popen(
@@ -733,54 +699,63 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     )
 ```
 
-Move the logger to module level (after imports) and remove the inline `import logging`:
+- [ ] **Step 2: Update `tests/unit/test_vm.py` mock paths**
+
+The tests that mock `qt_ai_dev_tools.vagrant.vm.subprocess.run` need to mock `qt_ai_dev_tools.run.subprocess.run` instead, since `_vagrant()` now calls `run_command()` which calls `subprocess.run` in `qt_ai_dev_tools.run`.
+
+Update `TestVagrant`, `TestVmUp`, `TestVmStatus`, `TestVmDestroy`, `TestVmSync`, `TestVmRun` to mock `qt_ai_dev_tools.run.subprocess.run` instead of `qt_ai_dev_tools.vagrant.vm.subprocess.run`.
+
+Also update the assertion — `run_command()` always passes `capture_output=True, text=True` but also passes `input=None, timeout=None, cwd=workspace, env=None`. Adjust `assert_called_once_with` accordingly, or switch to checking `call_args[0][0]` (the command list) and key kwargs.
+
+Example update for `TestVagrant`:
 
 ```python
-import logging
-# ... other imports ...
-
-logger = logging.getLogger(__name__)
+class TestVagrant:
+    def test_vagrant_helper_calls_subprocess(self, tmp_path: Path) -> None:
+        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
+            )
+            _vagrant(["status"], tmp_path)
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert call_args[0][0] == ["vagrant", "status"]
+            assert call_args[1]["cwd"] == tmp_path
 ```
 
-- [ ] **Step 2: Run existing tests**
+Apply the same pattern to `TestVmUp`, `TestVmStatus`, `TestVmDestroy`, `TestVmSync`, `TestVmRun`. For `TestVmSyncAuto` — it still uses raw `subprocess.Popen`, so keep mocking `subprocess.Popen` but update the import path if needed.
 
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/ -v -k "not atspi" --timeout=30`
-Expected: Pass.
+- [ ] **Step 3: Run updated tests**
 
-- [ ] **Step 3: Run lint**
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/test_vm.py -v`
+Expected: All pass.
+
+- [ ] **Step 4: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/qt_ai_dev_tools/vagrant/vm.py
-git commit -m "refactor(vm): delegate _vagrant() to run_command()
-
-All vagrant commands (up, status, destroy, sync, run) now logged.
-Interactive ssh and background rsync-auto still use raw subprocess
-but log the command at INFO."
+git add src/qt_ai_dev_tools/vagrant/vm.py tests/unit/test_vm.py
+git commit -m "refactor(vm): delegate _vagrant() to run_command(), update tests"
 ```
 
 ---
 
-## Task 6: Migrate `interact.py` to Use `run_command()`
+## Task 6: Migrate `interact.py` and Update `test_interact.py`
 
 **Files:**
 - Modify: `src/qt_ai_dev_tools/interact.py`
+- Modify: `tests/unit/test_interact.py`
 
-The xdotool calls currently use raw `subprocess.run()` with `check=True` and no output capture. Route them through `run_command(check=True)`.
+Same issue as vm.py — tests mock `qt_ai_dev_tools.interact.subprocess.run` which breaks after migration.
 
 - [ ] **Step 1: Replace subprocess calls with `run_command()`**
 
-Replace the full file content. Key changes:
-- Import `run_command` instead of `subprocess`
-- Replace every `subprocess.run([...], check=True, env=env)` with `run_command([...], env=env, check=True)`
-- The `_xdotool_env()` helper stays — it builds the env dict
-- Remove `import subprocess`
+Replace `import subprocess` with `from qt_ai_dev_tools.run import run_command` in `interact.py`. Replace all `subprocess.run([...], check=True, env=env)` calls with `run_command([...], env=env, check=True)`.
 
-Updated functions:
+Full updated file:
 
 ```python
 """Widget interaction via xdotool and AT-SPI actions."""
@@ -802,14 +777,7 @@ def _xdotool_env() -> dict[str, str]:
 
 
 def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
-    """Click at absolute screen coordinates using xdotool.
-
-    Args:
-        x: Absolute X screen coordinate.
-        y: Absolute Y screen coordinate.
-        button: Mouse button (1=left, 2=middle, 3=right).
-        pause: Seconds to sleep after click for UI to settle.
-    """
+    """Click at absolute screen coordinates using xdotool."""
     env = _xdotool_env()
     run_command(
         ["xdotool", "mousemove", "--screen", "0", str(x), str(y)],
@@ -856,28 +824,48 @@ def focus(widget: AtspiNode, pause: float = 0.2) -> None:
         click(widget, pause=pause)
 ```
 
-- [ ] **Step 2: Run lint**
+- [ ] **Step 2: Update `tests/unit/test_interact.py` mock paths**
+
+Change all `patch("qt_ai_dev_tools.interact.subprocess.run")` to `patch("qt_ai_dev_tools.run.subprocess.run")`.
+
+The mock returns need updating too — `run_command()` returns `CompletedProcess`, so mock must return one:
+
+```python
+import subprocess
+
+# In each test that patches subprocess:
+with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+    mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+    click(node, pause=0.0)
+    # assertions on mock_run.call_args_list stay the same — checking args[0][0]
+```
+
+Also update the focus fallback test (`test_focus_falls_back_to_click`) — same mock path change.
+
+- [ ] **Step 3: Run updated tests**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/test_interact.py -v`
+Expected: All pass.
+
+- [ ] **Step 4: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/qt_ai_dev_tools/interact.py
-git commit -m "refactor(interact): route xdotool calls through run_command()
-
-All xdotool subprocess calls now logged and dry-run aware."
+git add src/qt_ai_dev_tools/interact.py tests/unit/test_interact.py
+git commit -m "refactor(interact): route xdotool calls through run_command(), update tests"
 ```
 
 ---
 
-## Task 7: Migrate `screenshot.py` to Use `run_command()`
+## Task 7: Migrate `screenshot.py`
 
 **Files:**
 - Modify: `src/qt_ai_dev_tools/screenshot.py`
 
-- [ ] **Step 1: Replace subprocess call with `run_command()`**
+- [ ] **Step 1: Replace subprocess with `run_command()`**
 
 ```python
 """Screenshot capture via scrot."""
@@ -909,7 +897,6 @@ def take_screenshot(path: str = "/tmp/screenshot.png") -> str:  # noqa: S108
 - [ ] **Step 2: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
 - [ ] **Step 3: Commit**
 
@@ -920,208 +907,206 @@ git commit -m "refactor(screenshot): route scrot through run_command()"
 
 ---
 
-## Task 8: Migrate Remaining Raw subprocess Calls in `cli.py`
+## Task 8: Migrate Raw subprocess Calls in `cli.py`
 
 **Files:**
-- Modify: `src/qt_ai_dev_tools/cli.py` (lines 93-135 — `_proxy_screenshot` uses raw subprocess for `vagrant ssh-config` and `scp`)
+- Modify: `src/qt_ai_dev_tools/cli.py` (the `_proxy_screenshot` function)
 
-- [ ] **Step 1: Replace raw subprocess calls in `_proxy_screenshot()`**
+- [ ] **Step 1: Replace subprocess calls in `_proxy_screenshot()`**
 
-In `_proxy_screenshot()`, replace the two `subprocess.run()` calls (vagrant ssh-config and scp) with `run_command()`. Add `from qt_ai_dev_tools.run import run_command` to the function's lazy imports.
+In `_proxy_screenshot()`, replace `subprocess.run(["vagrant", "ssh-config"], ...)` and `subprocess.run(["scp", ...], ...)` with `run_command()` calls:
 
-Replace `subprocess.run(["vagrant", "ssh-config"], ...)` with:
 ```python
 from qt_ai_dev_tools.run import run_command
-ssh_config_result = run_command(["vagrant", "ssh-config"], cwd=ws)
-```
 
-Replace `subprocess.run(["scp", ...], ...)` with:
-```python
+# Instead of subprocess.run(["vagrant", "ssh-config"], ...):
+ssh_config_result = run_command(["vagrant", "ssh-config"], cwd=ws)
+
+# Instead of subprocess.run(["scp", ...], ...):
 scp_result = run_command(["scp", "-F", str(ssh_config), f"default:{remote_path}", output])
 ```
 
-Remove `import subprocess` from the function's lazy imports if no longer needed.
+Check for any other raw `subprocess.run` calls in cli.py and migrate them too (search for `subprocess.run` in the file).
 
-- [ ] **Step 2: Check for any other raw subprocess calls in cli.py**
-
-Search for remaining `subprocess.run` or `subprocess.Popen` calls in cli.py. If found, migrate them similarly.
-
-- [ ] **Step 3: Run lint**
+- [ ] **Step 2: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add src/qt_ai_dev_tools/cli.py
-git commit -m "refactor(cli): route proxy subprocess calls through run_command()
-
-vagrant ssh-config and scp in _proxy_screenshot() now logged and dry-run aware."
+git commit -m "refactor(cli): route proxy subprocess calls through run_command()"
 ```
 
 ---
 
-## Task 9: Migrate Raw subprocess Calls in Subsystem Modules
+## Task 9: Add Logging to Remaining Special-Case Subprocess Calls
 
 **Files:**
-- Modify: `src/qt_ai_dev_tools/subsystems/notify.py` (line 34 — raw `subprocess.run` for dbus-monitor)
-- Modify: `src/qt_ai_dev_tools/subsystems/audio.py` (lines 43, 171, 310 — Popen for pw-loopback, subprocess.run for pw-record and sox)
-- Modify: `src/qt_ai_dev_tools/bridge/_bootstrap.py` (line 58 — subprocess.run for python --version)
+- Modify: `src/qt_ai_dev_tools/subsystems/notify.py`
+- Modify: `src/qt_ai_dev_tools/subsystems/audio.py`
+- Modify: `src/qt_ai_dev_tools/bridge/_bootstrap.py`
 
-These are special cases that can't fully use `run_command()`:
+These files have subprocess calls that can't fully use `run_command()` (timeout-as-feature, background Popen). Add manual logging to make them visible with `-v`.
 
-- [ ] **Step 1: `notify.py` — dbus-monitor with expected timeout**
+- [ ] **Step 1: `notify.py` — add logging to `listen()`**
 
-The `listen()` function uses `subprocess.run()` with a timeout that's expected to expire (dbus-monitor runs until killed). Replace with `run_command()` and handle the `RuntimeError` for timeout:
-
-```python
-from qt_ai_dev_tools.run import run_command
-
-# In listen():
-try:
-    result = run_command(
-        ["dbus-monitor", "--session", f"interface={_NOTIFY_IFACE},member=Notify"],
-        timeout=timeout,
-        env=env,
-    )
-    raw = result.stdout
-except RuntimeError:
-    # Timeout is expected — dbus-monitor runs until killed.
-    # Fall back to raw subprocess to get partial stdout from TimeoutExpired.
-    ...
-```
-
-Actually, `run_command()` raises `RuntimeError` on timeout and loses the partial stdout. For this specific case, keep the raw `subprocess.run()` but add manual logging:
+The `listen()` function uses `subprocess.run()` with a timeout that's expected to expire. Can't use `run_command()` because it raises on timeout and loses partial stdout. Add manual logging:
 
 ```python
-logger.info("$ dbus-monitor --session interface=%s,member=Notify (timeout=%ss)", _NOTIFY_IFACE, timeout)
-try:
-    result = subprocess.run(
-        ["dbus-monitor", "--session", f"interface={_NOTIFY_IFACE},member=Notify"],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        env=env,
-    )
-    raw = result.stdout
-except subprocess.TimeoutExpired as exc:
-    raw = exc.stdout or ""
-    if isinstance(raw, bytes):
-        raw = raw.decode()
+import logging
+import shlex
+
+logger = logging.getLogger(__name__)
+
+# In listen(), before the subprocess.run call:
+cmd = ["dbus-monitor", "--session", f"interface={_NOTIFY_IFACE},member=Notify"]
+logger.info("$ %s (timeout=%ss)", shlex.join(cmd), timeout)
+# ... existing subprocess.run code ...
 logger.debug("dbus-monitor output:\n%s", raw)
 ```
 
-- [ ] **Step 2: `audio.py` — background Popen and timeout-based recording**
+- [ ] **Step 2: `audio.py` — add logging to Popen and timeout calls**
 
-Similar situation:
-- `virtual_mic_start()` uses `Popen` (background) — add manual logging, keep Popen.
-- `record()` uses timeout-as-duration pattern — add manual logging, keep raw subprocess.
-- `verify_not_silence()` uses sox stat — can use `run_command()` since it's a normal call.
-
-For `verify_not_silence()`, replace `subprocess.run(["sox", ...])` with:
+For `virtual_mic_start()` (Popen background):
 ```python
-result = run_command(["sox", str(path), "-n", "stat"])
-stat_output = result.stderr or result.stdout  # sox outputs to stderr
+logger.info("$ pw-loopback ... (background, PID will follow)")
 ```
 
-For `virtual_mic_start()` and `record()`, add `logger.info("$ %s", shlex.join(args))` before the call.
-
-- [ ] **Step 3: `bridge/_bootstrap.py` — python --version probe**
-
-Replace `subprocess.run([str(exe_path), "--version"], ...)` with `run_command()`:
+For `record()` (timeout-as-duration):
 ```python
+logger.info("$ pw-record --rate=48000 --channels=1 %s (duration=%ss)", output, duration)
+```
+
+For `verify_not_silence()` — replace `subprocess.run(["sox", ...])` with `run_command()`:
+```python
+from qt_ai_dev_tools.run import run_command
+result = run_command(["sox", str(path), "-n", "stat"])
+stat_output = result.stderr or result.stdout
+```
+
+- [ ] **Step 3: `bridge/_bootstrap.py` — use `run_command()` for python --version**
+
+Replace the raw `subprocess.run([str(exe_path), "--version"], ...)` with:
+```python
+from qt_ai_dev_tools.run import run_command
 result = run_command([str(exe_path), "--version"], timeout=5)
 ```
 
-- [ ] **Step 4: Run lint**
+- [ ] **Step 4: Run all unit tests**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/ -v --timeout=30`
+Expected: All pass.
+
+- [ ] **Step 5: Run lint**
 
 Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/qt_ai_dev_tools/subsystems/notify.py src/qt_ai_dev_tools/subsystems/audio.py src/qt_ai_dev_tools/bridge/_bootstrap.py
-git commit -m "refactor(subsystems): add logging to remaining subprocess calls
-
-dbus-monitor and pw-record keep raw subprocess (timeout-as-feature pattern)
-but now log commands. sox stat and python --version use run_command()."
+git commit -m "refactor(subsystems): add logging to remaining subprocess calls"
 ```
 
 ---
 
-## Task 10: Integration Test for Verbose & Dry-Run
+## Task 10: CLI Integration Tests for Verbose & Dry-Run
 
 **Files:**
-- Create: `tests/test_verbose.py`
+- Create: `tests/integration/test_verbose_dryrun.py`
+
+These tests invoke the real CLI binary to verify flags work end-to-end. They do NOT require a VM or DISPLAY — they only test that the flags are recognized and produce expected behavior.
 
 - [ ] **Step 1: Write integration tests**
 
 ```python
-"""Integration tests for CLI verbose and dry-run flags."""
+"""Integration tests for CLI -v/-vv and --dry-run flags.
+
+These tests invoke the CLI as a subprocess to test the full flag pipeline.
+No VM or DISPLAY required — they test flag handling, not Qt interaction.
+"""
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
-import sys
+import typing
 
 import pytest
 
+pytestmark = pytest.mark.integration
 
-@pytest.mark.integration
-class TestVerboseFlag:
-    """Test that -v/-vv flags produce expected output."""
+
+def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    """Run qt-ai-dev-tools CLI and capture output."""
+    cmd = (
+        ["qt-ai-dev-tools", *args]
+        if shutil.which("qt-ai-dev-tools")
+        else ["uv", "run", "qt-ai-dev-tools", *args]
+    )
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+
+
+class TestVerboseHelpOutput:
+    """Verify flags appear in help text (no DISPLAY needed)."""
+
+    pytestmark: typing.ClassVar[list[pytest.MarkDecorator]] = [pytest.mark.integration]
 
     def test_help_shows_verbose_option(self) -> None:
-        result = subprocess.run(
-            [sys.executable, "-m", "qt_ai_dev_tools.cli", "--help"],
-            capture_output=True,
-            text=True,
-        )
+        result = run_cli("--help")
+        assert result.returncode == 0
         assert "--verbose" in result.stdout or "-v" in result.stdout
 
     def test_help_shows_dry_run_option(self) -> None:
-        result = subprocess.run(
-            [sys.executable, "-m", "qt_ai_dev_tools.cli", "--help"],
-            capture_output=True,
-            text=True,
-        )
+        result = run_cli("--help")
+        assert result.returncode == 0
         assert "--dry-run" in result.stdout
 
 
-@pytest.mark.integration
-class TestDryRunFlag:
-    """Test that --dry-run prevents actual execution."""
+class TestDryRunPreventsExecution:
+    """Verify --dry-run prevents actual command execution."""
 
-    def test_dry_run_vm_status(self) -> None:
-        """--dry-run vm status should show the vagrant command without running it."""
-        result = subprocess.run(
-            [sys.executable, "-m", "qt_ai_dev_tools.cli", "--dry-run", "-v", "vm", "status"],
-            capture_output=True,
-            text=True,
-        )
-        # Should show the command on stderr
+    pytestmark: typing.ClassVar[list[pytest.MarkDecorator]] = [pytest.mark.integration]
+
+    def test_dry_run_vm_status_shows_command(self) -> None:
+        """--dry-run -v vm status should show vagrant command on stderr without running it."""
+        result = run_cli("--dry-run", "-v", "vm", "status")
+        # Should show the dry-run command on stderr
         assert "vagrant" in result.stderr
-        assert "[dry-run]" in result.stderr
-```
+        assert "[dry-run]" in result.stderr or "dry-run" in result.stderr
 
-Note: These tests invoke the CLI as a subprocess to test the full flag pipeline. They don't need a VM. Adapt based on how cli.py is invokable as a module — may need a `__main__.py` or use `uv run qt-ai-dev-tools` directly.
+    def test_dry_run_vm_status_exits_cleanly(self) -> None:
+        """--dry-run should not crash even without a Vagrantfile."""
+        result = run_cli("--dry-run", "vm", "status")
+        # May fail due to Vagrantfile not found (find_workspace raises before run_command),
+        # but should not crash with a traceback about vagrant not running
+        # The key test: it should NOT actually invoke vagrant
+        assert "vagrant" not in result.stdout or result.returncode != 0
+
+
+class TestVerboseOutput:
+    """Verify -v flag produces command logging on stderr."""
+
+    pytestmark: typing.ClassVar[list[pytest.MarkDecorator]] = [pytest.mark.integration]
+
+    def test_verbose_flag_accepted(self) -> None:
+        """CLI should accept -v without error."""
+        result = run_cli("-v", "--help")
+        assert result.returncode == 0
+```
 
 - [ ] **Step 2: Run tests**
 
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/test_verbose.py -v`
-Expected: Pass.
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/integration/test_verbose_dryrun.py -v`
+Expected: All pass.
 
-- [ ] **Step 3: Run full lint**
-
-Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
-Expected: Pass.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add tests/test_verbose.py
+git add tests/integration/test_verbose_dryrun.py
 git commit -m "test: add integration tests for -v/-vv and --dry-run CLI flags"
 ```
 
@@ -1130,12 +1115,12 @@ git commit -m "test: add integration tests for -v/-vv and --dry-run CLI flags"
 ## Task 11: Update Documentation
 
 **Files:**
-- Modify: `CLAUDE.md` — document -v/-vv/--dry-run in CLI usage section
-- Modify: `README.md` — mention verbose/dry-run in CLI examples
+- Modify: `CLAUDE.md`
+- Modify: `README.md`
 
-- [ ] **Step 1: Update CLAUDE.md CLI usage section**
+- [ ] **Step 1: Update CLAUDE.md**
 
-Add after the existing CLI usage examples (around line 110):
+Add a "Debugging" subsection after the CLI usage section (around line 166):
 
 ```markdown
 ### Debugging
@@ -1150,7 +1135,7 @@ qt-ai-dev-tools -vv vm up
 # Preview what would run without executing:
 qt-ai-dev-tools --dry-run vm up
 
-# Combine: verbose dry-run shows every command that would execute:
+# Combine verbose + dry-run:
 qt-ai-dev-tools -v --dry-run click --role "push button" --name "Save"
 
 # Log file (always written, even without -v):
@@ -1160,7 +1145,7 @@ qt-ai-dev-tools -v --dry-run click --role "push button" --name "Save"
 
 - [ ] **Step 2: Update README.md**
 
-Add a brief note in the CLI section mentioning `-v` and `--dry-run`.
+Add brief mention of `-v` and `--dry-run` in the CLI section.
 
 - [ ] **Step 3: Commit**
 
@@ -1171,20 +1156,32 @@ git commit -m "docs: document -v/-vv and --dry-run CLI flags"
 
 ---
 
-## Summary of Changes
+## Task 12: Final Verification
 
-| File | Change | Why |
-|------|--------|-----|
-| `src/qt_ai_dev_tools/logging/` | New module (3 files) | File + stderr logging, colored CLI output |
-| `src/qt_ai_dev_tools/run.py` | New module | Central subprocess execution with logging + dry-run |
-| `src/qt_ai_dev_tools/cli.py` | Add callback | Global `-v`/`-vv`/`--dry-run` flags |
-| `src/qt_ai_dev_tools/subsystems/_subprocess.py` | Delegate to `run_command()` | All subsystem tools get logging |
-| `src/qt_ai_dev_tools/vagrant/vm.py` | Delegate to `run_command()` | All vagrant calls get logging |
-| `src/qt_ai_dev_tools/interact.py` | Replace raw subprocess | xdotool calls get logging |
-| `src/qt_ai_dev_tools/screenshot.py` | Replace raw subprocess | scrot calls get logging |
-| `src/qt_ai_dev_tools/subsystems/notify.py` | Add manual logging | dbus-monitor (special timeout pattern) |
-| `src/qt_ai_dev_tools/subsystems/audio.py` | Mixed: run_command + logging | sox via run_command, Popen/timeout via manual logging |
-| `src/qt_ai_dev_tools/bridge/_bootstrap.py` | Use run_command | Python version probe |
-| `tests/test_run.py` | New | Unit tests for run_command + dry-run |
-| `tests/test_verbose.py` | New | Integration tests for CLI flags |
-| `CLAUDE.md`, `README.md` | Docs | Document new flags |
+- [ ] **Step 1: Run ALL unit tests**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/unit/ -v --timeout=30`
+Expected: All pass. Zero failures.
+
+- [ ] **Step 2: Run ALL integration tests (that don't need VM)**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/integration/ -v --timeout=30 -k "Help or Verbose or DryRun"`
+Expected: All pass.
+
+- [ ] **Step 3: Run full lint**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run poe lint_full`
+Expected: Zero errors.
+
+- [ ] **Step 4: Verify no regressions — run the full test suite**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run pytest tests/ -v --timeout=30 -k "not e2e and not integration or Help or Verbose or DryRun"`
+Expected: All previously-passing tests still pass. New tests pass.
+
+- [ ] **Step 5: Smoke test the CLI manually**
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run qt-ai-dev-tools --help`
+Expected: Shows -v and --dry-run.
+
+Run: `cd /var/home/user1/Projects/pyqt-agent-infra && uv run qt-ai-dev-tools -v --dry-run vm status 2>&1 || true`
+Expected: Shows `[dry-run] $ vagrant status` on stderr.

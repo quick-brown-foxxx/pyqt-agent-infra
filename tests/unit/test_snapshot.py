@@ -22,6 +22,7 @@ sys.modules.setdefault("gi", _mock_gi)
 sys.modules.setdefault("gi.repository", _mock_gi.repository)
 sys.modules.setdefault("gi.repository.Atspi", _mock_atspi_module)
 
+from qt_ai_dev_tools import _atspi as _atspi_mod  # noqa: E402
 from qt_ai_dev_tools._atspi import AtspiNode  # noqa: E402
 from qt_ai_dev_tools.models import SnapshotDiff, SnapshotEntry  # noqa: E402
 from qt_ai_dev_tools.snapshot import (  # noqa: E402
@@ -32,40 +33,61 @@ from qt_ai_dev_tools.snapshot import (  # noqa: E402
     save_snapshot,
 )
 
+# Configure Atspi.Text on the _atspi module's Atspi reference so that
+# AtspiNode.get_text() works correctly via the class-level call chain.
+# We use side_effect functions that dispatch based on the iface argument,
+# reading text data stored directly on each iface mock.  This avoids
+# cross-test pollution when test_atspi.py runs first and patches the same
+# Atspi reference.
+_real_atspi = _atspi_mod.Atspi  # type: ignore[reportUnknownMemberType]
+_real_atspi.Text.get_character_count.side_effect = lambda iface: len(iface._stored_text)
+_real_atspi.Text.get_text.side_effect = lambda iface, _start, _end: iface._stored_text
 
-def _make_native(
+
+def _make_node(
     *,
     name: str = "Widget",
     role_name: str = "push button",
     text: str | None = None,
-    children: list[MagicMock] | None = None,
-) -> MagicMock:
-    """Create a mock AT-SPI native object."""
+    children: list[AtspiNode] | None = None,
+) -> AtspiNode:
+    """Create a mock AtspiNode for snapshot tests.
+
+    When *text* differs from *name*, a text interface mock is attached to
+    the native object with the desired text stored on it.  The module-level
+    ``Atspi.Text`` side_effect functions read from this stored value, so the
+    real ``AtspiNode.get_text()`` code path works without monkey-patching
+    (which ``__slots__`` prevents) and without depending on shared mock state
+    that other test modules may mutate.
+    """
     native = MagicMock()
     native.get_name.return_value = name
     native.get_role_name.return_value = role_name
 
-    child_list = children or []
-    native.get_child_count.return_value = len(child_list)
-    native.get_child_at_index.side_effect = lambda i: child_list[i] if i < len(child_list) else None
+    child_natives = [c._native for c in children] if children else []
+    native.get_child_count.return_value = len(child_natives)
+    native.get_child_at_index.side_effect = lambda i: child_natives[i] if i < len(child_natives) else None
 
-    # Text interface: return text if provided, otherwise fall back to name
+    # When text differs from name, set up a text interface so that
+    # AtspiNode.get_text() returns *text* via the Atspi.Text class calls.
     if text is not None and text != name:
         text_iface = MagicMock()
-        _mock_atspi_module.Text.get_character_count.return_value = len(text)
-        _mock_atspi_module.Text.get_text.return_value = text
+        text_iface._stored_text = text
         native.get_text_iface.return_value = text_iface
     else:
         native.get_text_iface.return_value = None
 
+    native.get_value_iface.return_value = None
+    native.get_selection_iface.return_value = None
+    native.get_table_iface.return_value = None
     native.get_action_iface.return_value = None
-    return native
+
+    return AtspiNode(native)
 
 
 class TestCaptureTree:
     def test_single_node(self) -> None:
-        native = _make_native(name="Save", role_name="push button")
-        node = AtspiNode(native)
+        node = _make_node(name="Save", role_name="push button")
         entries = capture_tree(node)
 
         assert len(entries) == 1
@@ -75,12 +97,11 @@ class TestCaptureTree:
         assert entries[0].children_count == 0
 
     def test_recursive_children(self) -> None:
-        child1 = _make_native(name="OK", role_name="push button")
-        child2 = _make_native(name="Cancel", role_name="push button")
-        root = _make_native(name="Dialog", role_name="dialog", children=[child1, child2])
-        node = AtspiNode(root)
+        child1 = _make_node(name="OK", role_name="push button")
+        child2 = _make_node(name="Cancel", role_name="push button")
+        root = _make_node(name="Dialog", role_name="dialog", children=[child1, child2])
 
-        entries = capture_tree(node)
+        entries = capture_tree(root)
 
         assert len(entries) == 3
         assert entries[0].name == "Dialog"
@@ -89,13 +110,12 @@ class TestCaptureTree:
         assert entries[2].name == "Cancel"
 
     def test_max_depth_limits_recursion(self) -> None:
-        grandchild = _make_native(name="Deep", role_name="label")
-        child = _make_native(name="Mid", role_name="panel", children=[grandchild])
-        root = _make_native(name="Root", role_name="frame", children=[child])
-        node = AtspiNode(root)
+        grandchild = _make_node(name="Deep", role_name="label")
+        child = _make_node(name="Mid", role_name="panel", children=[grandchild])
+        root = _make_node(name="Root", role_name="frame", children=[child])
 
         # max_depth=1: root (depth 0) + child (depth 1), grandchild skipped
-        entries = capture_tree(node, max_depth=1)
+        entries = capture_tree(root, max_depth=1)
 
         assert len(entries) == 2
         assert entries[0].name == "Root"
@@ -103,16 +123,13 @@ class TestCaptureTree:
 
     def test_text_dedup_when_same_as_name(self) -> None:
         """When text == name, store text as None to avoid redundancy."""
-        native = _make_native(name="Status", role_name="label")
-        # get_text falls back to name when no text iface
-        node = AtspiNode(native)
+        node = _make_node(name="Status", role_name="label")
         entries = capture_tree(node)
 
         assert entries[0].text is None
 
     def test_text_preserved_when_different(self) -> None:
-        native = _make_native(name="input", role_name="text", text="hello world")
-        node = AtspiNode(native)
+        node = _make_node(name="input", role_name="text", text="hello world")
         entries = capture_tree(node)
 
         assert entries[0].text == "hello world"

@@ -69,7 +69,8 @@ class AtspiNode:
         """Text content. Falls back to accessible name if no text iface."""
         iface = self._native.get_text_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
         if iface:
-            return iface.get_text(0, iface.get_character_count())  # type: ignore[no-any-return]  # rationale: AT-SPI text iface returns untyped str
+            count: int = Atspi.Text.get_character_count(iface)  # type: ignore[reportUnknownMemberType]  # rationale: AT-SPI has no stubs
+            return Atspi.Text.get_text(iface, 0, count)  # type: ignore[reportUnknownMemberType,no-any-return]  # rationale: AT-SPI Text.get_text returns untyped str; call via class to bypass Accessible.get_text shadow
         return self.name
 
     def get_action_names(self) -> list[str]:

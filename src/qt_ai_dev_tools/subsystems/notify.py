@@ -35,7 +35,7 @@ def listen(timeout: float = 5.0) -> list[Notification]:
             [
                 "dbus-monitor",
                 "--session",
-                f"interface='{_NOTIFY_IFACE}',member='Notify'",
+                f"interface={_NOTIFY_IFACE},member=Notify",
             ],
             capture_output=True,
             text=True,

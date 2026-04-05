@@ -73,7 +73,7 @@ def _read_current_path(pilot: QtPilot, root: AtspiNode) -> str | None:
 def fill(pilot: QtPilot, path: str) -> None:
     """Type a file path into the file dialog's filename field.
 
-    Finds the filename text field in the open dialog, clears it,
+    Finds the filename text field within the dialog, clears it,
     and types the provided path.
 
     Args:
@@ -83,9 +83,11 @@ def fill(pilot: QtPilot, path: str) -> None:
     Raises:
         LookupError: If no filename text field is found.
     """
-    # Find filename text field by common names
+    dialog_root = _find_dialog_root(pilot)
+
+    # Find filename text field by common names within the dialog
     for name in _FILENAME_NAMES:
-        results = pilot.find(role="text", name=name)
+        results = pilot.find(role="text", name=name, root=dialog_root)
         if results:
             field = results[0]
             pilot.focus(field)
@@ -94,58 +96,74 @@ def fill(pilot: QtPilot, path: str) -> None:
             pilot.type_text(path)
             return
 
-    # Fallback: find any text field in a file chooser/dialog
-    choosers = pilot.find(role="file chooser")
-    if not choosers:
-        choosers = pilot.find(role="dialog")
-
-    for chooser in choosers:
-        fields = pilot.find(role="text", root=chooser)
-        if fields:
-            field = fields[0]
-            pilot.focus(field)
-            pilot.press_key("ctrl+a")
-            pilot.press_key("Delete")
-            pilot.type_text(path)
-            return
+    # Fallback: find any text field in the dialog
+    fields = pilot.find(role="text", root=dialog_root)
+    if fields:
+        field = fields[0]
+        pilot.focus(field)
+        pilot.press_key("ctrl+a")
+        pilot.press_key("Delete")
+        pilot.type_text(path)
+        return
 
     msg = "No filename text field found in file dialog"
     raise LookupError(msg)
 
 
 def accept(pilot: QtPilot) -> FileDialogResult:
-    """Click the accept button (Open/Save/OK) in the file dialog.
+    """Accept the file dialog by pressing Enter.
+
+    QFileDialog accepts the typed filename when Enter is pressed while
+    the filename field has focus. This is more reliable than clicking
+    the Open/Save button via coordinates (xdotool coordinate clicks on
+    dialog buttons can miss due to layout differences).
 
     Args:
         pilot: Connected QtPilot instance.
 
     Returns:
         FileDialogResult indicating acceptance.
-
-    Raises:
-        LookupError: If no accept button is found.
     """
-    for name in _ACCEPT_NAMES:
-        results = pilot.find(role=_BUTTON_ROLE, name=name)
-        if results:
-            pilot.click(results[0])
-            return FileDialogResult(accepted=True)
-
-    msg = f"No accept button found (tried: {', '.join(_ACCEPT_NAMES)})"
-    raise LookupError(msg)
+    # Press Enter to accept — the filename field should still have focus after fill()
+    pilot.press_key("Return")
+    return FileDialogResult(accepted=True)
 
 
 def cancel(pilot: QtPilot) -> None:
-    """Click the Cancel button in the file dialog.
+    """Cancel the file dialog by pressing Escape.
+
+    This is more reliable than clicking the Cancel button via coordinates.
+
+    Args:
+        pilot: Connected QtPilot instance.
+    """
+    pilot.press_key("Escape")
+
+
+def _find_dialog_root(pilot: QtPilot) -> AtspiNode:
+    """Find the file dialog root node for scoped button searches.
+
+    Tries 'file chooser' role first, then falls back to 'dialog' with
+    file-related title keywords.
 
     Args:
         pilot: Connected QtPilot instance.
 
+    Returns:
+        The dialog AtspiNode to use as search root.
+
     Raises:
-        LookupError: If no Cancel button is found.
+        LookupError: If no file dialog is found.
     """
-    results = pilot.find(role=_BUTTON_ROLE, name="Cancel")
-    if not results:
-        msg = "No Cancel button found in file dialog"
-        raise LookupError(msg)
-    pilot.click(results[0])
+    widgets = pilot.find(role="file chooser")
+    if widgets:
+        return widgets[0]
+
+    dialogs = pilot.find(role="dialog")
+    for dialog in dialogs:
+        name = pilot.get_name(dialog)
+        if any(keyword in name.lower() for keyword in ("open", "save", "file", "choose")):
+            return dialog
+
+    msg = "No file dialog found for button search"
+    raise LookupError(msg)

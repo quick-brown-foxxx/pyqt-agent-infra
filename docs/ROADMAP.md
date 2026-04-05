@@ -445,6 +445,8 @@ Content folded into `CLAUDE.md` and skills. Covers setup, usage, examples, secur
 
 ### 6.1 — [explore] Complex widget support
 
+**Status:** Done. AtspiNode Value/Selection/Table interfaces added to `_atspi.py`. Typed wrappers with graceful fallbacks (None/0/False when no interface).
+
 Research interaction patterns for:
 - **QComboBox** (dropdowns) — AT-SPI menu navigation
 - **QTableWidget/QTreeWidget** — cell selection, scrolling
@@ -454,6 +456,8 @@ Research interaction patterns for:
 - **QScrollArea** — scroll to reveal widgets
 
 ### 6.2 — [implement] Widget-specific helpers
+
+**Status:** Done. Pilot helpers: `select_combo_item`, `switch_tab`, `get_table_cell`, `get_table_size`, `check_checkbox`, `set_slider_value`, `get_widget_value`, `select_menu_item`.
 
 Add helpers as needed based on 6.1 findings. Only for widgets where the basic click/type isn't enough.
 
@@ -519,20 +523,15 @@ E2E tests run in the VM against real PySide6 test apps. Follow test flows from d
 
 ### 6.5 — [implement] Visual diffing
 
-```bash
-qt-ai-dev-tools screenshot --diff /tmp/before.png  # highlight pixel changes
-qt-ai-dev-tools screenshot --compare /tmp/expected.png --threshold 5%
-```
+**Status:** Done (lightweight). Tree snapshot/diff via JSON. No image comparison — pure text. CLI: `snapshot save/diff`.
 
 ### 6.6 — [implement] State snapshots
 
-```bash
-qt-ai-dev-tools snapshot save clean           # save full widget state
-qt-ai-dev-tools snapshot diff clean           # show what changed since snapshot
-qt-ai-dev-tools snapshot restore clean        # VM snapshot restore
-```
+**Status:** Skipped. Covered by 6.5 tree snapshots. No VM-level state snapshots.
 
 ### 6.7 — [test] Complex app testing
+
+**Status:** Done. Kitchen-sink test app (`tests/apps/complex_app.py`) with tabs, combo, table, slider, checkbox, radio buttons, menus, scroll area, dialogs. E2E tests verify all widget types.
 
 Test against a non-trivial Qt app (multi-window, tabs, dialogs, menus). Verify all helpers work.
 
@@ -741,12 +740,16 @@ Findings from automated code review against project skill standards. Not blockin
 
 ### CQ-3 — [implement] Replace tautological mock tests with meaningful tests
 
+**Status:** Done. Replaced tautological mock tests in `test_atspi.py` and `test_vm.py` with meaningful logic tests. Added tests for new interfaces.
+
 `test_atspi.py` mostly tests that mocks return what they were told to return. `test_vm.py` asserts exact subprocess call lists (implementation detail). Either:
 - Delete thin-wrapper tests, rely on integration tests
 - Replace subprocess mocks with mock-binary approach (tiny script on PATH)
 - Keep only tests that verify real logic (error paths, action lookup)
 
 ### CQ-4 — [explore] Evaluate Result-based error handling
+
+**Status:** Deferred. Result-based error handling is a codebase-wide breaking change. Current exception pattern (RuntimeError/LookupError in core, caught at CLI boundary) is clean and appropriate for a CLI tool. Will be addressed in a dedicated worktree/branch.
 
 `writing-python-code` skill mandates `rusty-results` for expected failures. Currently the project uses Python exceptions everywhere. Evaluate whether adopting `Result[T, E]` is worth the API change for a CLI tool where exceptions are natural. Document decision.
 

@@ -31,7 +31,7 @@ class WorkspaceConfig:
     mac_address: str = "52:54:00:AB:CD:EF"
     static_ip: str = ""
     shared_folder: str = "."
-    rsync_excludes: list[str] = field(default_factory=lambda: [".git/", ".vagrant/"])
+    rsync_excludes: list[str] = field(default_factory=lambda: [".git/", ".vagrant/", ".venv/"])
     # provision.sh
     display: str = ":99"
     resolution: str = "1920x1080x24"

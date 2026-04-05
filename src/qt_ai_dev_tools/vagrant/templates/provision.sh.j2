@@ -44,10 +44,37 @@ apt-get install -y --no-install-recommends \
     fonts-dejavu{% for pkg in extra_packages %} \
     {{ pkg }}{% endfor %}
 
-echo "==> Installing Python packages"
+echo "==> Installing Python packages (system)"
 pip3 install --quiet --break-system-packages \
 {% for pkg in python_packages %}    {{ pkg }}{% if not loop.last %} \
 {% endif %}{% endfor %}
+
+# ── uv + project venv ─────────────────────────────────────────────────────
+# Install uv so `uv run pytest` works inside the VM with all dev deps.
+# The venv lives outside /vagrant to avoid rsync conflicts with the host.
+echo "==> Installing uv"
+curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/opt/uv" sh
+ln -sf /opt/uv/uv /usr/local/bin/uv
+ln -sf /opt/uv/uvx /usr/local/bin/uvx
+
+echo "==> Creating project venv with uv sync"
+VM_VENV="/home/vagrant/.venv-qt-ai-dev-tools"
+su - vagrant -c "UV_PROJECT_ENVIRONMENT=$VM_VENV uv sync --project /vagrant"
+
+# Link system-only gi/pygobject into the venv (not pip-installable).
+# gi.repository.Atspi requires: gi package, _gi C extension, pygtkcompat.
+VENV_SITE=$("$VM_VENV/bin/python" -c "import sysconfig; print(sysconfig.get_path('purelib'))")
+SYS_SITE=$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")
+for name in gi pygtkcompat; do
+    if [ -e "$SYS_SITE/$name" ]; then
+        ln -sf "$SYS_SITE/$name" "$VENV_SITE/$name"
+    fi
+done
+# Link compiled _gi*.so extensions (may be in platlib, not purelib)
+SYS_PLATLIB=$(python3 -c "import sysconfig; print(sysconfig.get_path('platlib'))")
+for so in "$SYS_PLATLIB"/_gi*.so; do
+    [ -e "$so" ] && ln -sf "$so" "$VENV_SITE/"
+done
 
 # ── Build and install snixembed (SNI tray proxy) ───────────────────────────
 # snixembed proxies StatusNotifierItem (SNI) D-Bus tray icons into the XEmbed
@@ -201,6 +228,7 @@ export QT_ACCESSIBILITY=1
 export QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 export QT_AI_DEV_TOOLS_VM=1
 export QT_AI_DEV_TOOLS_BRIDGE=1
+export UV_PROJECT_ENVIRONMENT=\$HOME/.venv-qt-ai-dev-tools
 
 # Inherit the user dbus session (from desktop-session.service)
 if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then

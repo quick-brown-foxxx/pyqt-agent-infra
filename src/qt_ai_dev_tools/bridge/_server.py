@@ -13,7 +13,7 @@ import socket
 import threading
 from pathlib import Path
 
-from PySide6.QtCore import QObject, Qt, Signal  # type: ignore[import-not-found]  # rationale: PySide6 is a system dep
+from PySide6.QtCore import QObject, Qt, Signal
 
 from qt_ai_dev_tools.bridge._eval import build_qt_namespace, execute
 from qt_ai_dev_tools.bridge._protocol import (
@@ -30,7 +30,7 @@ _RECV_BUFSIZE: int = 65536
 _MAX_MESSAGE_SIZE: int = 1_048_576  # 1MB
 
 
-class BridgeExecutor(QObject):  # type: ignore[reportGeneralClassIssue]  # rationale: QObject base from PySide6 not in venv
+class BridgeExecutor(QObject):
     """Executes eval requests on the Qt main thread.
 
     Lives on the main thread. The server thread emits ``_eval_requested``
@@ -39,18 +39,18 @@ class BridgeExecutor(QObject):  # type: ignore[reportGeneralClassIssue]  # ratio
     pattern for cross-thread synchronous dispatch.
     """
 
-    _eval_requested = Signal(str, str)  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 Signal descriptor not in venv
+    _eval_requested = Signal(str, str)
 
     def __init__(self) -> None:
-        super().__init__()  # type: ignore[reportUnknownMemberType]  # rationale: QObject.__init__ not in venv
+        super().__init__()
         self._namespace: dict[str, object] = build_qt_namespace()
         self._result: EvalResponse | None = None
         self._lock = threading.Lock()
         # Connect with BlockingQueuedConnection: emit from server thread blocks
         # until _on_eval finishes on the main thread.
-        self._eval_requested.connect(  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 Signal not in venv
+        self._eval_requested.connect(
             self._on_eval,
-            Qt.ConnectionType.BlockingQueuedConnection,  # type: ignore[reportAttributeAccessIssue]  # rationale: PySide6 enum not in venv
+            Qt.ConnectionType.BlockingQueuedConnection,
         )
 
     def _on_eval(self, code: str, mode: EvalMode) -> None:
@@ -65,22 +65,23 @@ class BridgeExecutor(QObject):  # type: ignore[reportGeneralClassIssue]  # ratio
         until _on_eval completes on the main thread.
         """
         with self._lock:
-            self._eval_requested.emit(code, mode)  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 Signal not in venv
+            self._eval_requested.emit(code, mode)
             if self._result is None:
                 return EvalResponse(ok=False, error="No result available")
             return self._result
 
     def _refresh_widgets(self) -> None:
         """Rebuild the widgets dict to reflect current app state."""
-        from PySide6.QtWidgets import (  # type: ignore[import-not-found]  # rationale: PySide6 is a system dep
-            QApplication,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
+        from PySide6.QtWidgets import (
+            QApplication,
         )
 
-        qapp = QApplication.instance()  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]  # rationale: PySide6 not in venv
-        if qapp is not None:
+        qapp_core = QApplication.instance()
+        if qapp_core is not None and isinstance(qapp_core, QApplication):
+            qapp = qapp_core
             widgets: dict[str, object] = {}
-            for w in qapp.allWidgets():  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]  # rationale: PySide6 not in venv
-                obj_name: str = w.objectName()  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 not in venv
+            for w in qapp.allWidgets():
+                obj_name: str = w.objectName()
                 if obj_name:
                     widgets[obj_name] = w
             self._namespace["widgets"] = widgets

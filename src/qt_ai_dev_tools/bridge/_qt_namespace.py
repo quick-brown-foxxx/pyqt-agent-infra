@@ -25,40 +25,40 @@ def build_qt_namespace() -> dict[str, object]:
 
 def _import_qt_entries() -> dict[str, object]:
     """Import PySide6 and build namespace entries."""
-    from PySide6.QtCore import (  # type: ignore[import-not-found]  # rationale: PySide6 is a system dep
-        QModelIndex,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QObject,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        Qt,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QTimer,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
+    from PySide6.QtCore import (
+        QModelIndex,
+        QObject,
+        Qt,
+        QTimer,
     )
-    from PySide6.QtWidgets import (  # type: ignore[import-not-found]  # rationale: PySide6 is a system dep
-        QApplication,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QCheckBox,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QComboBox,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QDialog,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QDockWidget,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QDoubleSpinBox,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QGroupBox,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QLabel,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QLineEdit,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QListView,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QMainWindow,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QMenuBar,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QPlainTextEdit,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QProgressBar,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QPushButton,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QRadioButton,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QScrollArea,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QSlider,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QSpinBox,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QStackedWidget,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QStatusBar,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QTableView,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QTabWidget,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QTextEdit,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QToolBar,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QTreeView,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
-        QWidget,  # type: ignore[reportUnknownVariableType]  # rationale: PySide6 not in venv
+    from PySide6.QtWidgets import (
+        QApplication,
+        QCheckBox,
+        QComboBox,
+        QDialog,
+        QDockWidget,
+        QDoubleSpinBox,
+        QGroupBox,
+        QLabel,
+        QLineEdit,
+        QListView,
+        QMainWindow,
+        QMenuBar,
+        QPlainTextEdit,
+        QProgressBar,
+        QPushButton,
+        QRadioButton,
+        QScrollArea,
+        QSlider,
+        QSpinBox,
+        QStackedWidget,
+        QStatusBar,
+        QTableView,
+        QTabWidget,
+        QTextEdit,
+        QToolBar,
+        QTreeView,
+        QWidget,
     )
 
     entries: dict[str, object] = {
@@ -96,14 +96,15 @@ def _import_qt_entries() -> dict[str, object]:
     }
 
     # Add app instance and convenience functions
-    qapp = QApplication.instance()  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]  # rationale: PySide6 not in venv
-    if qapp is not None:
+    qapp_core = QApplication.instance()
+    if qapp_core is not None and isinstance(qapp_core, QApplication):
+        qapp = qapp_core
         entries["app"] = qapp
 
         # Build widgets dict from named widgets
         widgets: dict[str, object] = {}
-        for w in qapp.allWidgets():  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]  # rationale: PySide6 not in venv
-            obj_name: str = w.objectName()  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 not in venv
+        for w in qapp.allWidgets():
+            obj_name: str = w.objectName()
             if obj_name:
                 widgets[obj_name] = w
         entries["widgets"] = widgets
@@ -111,18 +112,14 @@ def _import_qt_entries() -> dict[str, object]:
         # Convenience functions — search all widgets, not just QApplication children
         def find(widget_type: type, name: str) -> object:
             """Find a single widget by type and objectName."""
-            for w in qapp.allWidgets():  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]  # rationale: PySide6 not in venv
-                if isinstance(w, widget_type) and w.objectName() == name:  # type: ignore[reportUnknownMemberType]  # rationale: PySide6 not in venv
-                    return w  # type: ignore[reportUnknownVariableType]  # rationale: w is a PySide6 widget from allWidgets()
+            for w in qapp.allWidgets():
+                if isinstance(w, widget_type) and w.objectName() == name:
+                    return w
             return None
 
         def findall(widget_type: type) -> list[object]:
             """Find all widgets of given type."""
-            result: list[object] = [
-                w
-                for w in qapp.allWidgets()  # type: ignore[reportUnknownMemberType,reportUnknownVariableType]  # rationale: PySide6 not in venv
-                if isinstance(w, widget_type)
-            ]
+            result: list[object] = [w for w in qapp.allWidgets() if isinstance(w, widget_type)]
             return result
 
         entries["find"] = find

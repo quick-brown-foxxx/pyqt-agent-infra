@@ -921,18 +921,27 @@ def tray_list_cmd(
 
 @tray_app_cli.command(name="click")
 def tray_click_cmd(
-    app_name: typing.Annotated[str, typer.Argument(help="App name substring to activate")],
+    app_name: typing.Annotated[str, typer.Argument(help="App name substring to match")],
+    button: typing.Annotated[
+        str, typer.Option("--button", "-b", help="'left' (D-Bus Activate) or 'right' (xdotool context menu)")
+    ] = "left",
 ) -> None:
-    """Activate (left-click) a tray item."""
+    """Click a tray item (left=activate, right=context menu)."""
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import tray as tray_mod
 
+    if button not in ("left", "right"):
+        typer.echo(f"Error: --button must be 'left' or 'right', got '{button}'", err=True)
+        raise typer.Exit(code=1)
+
     try:
-        tray_mod.click(app_name)
-    except (LookupError, RuntimeError) as exc:
+        tray_mod.click(app_name, button=button)
+    except (LookupError, RuntimeError, ValueError) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
-    typer.echo(f"Activated tray item: {app_name}")
+
+    action = "Activated" if button == "left" else "Right-clicked"
+    typer.echo(f"{action} tray item: {app_name}")
 
 
 @tray_app_cli.command(name="menu")

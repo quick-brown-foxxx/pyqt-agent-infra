@@ -147,9 +147,11 @@ class TestTraySelect:
     """
 
     @pytest.mark.xfail(
-        reason="D-Bus com.canonical.dbusmenu Event triggers Qt menu action on non-main thread, "
-        "causing PySide6 segfault. Known Qt/dbusmenu limitation — select() works at D-Bus level "
-        "but crashes the target app. Use bridge eval to trigger menu actions instead.",
+        reason="tray.select() requires snixembed XEmbed proxy to embed icon in stalonetray "
+        "for xdotool right-click. Embedding depends on startup order timing between "
+        "stalonetray, snixembed, and the target app. Works in manual testing but "
+        "unreliable in fixture-managed lifecycle. The GUI approach (right-click icon → "
+        "AT-SPI menu → click item) is correct but the XEmbed embedding is flaky.",
         strict=False,
     )
     def test_tray_select_settings(self, tray_app: subprocess.Popen[str]) -> None:

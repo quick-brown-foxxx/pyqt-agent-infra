@@ -16,14 +16,30 @@ def _xdotool_env() -> dict[str, str]:
     return env
 
 
+def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
+    """Click at absolute screen coordinates using xdotool.
+
+    Args:
+        x: Absolute X screen coordinate.
+        y: Absolute Y screen coordinate.
+        button: Mouse button (1=left, 2=middle, 3=right).
+        pause: Seconds to sleep after click for UI to settle.
+    """
+    env = _xdotool_env()
+    subprocess.run(
+        ["xdotool", "mousemove", "--screen", "0", str(x), str(y)],
+        check=True,
+        env=env,
+    )
+    subprocess.run(["xdotool", "click", str(button)], check=True, env=env)
+    time.sleep(pause)
+
+
 def click(widget: AtspiNode, pause: float = 0.2) -> None:
     """Click the center of a widget using xdotool."""
     ext = widget.get_extents()
     cx, cy = ext.center
-    env = _xdotool_env()
-    subprocess.run(["xdotool", "mousemove", str(cx), str(cy)], check=True, env=env)
-    subprocess.run(["xdotool", "click", "1"], check=True, env=env)
-    time.sleep(pause)
+    click_at(cx, cy, button=1, pause=pause)
 
 
 def type_text(text: str, delay_ms: int = 20, pause: float = 0.2) -> None:

@@ -181,13 +181,28 @@ def file_dialog_app() -> Generator[subprocess.Popen[str], None, None]:
 
 @pytest.fixture(scope="module")
 def clean_sni_watcher() -> Generator[None, None, None]:
-    """Restart snixembed to clear stale SNI entries before tray tests."""
-    subprocess.run(["killall", "snixembed"], capture_output=True, check=False)
+    """Restart snixembed and stalonetray to clear stale SNI entries before tray tests.
+
+    stalonetray provides the XEmbed tray window (needed for xdotool icon clicks).
+    snixembed provides the SNI D-Bus watcher (needed for tray.list_items/click/menu).
+    Both must be running for the full tray workflow to work.
+    """
+    env = {**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")}
+    # Kill and restart both services
+    subprocess.run(["killall", "snixembed", "stalonetray"], capture_output=True, check=False)
+    time.sleep(0.5)
+    subprocess.Popen(
+        ["stalonetray", "--kludges=force_icons_size", "-i", "24", "--grow-gravity=NE"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
     time.sleep(0.5)
     subprocess.Popen(
         ["snixembed", "--fork"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        env=env,
     )
     time.sleep(1.0)  # wait for D-Bus registration
     yield

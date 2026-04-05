@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -23,7 +23,7 @@ def _make_run_tool_side_effect(
     Dispatches based on the busctl subcommand in the args list.
     """
 
-    def _side_effect(args: list[str]) -> str:
+    def _side_effect(args: list[str], **_kwargs: object) -> str:
         if "get-property" in args:
             # Distinguish watcher queries from SNI property queries
             if "RegisteredStatusNotifierItems" in args:
@@ -45,6 +45,22 @@ def _make_run_tool_side_effect(
                 return ""
             if "Activate" in args:
                 return ""
+        # xdotool commands
+        if args and args[0] == "xdotool":
+            if "search" in args:
+                return "12345678\n"
+            if "getwindowgeometry" in args:
+                return "Window 12345678\n  Position: 1872,0 (screen: 0)\n  Geometry: 48x24"
+            if "mousemove" in args:
+                return ""
+            if "click" in args:
+                return ""
+        # xwininfo
+        if args and args[0] == "xwininfo":
+            return (
+                '  0x3400003 (has no name): ("tray_app.py" "tray_app.py")  24x24+0+0  +1872+0\n'
+                '  0x3400004 (has no name): ("other_app" "other_app")  24x24+24+0  +1896+0\n'
+            )
         return ""
 
     return _side_effect
@@ -178,8 +194,26 @@ class TestListItems:
 
 
 class TestClick:
-    def test_click_calls_activate(self) -> None:
-        """click() should call Activate on the matching tray item."""
+    def test_click_left_calls_activate(self) -> None:
+        """click(button='left') should call Activate on the matching tray item."""
+        from qt_ai_dev_tools.subsystems.tray import click
+
+        side_effect = _make_run_tool_side_effect(list_output=_MOCK_BUSCTL_OUTPUT)
+        with (
+            patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", side_effect=side_effect) as mock_run,
+        ):
+            click("StatusNotifierHost-1234", button="left")
+
+            # Find the Activate call
+            activate_calls = [c for c in mock_run.call_args_list if "Activate" in c[0][0]]
+            assert len(activate_calls) == 1
+            activate_args = activate_calls[0][0][0]
+            assert "--" in activate_args
+            assert "org.kde.StatusNotifierHost-1234" in activate_args
+
+    def test_click_default_is_left(self) -> None:
+        """click() with no button arg should default to left (Activate)."""
         from qt_ai_dev_tools.subsystems.tray import click
 
         side_effect = _make_run_tool_side_effect(list_output=_MOCK_BUSCTL_OUTPUT)
@@ -189,12 +223,39 @@ class TestClick:
         ):
             click("StatusNotifierHost-1234")
 
-            # Find the Activate call
             activate_calls = [c for c in mock_run.call_args_list if "Activate" in c[0][0]]
             assert len(activate_calls) == 1
-            activate_args = activate_calls[0][0][0]
-            assert "--" in activate_args
-            assert "org.kde.StatusNotifierHost-1234" in activate_args
+
+    def test_click_right_uses_xdotool(self) -> None:
+        """click(button='right') should use xdotool to right-click the icon."""
+        from qt_ai_dev_tools.subsystems.tray import click
+
+        side_effect = _make_run_tool_side_effect()
+        with (
+            patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", side_effect=side_effect) as mock_run,
+        ):
+            click("tray_app", button="right")
+
+            # Should have xdotool search, getwindowgeometry, xwininfo, mousemove, click
+            all_calls = [c[0][0] for c in mock_run.call_args_list]
+
+            # Find mousemove call
+            mousemove_calls = [a for a in all_calls if "mousemove" in a]
+            assert len(mousemove_calls) == 1
+            assert "--screen" in mousemove_calls[0]
+
+            # Find xdotool click call (button 3)
+            xdotool_click_calls = [a for a in all_calls if a[0] == "xdotool" and "click" in a]
+            assert len(xdotool_click_calls) == 1
+            assert "3" in xdotool_click_calls[0]
+
+    def test_click_raises_for_invalid_button(self) -> None:
+        """click() should raise ValueError for invalid button."""
+        from qt_ai_dev_tools.subsystems.tray import click
+
+        with pytest.raises(ValueError, match="Invalid button"):
+            click("app", button="middle")
 
     def test_click_raises_for_unknown_app(self) -> None:
         """click() should raise LookupError when no matching item exists."""
@@ -284,26 +345,171 @@ class TestParseMenuOutput:
         assert entries[0].enabled is False
 
 
-class TestSelect:
-    def test_select_calls_event_with_double_dash(self) -> None:
-        """select() should include '--' in busctl call and use resolved menu path."""
-        from qt_ai_dev_tools.subsystems.tray import select
+class TestFindStalonetrayWid:
+    def test_finds_window(self) -> None:
+        """_find_stalonetray_wid should return the first window ID."""
+        from qt_ai_dev_tools.subsystems.tray import _find_stalonetray_wid
 
-        menu_output = '"label" s "Settings"\n"enabled" s "true"'
-        side_effect = _make_run_tool_side_effect(
-            list_output=_MOCK_BUSCTL_OUTPUT,
-            menu_prop="/MenuBar",
-            menu_output=menu_output,
-        )
         with (
             patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
-            patch("qt_ai_dev_tools.subsystems.tray.run_tool", side_effect=side_effect) as mock_run,
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", return_value="12345678\n87654321\n"),
         ):
-            select("StatusNotifierHost-1234", "Settings")
+            wid = _find_stalonetray_wid()
 
-        # Find the Event call
-        event_calls = [c for c in mock_run.call_args_list if "Event" in c[0][0]]
-        assert len(event_calls) == 1
-        event_args = event_calls[0][0][0]
-        assert "--" in event_args
-        assert "/MenuBar" in event_args
+        assert wid == "12345678"
+
+    def test_raises_when_not_running(self) -> None:
+        """_find_stalonetray_wid should raise when stalonetray is not found."""
+        from qt_ai_dev_tools.subsystems.tray import _find_stalonetray_wid
+
+        with (
+            patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", return_value=""),
+            pytest.raises(RuntimeError, match="stalonetray window not found"),
+        ):
+            _find_stalonetray_wid()
+
+
+class TestFindIconCenter:
+    def test_finds_icon_by_absolute_coords(self) -> None:
+        """_find_icon_center should parse xwininfo and return absolute center."""
+        from qt_ai_dev_tools.subsystems.tray import _find_icon_center
+
+        xwininfo_output = (
+            "  Root window id: 0x123\n"
+            "  Parent window id: 0x456\n"
+            '     0x3400003 (has no name): ("tray_app.py" "tray_app.py")  24x24+0+0  +1872+0\n'
+            '     0x3400004 (has no name): ("other_app" "other_app")  24x24+24+0  +1896+0\n'
+        )
+
+        def _side_effect(args: list[str], **_kwargs: object) -> str:
+            if args[0] == "xdotool" and "getwindowgeometry" in args:
+                return "Window 12345678\n  Position: 1872,0 (screen: 0)\n  Geometry: 48x24"
+            if args[0] == "xwininfo":
+                return xwininfo_output
+            return ""
+
+        with (
+            patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", side_effect=_side_effect),
+        ):
+            cx, cy = _find_icon_center("12345678", "tray_app")
+
+        # Absolute: +1872+0, icon 24x24, center = 1872+12, 0+12
+        assert cx == 1884
+        assert cy == 12
+
+    def test_raises_when_icon_not_found(self) -> None:
+        """_find_icon_center should raise LookupError when no match."""
+        from qt_ai_dev_tools.subsystems.tray import _find_icon_center
+
+        def _side_effect(args: list[str], **_kwargs: object) -> str:
+            if args[0] == "xdotool" and "getwindowgeometry" in args:
+                return "Window 12345678\n  Position: 1872,0 (screen: 0)\n  Geometry: 48x24"
+            if args[0] == "xwininfo":
+                return "  Root window id: 0x123\n  No children.\n"
+            return ""
+
+        with (
+            patch("qt_ai_dev_tools.subsystems.tray.check_tool"),
+            patch("qt_ai_dev_tools.subsystems.tray.run_tool", side_effect=_side_effect),
+            pytest.raises(LookupError, match="Tray icon for 'nonexistent' not found"),
+        ):
+            _find_icon_center("12345678", "nonexistent")
+
+
+def _make_mock_atspi_module(desktop_children: list[object]) -> MagicMock:
+    """Create a mock qt_ai_dev_tools._atspi module with a mock AtspiNode.
+
+    The mock AtspiNode.desktop() returns a node with the given children.
+    This is needed because _find_snixembed_menu_item does a local import
+    of AtspiNode from qt_ai_dev_tools._atspi (which requires gi.repository.Atspi).
+    """
+    mock_desktop = MagicMock(spec=["children"])
+    mock_desktop.children = desktop_children
+
+    mock_atspi_cls = MagicMock()
+    mock_atspi_cls.desktop.return_value = mock_desktop
+
+    mock_module = MagicMock()
+    mock_module.AtspiNode = mock_atspi_cls
+    return mock_module
+
+
+class TestFindSnixembedMenuItem:
+    def test_finds_menu_item_under_snixembed(self) -> None:
+        """_find_snixembed_menu_item should find a matching menu item node."""
+        # Build mock AT-SPI tree
+        mock_menu_item = MagicMock(spec=["name", "role_name", "children", "do_action"])
+        mock_menu_item.name = "Settings"
+        mock_menu_item.role_name = "menu item"
+        mock_menu_item.children = []
+
+        mock_menu = MagicMock(spec=["name", "role_name", "children"])
+        mock_menu.name = "menu"
+        mock_menu.role_name = "menu"
+        mock_menu.children = [mock_menu_item]
+
+        mock_window = MagicMock(spec=["name", "role_name", "children"])
+        mock_window.name = ""
+        mock_window.role_name = "window"
+        mock_window.children = [mock_menu]
+
+        mock_snixembed = MagicMock(spec=["name", "role_name", "children"])
+        mock_snixembed.name = "snixembed"
+        mock_snixembed.role_name = "application"
+        mock_snixembed.children = [mock_window]
+
+        mock_mod = _make_mock_atspi_module([mock_snixembed])
+
+        with patch.dict("sys.modules", {"qt_ai_dev_tools._atspi": mock_mod}):
+            from qt_ai_dev_tools.subsystems.tray import _find_snixembed_menu_item
+
+            result = _find_snixembed_menu_item("Settings")
+
+        assert result.name == "Settings"
+        assert result.role_name == "menu item"
+
+    def test_raises_when_not_found(self) -> None:
+        """_find_snixembed_menu_item should raise LookupError when no match."""
+        mock_mod = _make_mock_atspi_module([])
+
+        with patch.dict("sys.modules", {"qt_ai_dev_tools._atspi": mock_mod}):
+            from qt_ai_dev_tools.subsystems.tray import _find_snixembed_menu_item
+
+            with pytest.raises(LookupError, match="Menu item 'Settings' not found"):
+                _find_snixembed_menu_item("Settings")
+
+
+class TestSelect:
+    def test_select_right_clicks_then_atspi(self) -> None:
+        """select() should right-click, then find and click the AT-SPI menu item."""
+        from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+        mock_menu_item = MagicMock()
+        mock_menu_item.name = "Settings"
+        mock_menu_item.role_name = "menu item"
+
+        with (
+            patch.object(tray_mod, "click") as mock_click,
+            patch.object(tray_mod, "time") as mock_time,
+            patch.object(tray_mod, "_find_snixembed_menu_item", return_value=mock_menu_item) as mock_find,
+        ):
+            tray_mod.select("tray_app", "Settings")
+
+            mock_click.assert_called_once_with("tray_app", button="right")
+            mock_time.sleep.assert_called_once()
+            mock_find.assert_called_once_with("Settings")
+            mock_menu_item.do_action.assert_called_once_with("click")
+
+    def test_select_raises_when_menu_item_not_found(self) -> None:
+        """select() should propagate LookupError from _find_snixembed_menu_item."""
+        from qt_ai_dev_tools.subsystems import tray as tray_mod
+
+        with (
+            patch.object(tray_mod, "click"),
+            patch.object(tray_mod, "time"),
+            patch.object(tray_mod, "_find_snixembed_menu_item", side_effect=LookupError("not found")),
+            pytest.raises(LookupError, match="not found"),
+        ):
+            tray_mod.select("tray_app", "NonExistent")

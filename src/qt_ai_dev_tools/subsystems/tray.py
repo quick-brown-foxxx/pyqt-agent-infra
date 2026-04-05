@@ -1,12 +1,22 @@
-"""System tray interaction via D-Bus StatusNotifierItem (SNI)."""
+"""System tray interaction via D-Bus StatusNotifierItem (SNI).
+
+Left-click uses D-Bus Activate (fast, reliable).
+Right-click and menu selection use xdotool + AT-SPI on stalonetray/snixembed,
+avoiding D-Bus Event which crashes PySide6 apps (thread-safety issue).
+"""
 
 from __future__ import annotations
 
 import logging
 import re
+import time
+from typing import TYPE_CHECKING
 
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
+
+if TYPE_CHECKING:
+    from qt_ai_dev_tools._atspi import AtspiNode
 
 # D-Bus interface for the SNI watcher
 _SNI_WATCHER_DEST = "org.kde.StatusNotifierWatcher"
@@ -15,6 +25,9 @@ _SNI_WATCHER_IFACE = "org.freedesktop.DBus.Properties"
 
 # D-Bus interface for SNI items
 _SNI_ITEM_IFACE = "org.kde.StatusNotifierItem"
+
+# Delay after right-click to wait for popup menu to appear
+_MENU_POPUP_DELAY: float = 0.8
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +87,164 @@ def _resolve_menu_path(item: TrayItem) -> str:
     if not fallback.startswith("/"):
         fallback = "/" + fallback
     return fallback
+
+
+def _xdotool_env() -> dict[str, str]:
+    """Environment with DISPLAY set for xdotool."""
+    import os
+
+    env = os.environ.copy()
+    env.setdefault("DISPLAY", ":99")
+    return env
+
+
+def _find_stalonetray_wid() -> str:
+    """Find the stalonetray X window ID via xdotool.
+
+    Returns:
+        The X window ID as a string.
+
+    Raises:
+        RuntimeError: If stalonetray is not running or xdotool is not found.
+    """
+    check_tool("xdotool")
+    output = run_tool(
+        ["xdotool", "search", "--class", "stalonetray"],
+        env=_xdotool_env(),
+    )
+    wid = output.strip().splitlines()[0] if output.strip() else ""
+    if not wid:
+        msg = "stalonetray window not found — is stalonetray running?"
+        raise RuntimeError(msg)
+    return wid
+
+
+def _find_icon_center(stalone_wid: str, app_name: str) -> tuple[int, int]:
+    """Find the screen coordinates of a tray icon for a given app.
+
+    Parses xwininfo -tree to find child windows with matching WM_CLASS.
+    snixembed sets WM_CLASS to the SNI Id property value.
+
+    Args:
+        stalone_wid: X window ID of the stalonetray window.
+        app_name: Application name to match in WM_CLASS.
+
+    Returns:
+        Absolute (x, y) center coordinates of the icon.
+
+    Raises:
+        LookupError: If no matching icon is found in stalonetray.
+        RuntimeError: If xwininfo or xdotool is not found.
+    """
+    check_tool("xwininfo")
+    check_tool("xdotool")
+
+    # Get stalonetray absolute position
+    geom_output = run_tool(
+        ["xdotool", "getwindowgeometry", stalone_wid],
+        env=_xdotool_env(),
+    )
+    # Output: "Window 12345\n  Position: 1872,0 (screen: 0)\n  Geometry: 48x24"
+    pos_match = re.search(r"Position:\s+(\d+),(\d+)", geom_output)
+    if not pos_match:
+        msg = f"Could not parse stalonetray position from: {geom_output}"
+        raise RuntimeError(msg)
+    stalone_x = int(pos_match.group(1))
+    stalone_y = int(pos_match.group(2))
+
+    # Parse xwininfo tree to find child with matching WM_CLASS
+    tree_output = run_tool(
+        ["xwininfo", "-tree", "-id", stalone_wid],
+        env=_xdotool_env(),
+    )
+
+    # Lines look like (two formats — named or unnamed windows):
+    #   0x80000b "snixembed": ("tray_app.py" "tray_app.py")  24x24+0+0  +0+0
+    #   0x3400003 (has no name): ("tray_app.py" "tray_app.py")  24x24+0+0  +1896+0
+    # Match WM_CLASS in parentheses, then geometry with absolute +X+Y at end
+    icon_pattern = re.compile(
+        r"0x[0-9a-f]+\s+(?:\"[^\"]*\"|[^:]+):\s+"
+        r'\("([^"]+)"\s+"[^"]+"\)\s+'
+        r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)\s+\+(-?\d+)\+(-?\d+)"
+    )
+
+    for m in icon_pattern.finditer(tree_output):
+        wm_class = m.group(1)
+        if app_name.lower() in wm_class.lower():
+            # Use absolute coordinates from xwininfo (the last +X+Y)
+            abs_x = int(m.group(6))
+            abs_y = int(m.group(7))
+            icon_w = int(m.group(2))
+            icon_h = int(m.group(3))
+            cx = abs_x + icon_w // 2
+            cy = abs_y + icon_h // 2
+            return (cx, cy)
+
+    # Fallback: try matching with relative offset if absolute coords not found
+    rel_pattern = re.compile(
+        r"0x[0-9a-f]+\s+(?:\"[^\"]*\"|[^:]+):\s+"
+        r'\("([^"]+)"\s+"[^"]+"\)\s+'
+        r"(\d+)x(\d+)\+(-?\d+)\+(-?\d+)"
+    )
+    for m in rel_pattern.finditer(tree_output):
+        wm_class = m.group(1)
+        if app_name.lower() in wm_class.lower():
+            icon_w = int(m.group(2))
+            icon_h = int(m.group(3))
+            offset_x = int(m.group(4))
+            offset_y = int(m.group(5))
+            cx = stalone_x + offset_x + icon_w // 2
+            cy = stalone_y + offset_y + icon_h // 2
+            return (cx, cy)
+
+    msg = f"Tray icon for '{app_name}' not found in stalonetray. xwininfo output:\n{tree_output}"
+    raise LookupError(msg)
+
+
+def _find_snixembed_menu_item(label: str) -> AtspiNode:
+    """Find a menu item in snixembed's AT-SPI popup menu.
+
+    After right-clicking a tray icon, snixembed opens a GTK popup.
+    The menu items appear under the "snixembed" AT-SPI application
+    as [menu item] nodes.
+
+    Args:
+        label: Menu item label to find.
+
+    Returns:
+        The AtspiNode for the matching menu item.
+
+    Raises:
+        LookupError: If no matching menu item is found.
+    """
+    from qt_ai_dev_tools._atspi import AtspiNode
+
+    desktop = AtspiNode.desktop()
+
+    def _walk(node: AtspiNode) -> AtspiNode | None:
+        if node.role_name == "menu item" and label.lower() in node.name.lower():
+            return node
+        for child in node.children:
+            found = _walk(child)
+            if found is not None:
+                return found
+        return None
+
+    # Search under the "snixembed" application
+    for app_node in desktop.children:
+        if "snixembed" in app_node.name.lower():
+            result = _walk(app_node)
+            if result is not None:
+                return result
+
+    # Fallback: search all applications (in case the name differs)
+    for app_node in desktop.children:
+        result = _walk(app_node)
+        if result is not None:
+            return result
+
+    msg = f"Menu item '{label}' not found in snixembed AT-SPI tree"
+    raise LookupError(msg)
 
 
 def list_items() -> list[TrayItem]:
@@ -162,36 +333,50 @@ def _parse_registered_items(output: str) -> list[TrayItem]:
     return items
 
 
-def click(app_name: str) -> None:
-    """Activate (left-click) a tray item by application name.
-
-    Searches registered SNI items for one matching app_name,
-    then calls the Activate method on it.
+def click(app_name: str, button: str = "left") -> None:
+    """Click a tray item by application name.
 
     Args:
         app_name: Name substring to match against tray items.
+        button: "left" for D-Bus Activate, "right" to open context menu
+                via xdotool right-click on stalonetray icon.
 
     Raises:
         LookupError: If no matching tray item is found.
-        RuntimeError: If busctl is not found or the D-Bus call fails.
+        RuntimeError: If required tools are not found or calls fail.
+        ValueError: If button is not "left" or "right".
     """
-    item = _find_item(app_name)
-    check_tool("busctl")
-    run_tool(
-        [
-            "busctl",
-            "--user",
-            "call",
-            "--",
-            item.bus_name,
-            item.object_path,
-            _SNI_ITEM_IFACE,
-            "Activate",
-            "ii",
-            "0",
-            "0",
-        ]
-    )
+    if button == "left":
+        item = _find_item(app_name)
+        check_tool("busctl")
+        run_tool(
+            [
+                "busctl",
+                "--user",
+                "call",
+                "--",
+                item.bus_name,
+                item.object_path,
+                _SNI_ITEM_IFACE,
+                "Activate",
+                "ii",
+                "0",
+                "0",
+            ]
+        )
+    elif button == "right":
+        stalone_wid = _find_stalonetray_wid()
+        cx, cy = _find_icon_center(stalone_wid, app_name)
+        check_tool("xdotool")
+        env = _xdotool_env()
+        run_tool(
+            ["xdotool", "mousemove", "--screen", "0", str(cx), str(cy)],
+            env=env,
+        )
+        run_tool(["xdotool", "click", "3"], env=env)
+    else:
+        msg = f"Invalid button '{button}', must be 'left' or 'right'"
+        raise ValueError(msg)
 
 
 def menu(app_name: str) -> list[TrayMenuEntry]:
@@ -287,65 +472,39 @@ def _parse_menu_output(output: str) -> list[TrayMenuEntry]:
 
 
 def select(app_name: str, item_label: str) -> None:
-    """Open the context menu and click a menu item by label.
+    """Select a context menu item from a tray icon.
+
+    Opens the context menu via right-click (xdotool on stalonetray),
+    then finds and clicks the menu item via AT-SPI (under snixembed).
+
+    This avoids the D-Bus dbusmenu Event which crashes PySide6 apps
+    due to thread-safety (menu action fires on D-Bus thread, not main thread).
 
     Args:
         app_name: Name substring to match against tray items.
         item_label: Label of the menu item to click.
 
     Raises:
-        LookupError: If no matching tray item or menu item is found.
-        RuntimeError: If busctl is not found or the D-Bus call fails.
+        LookupError: If no matching tray icon or menu item is found.
+        RuntimeError: If required tools are not found or the action fails.
     """
-    entries = menu(app_name)
-    for entry in entries:
-        if item_label.lower() in entry.label.lower():
-            item = _find_item(app_name)
-            menu_path = _resolve_menu_path(item)
+    # 1. Right-click to open context menu
+    click(app_name, button="right")
+    time.sleep(_MENU_POPUP_DELAY)
 
-            try:
-                run_tool(
-                    [
-                        "busctl",
-                        "--user",
-                        "call",
-                        "--",
-                        item.bus_name,
-                        menu_path,
-                        "com.canonical.dbusmenu",
-                        "Event",
-                        "isvu",
-                        str(entry.index),
-                        "clicked",
-                        "s",
-                        "",
-                        "0",
-                    ]
-                )
-            except RuntimeError:
-                run_tool(
-                    [
-                        "busctl",
-                        "--user",
-                        "call",
-                        "--",
-                        item.bus_name,
-                        item.object_path,
-                        "com.canonical.dbusmenu",
-                        "Event",
-                        "isvu",
-                        str(entry.index),
-                        "clicked",
-                        "s",
-                        "",
-                        "0",
-                    ]
-                )
-            return
+    # 2. Find menu item in AT-SPI (under snixembed app)
+    menu_item = _find_snixembed_menu_item(item_label)
 
-    available = [e.label for e in entries]
-    msg = f"Menu item '{item_label}' not found. Available: {available}"
-    raise LookupError(msg)
+    # 3. Click via xdotool at the menu item's screen coordinates.
+    #    Using AT-SPI do_action("click") would forward via D-Bus dbusmenu Event,
+    #    which crashes PySide6 apps (thread-safety). xdotool click goes through
+    #    X11 input events → snixembed GTK menu → safe D-Bus notification.
+    from qt_ai_dev_tools.interact import click_at
+
+    extents = menu_item.get_extents()
+    cx = extents.x + extents.width // 2
+    cy = extents.y + extents.height // 2
+    click_at(cx, cy, button=1)
 
 
 def _find_item(app_name: str) -> TrayItem:

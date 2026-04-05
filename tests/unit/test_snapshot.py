@@ -49,6 +49,7 @@ def _make_node(
     name: str = "Widget",
     role_name: str = "push button",
     text: str | None = None,
+    value: float | None = None,
     children: list[AtspiNode] | None = None,
 ) -> AtspiNode:
     """Create a mock AtspiNode for snapshot tests.
@@ -77,7 +78,14 @@ def _make_node(
     else:
         native.get_text_iface.return_value = None
 
-    native.get_value_iface.return_value = None
+    # When value is provided, set up a value interface so that
+    # AtspiNode.get_value() returns the float via the native mock.
+    if value is not None:
+        value_iface = MagicMock()
+        value_iface.get_current_value.return_value = value
+        native.get_value_iface.return_value = value_iface
+    else:
+        native.get_value_iface.return_value = None
     native.get_selection_iface.return_value = None
     native.get_table_iface.return_value = None
     native.get_action_iface.return_value = None
@@ -308,3 +316,124 @@ class TestFormatDiff:
         assert "Added:" in result
         assert "Removed:" in result
         assert "Changed:" in result
+
+    def test_value_change_formatting(self) -> None:
+        diff = SnapshotDiff(
+            added=[],
+            removed=[],
+            changed=[
+                (
+                    SnapshotEntry(role="slider", name="volume", value=0.3),
+                    SnapshotEntry(role="slider", name="volume", value=0.8),
+                )
+            ],
+        )
+        result = format_diff(diff)
+        assert "Changed:" in result
+        assert "value: 0.3 -> 0.8" in result
+
+
+class TestValueCapture:
+    def test_value_captured_from_node(self) -> None:
+        node = _make_node(name="volume", role_name="slider", value=0.5)
+        entries = capture_tree(node)
+
+        assert len(entries) == 1
+        assert entries[0].value == 0.5
+
+    def test_no_value_when_absent(self) -> None:
+        node = _make_node(name="OK", role_name="push button")
+        entries = capture_tree(node)
+
+        assert entries[0].value is None
+
+    def test_value_diff_detected(self) -> None:
+        old = [SnapshotEntry(role="slider", name="vol", value=0.3)]
+        new = [SnapshotEntry(role="slider", name="vol", value=0.8)]
+        diff = diff_snapshots(old, new)
+
+        assert diff.has_changes
+        assert len(diff.changed) == 1
+        old_entry, new_entry = diff.changed[0]
+        assert old_entry.value == 0.3
+        assert new_entry.value == 0.8
+
+    def test_value_round_trip(self, tmp_path: Path) -> None:
+        entries = [SnapshotEntry(role="slider", name="vol", value=0.75, children_count=0)]
+        path = tmp_path / "snap.json"
+        save_snapshot(entries, path)
+        loaded = load_snapshot(path)
+
+        assert len(loaded) == 1
+        assert loaded[0].value == 0.75
+
+    def test_value_none_omitted_from_dict(self) -> None:
+        entry = SnapshotEntry(role="button", name="OK")
+        d = entry.to_dict()
+        assert "value" not in d
+
+    def test_value_included_in_dict(self) -> None:
+        entry = SnapshotEntry(role="slider", name="vol", value=0.5)
+        d = entry.to_dict()
+        assert d["value"] == 0.5
+
+
+class TestDuplicateKeyHandling:
+    def test_duplicate_unnamed_labels_preserved(self) -> None:
+        """Multiple entries with same (role, name) should not overwrite each other."""
+        old = [
+            SnapshotEntry(role="label", name="", text="First"),
+            SnapshotEntry(role="label", name="", text="Second"),
+        ]
+        new = [
+            SnapshotEntry(role="label", name="", text="First"),
+            SnapshotEntry(role="label", name="", text="Second"),
+        ]
+        diff = diff_snapshots(old, new)
+        assert not diff.has_changes
+
+    def test_duplicate_added(self) -> None:
+        """Extra duplicate in new is detected as added."""
+        old = [SnapshotEntry(role="label", name="", text="A")]
+        new = [
+            SnapshotEntry(role="label", name="", text="A"),
+            SnapshotEntry(role="label", name="", text="B"),
+        ]
+        diff = diff_snapshots(old, new)
+
+        assert diff.has_changes
+        assert len(diff.added) == 1
+        assert diff.added[0].text == "B"
+        assert diff.changed == []
+
+    def test_duplicate_removed(self) -> None:
+        """Extra duplicate in old is detected as removed."""
+        old = [
+            SnapshotEntry(role="label", name="", text="A"),
+            SnapshotEntry(role="label", name="", text="B"),
+        ]
+        new = [SnapshotEntry(role="label", name="", text="A")]
+        diff = diff_snapshots(old, new)
+
+        assert diff.has_changes
+        assert len(diff.removed) == 1
+        assert diff.removed[0].text == "B"
+
+    def test_duplicate_changed(self) -> None:
+        """Positional matching detects changes within duplicates."""
+        old = [
+            SnapshotEntry(role="label", name="", text="A"),
+            SnapshotEntry(role="label", name="", text="B"),
+        ]
+        new = [
+            SnapshotEntry(role="label", name="", text="A"),
+            SnapshotEntry(role="label", name="", text="C"),
+        ]
+        diff = diff_snapshots(old, new)
+
+        assert diff.has_changes
+        assert len(diff.changed) == 1
+        assert diff.changed[0][0].text == "B"
+        assert diff.changed[0][1].text == "C"
+        assert diff.added == []
+        assert diff.removed == []

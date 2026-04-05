@@ -41,12 +41,14 @@ def _walk(
     text_value = node.get_text()
     # Avoid storing redundant text when it matches the name
     text = text_value if text_value != node.name else None
+    value = node.get_value()
 
     entries.append(
         SnapshotEntry(
             role=node.role_name,
             name=node.name,
             text=text,
+            value=value,
             children_count=node.child_count,
         )
     )
@@ -87,28 +89,41 @@ def diff_snapshots(
     Matches entries by (role, name) key. Detects added, removed,
     and changed entries (text or children_count differ).
     """
-    old_map: dict[tuple[str, str], SnapshotEntry] = {}
+    # Group entries by (role, name) key, preserving order for duplicates
+    old_map: dict[tuple[str, str], list[SnapshotEntry]] = {}
     for entry in old:
-        key = (entry.role, entry.name)
-        old_map[key] = entry
+        old_map.setdefault((entry.role, entry.name), []).append(entry)
 
-    new_map: dict[tuple[str, str], SnapshotEntry] = {}
+    new_map: dict[tuple[str, str], list[SnapshotEntry]] = {}
     for entry in new:
-        key = (entry.role, entry.name)
-        new_map[key] = entry
+        new_map.setdefault((entry.role, entry.name), []).append(entry)
 
-    old_keys = set(old_map.keys())
-    new_keys = set(new_map.keys())
+    all_keys = sorted(set(old_map.keys()) | set(new_map.keys()))
 
-    added = [new_map[k] for k in sorted(new_keys - old_keys)]
-    removed = [old_map[k] for k in sorted(old_keys - new_keys)]
-
+    added: list[SnapshotEntry] = []
+    removed: list[SnapshotEntry] = []
     changed: list[tuple[SnapshotEntry, SnapshotEntry]] = []
-    for key in sorted(old_keys & new_keys):
-        old_entry = old_map[key]
-        new_entry = new_map[key]
-        if old_entry.text != new_entry.text or old_entry.children_count != new_entry.children_count:
-            changed.append((old_entry, new_entry))
+
+    for key in all_keys:
+        old_entries = old_map.get(key, [])
+        new_entries = new_map.get(key, [])
+        paired = min(len(old_entries), len(new_entries))
+
+        # Positional matching for entries sharing the same (role, name)
+        for i in range(paired):
+            old_entry = old_entries[i]
+            new_entry = new_entries[i]
+            if (
+                old_entry.text != new_entry.text
+                or old_entry.value != new_entry.value
+                or old_entry.children_count != new_entry.children_count
+            ):
+                changed.append((old_entry, new_entry))
+
+        # Extra entries in new → added
+        added.extend(new_entries[paired:])
+        # Extra entries in old → removed
+        removed.extend(old_entries[paired:])
 
     return SnapshotDiff(added=added, removed=removed, changed=changed)
 
@@ -134,6 +149,8 @@ def format_diff(diff: SnapshotDiff) -> str:
             lines.append(f'  ~ [{old_entry.role}] "{old_entry.name}"')
             if old_entry.text != new_entry.text:
                 lines.append(f"    text: {old_entry.text!r} -> {new_entry.text!r}")
+            if old_entry.value != new_entry.value:
+                lines.append(f"    value: {old_entry.value} -> {new_entry.value}")
             if old_entry.children_count != new_entry.children_count:
                 lines.append(f"    children: {old_entry.children_count} -> {new_entry.children_count}")
 

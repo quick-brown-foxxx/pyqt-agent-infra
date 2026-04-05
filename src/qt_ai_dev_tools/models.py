@@ -61,13 +61,16 @@ class SnapshotEntry:
     role: str
     name: str
     text: str | None = None
+    value: float | None = None
     children_count: int = 0
 
     def to_dict(self) -> dict[str, object]:
-        """Convert to JSON-serializable dict, omitting None text."""
+        """Convert to JSON-serializable dict, omitting None fields."""
         d: dict[str, object] = {"role": self.role, "name": self.name}
         if self.text is not None:
             d["text"] = self.text
+        if self.value is not None:
+            d["value"] = self.value
         d["children_count"] = self.children_count
         return d
 
@@ -75,10 +78,12 @@ class SnapshotEntry:
     def from_dict(d: dict[str, object]) -> SnapshotEntry:
         """Reconstruct from a dict (e.g. loaded from JSON)."""
         raw_count = d.get("children_count", 0)
+        raw_value = d.get("value")
         return SnapshotEntry(
             role=str(d["role"]),
             name=str(d["name"]),
             text=str(d["text"]) if d.get("text") is not None else None,
+            value=float(raw_value) if raw_value is not None else None,  # type: ignore[arg-type]  # rationale: raw JSON value is object, validated by float()
             children_count=int(raw_count),  # type: ignore[arg-type]  # rationale: raw JSON value is object, validated by int()
         )
 

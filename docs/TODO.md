@@ -14,6 +14,13 @@
   - auto bundle skills on installation
   - override command name in skills on local installation
 - rewrite cli api
+- rename to qt-dev-tools
+- mark that it is mostly for python+qt, smth may work with cpp+qt but never tested
+- mark that rn implementation only for x11 mode
+- use it as accessibility tool?
+- potential for non-qt apps?
+- backlog
+  - wayland support
   
 ## propmpts
 

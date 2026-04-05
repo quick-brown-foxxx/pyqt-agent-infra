@@ -1,6 +1,6 @@
 # qt-ai-dev-tools
 
-[chrome-dev-tools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp/) for Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
+Chrome Dev Tools but for Linux Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
 
 ## The problem
 

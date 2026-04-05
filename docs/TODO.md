@@ -13,6 +13,7 @@
   - rename default init action to smth more scary to use (available for users who want to override/edit but not recommended for all)
   - auto bundle skills on installation
   - override command name in skills on local installation
+  - in install skill highlight that vagrantfile may need to be edited to work with particular host/networking
 - rewrite cli api
 - rename to qt-dev-tools
 - mark that it is mostly for python+qt, smth may work with cpp+qt but never tested

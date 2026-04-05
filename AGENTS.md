@@ -38,7 +38,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
     - `_protocol.py` — EvalRequest/EvalResponse, JSON codec
     - `_bootstrap.py` — sys.remote_exec injection (Python 3.14+)
   - `subsystems/` — Linux subsystem helpers for AI agents
-    - `clipboard.py` — xclip wrapper: read/write system clipboard
+    - `clipboard.py` — xsel/xclip wrapper: read/write system clipboard
     - `file_dialog.py` — AT-SPI automation of QFileDialog (detect, fill, accept, cancel)
     - `tray.py` — D-Bus SNI interaction: list/click/menu/select system tray items
     - `notify.py` — D-Bus notification daemon: listen/dismiss/action
@@ -61,7 +61,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-7 complete (except 7.7 manual testing). The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), installable via `pip install qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools init`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects. The next milestone is Phase 8 (container & host support).
+Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), installable via `pip install qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools init`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects. The next milestone is Phase 8 (container & host support).
 
 ## Key technical facts
 

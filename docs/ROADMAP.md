@@ -297,7 +297,7 @@ Automated test: `up → provision → run app → interact → screenshot → de
 
 ### 4.6 — [doc] VM setup guide
 
-**Status:** Done. `docs/vm-setup-guide.md` created.
+**Status:** Done. Content folded into `skills/qt-dev-tools-setup/SKILL.md` and `CLAUDE.md`.
 
 Document setup for each supported provider. Known issues and workarounds.
 
@@ -310,7 +310,7 @@ Document setup for each supported provider. Known issues and workarounds.
 
 ### 5.1 — [implement] AI skills
 
-**Status:** Done. Three skills created in `skills/`: `install-qt-ai-dev-tools`, `qt-inspect-interact-verify`, `qt-widget-patterns`.
+**Status:** Done. Two skills created in `skills/`: `qt-dev-tools-setup`, `qt-app-interaction`.
 
 Create agent skills that teach the full qt-ai-dev-tools workflow. These are the primary integration point — skills turn a generic agent into one that knows how to drive Qt apps.
 
@@ -327,9 +327,8 @@ Distributable as superpowers-style skills (`npx -y skills add ...` or bundled wi
 
 ```
 skills/
-  install-qt-ai-dev-tools/SKILL.md   # Autonomous setup
-  qt-inspect-interact-verify/SKILL.md # Core workflow
-  qt-widget-patterns/SKILL.md         # Identification + recipes
+  qt-dev-tools-setup/SKILL.md     # Autonomous setup
+  qt-app-interaction/SKILL.md     # Core workflow + recipes
 ```
 
 ### 5.2 — [implement] Compound commands
@@ -353,7 +352,7 @@ Only add what real usage proves valuable. Don't pre-design.
 
 ### 5.3 — [explore] Optimal agent workflow
 
-**Status:** Done. Documented in `docs/agent-workflow.md`.
+**Status:** Done. Content folded into `skills/qt-app-interaction/SKILL.md` and `CLAUDE.md`.
 
 Use qt-ai-dev-tools myself (the agent) on real projects. Document:
 - What sequences of commands are most common?
@@ -383,7 +382,7 @@ This is an iterative loop, not a one-shot test. Skills and tools should be notic
 
 ### 5.6 — [doc] Agent workflow documentation
 
-**Status:** Done. `docs/agent-workflow.md` created.
+**Status:** Done. Content folded into `skills/qt-app-interaction/SKILL.md` and `CLAUDE.md`.
 
 Based on real usage, document the recommended workflow and common patterns.
 
@@ -442,7 +441,7 @@ Write temp bootstrap script, inject via `sys.remote_exec(pid, path)`. Handles pa
 
 **Status:** Done.
 
-`docs/bridge-guide.md`: setup, usage, examples, security notes, troubleshooting. Update skills with eval-based recipes.
+Content folded into `CLAUDE.md` and skills. Covers setup, usage, examples, security notes, troubleshooting. Skills updated with eval-based recipes.
 
 ### 6.1 — [explore] Complex widget support
 

@@ -57,7 +57,7 @@ test-cli: ## CLI integration tests only
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/integration/ -v"
 
 test-e2e: ## e2e bridge tests (real app in VM)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && python3 -m pytest tests/e2e/ -v --timeout=60"
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/e2e/ -v --timeout=60"
 
 # ── Lint ─────────────────────────────────────────────────────────────────────
 

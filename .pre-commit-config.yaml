@@ -29,8 +29,8 @@ repos:
 
       - id: basedpyright
         name: basedpyright
-        entry: uv run basedpyright
+        entry: uv run basedpyright src/
         language: system
         types: [python]
-        pass_filenames: true
+        pass_filenames: false
         stages: [pre-commit]

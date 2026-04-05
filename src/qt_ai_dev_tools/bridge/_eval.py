@@ -7,7 +7,7 @@ import io
 import time
 import traceback as tb_module
 
-from qt_ai_dev_tools.bridge._protocol import EvalResponse
+from qt_ai_dev_tools.bridge._protocol import EvalMode, EvalResponse
 from qt_ai_dev_tools.bridge._qt_namespace import build_qt_namespace
 
 MAX_RESULT_BYTES: int = 65536  # 64KB
@@ -26,7 +26,7 @@ def _truncate_repr(value: object) -> tuple[str, str]:
     return full[:MAX_RESULT_BYTES] + f"\n[truncated, {total_kb}kB total]", type_name
 
 
-def execute(code: str, namespace: dict[str, object], mode: str = "auto") -> EvalResponse:
+def execute(code: str, namespace: dict[str, object], mode: EvalMode = "auto") -> EvalResponse:
     """Execute Python code and return a structured response.
 
     Modes:

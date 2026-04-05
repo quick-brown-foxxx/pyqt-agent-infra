@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -77,14 +78,17 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     return subprocess.Popen(
         ["vagrant", "rsync-auto"],
         cwd=ws,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         text=True,
     )
 
 
 def vm_run(command: str, workspace: Path | None = None, display: str = ":99") -> subprocess.CompletedProcess[str]:
     """Run a command inside the VM with proper Qt/AT-SPI environment."""
+    if not re.fullmatch(r":\d+(\.\d+)?", display):
+        msg = f"Invalid display format: {display!r} (expected ':N' or ':N.M')"
+        raise ValueError(msg)
     ws = find_workspace(workspace)
     env_prefix = (
         f"export DISPLAY={display} QT_QPA_PLATFORM=xcb QT_ACCESSIBILITY=1"

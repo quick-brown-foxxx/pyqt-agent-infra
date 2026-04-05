@@ -20,15 +20,24 @@ make setup    # runs uv sync + pre-commit install
 
 | Target | What it does |
 |--------|-------------|
-| `make lint` | ruff check + basedpyright (strict) |
-| `make lint-fix` | Auto-fix lint issues |
+| `make setup` | Initial project setup (uv sync + pre-commit install) |
+| `make help` | Show available make targets |
+| `make workspace-init` | Generate Vagrantfile, provision.sh, scripts from templates |
+| `make up` | Start the VM (~10 min first time) |
+| `make provision` | Re-run VM provisioning |
+| `make ssh` | SSH into VM |
+| `make sync` | Sync files to VM (rsync) |
+| `make run` | Launch app in VM (headless) + screenshot |
+| `make status` | Check Xvfb, openbox, AT-SPI in VM |
+| `make destroy` | Destroy VM and clean up |
 | `make test` | Fast offscreen pytest-qt tests (no VM needed) |
 | `make test-full` | All tests including AT-SPI, screenshots, CLI |
 | `make test-cli` | CLI integration tests only |
-| `make up` | Start the VM (~10 min first time) |
-| `make status` | Check Xvfb, openbox, AT-SPI in VM |
+| `make test-atspi` | AT-SPI smoke test only |
+| `make test-e2e` | E2E bridge tests (real app in VM) |
+| `make lint` | ruff check + basedpyright (strict) |
+| `make lint-fix` | Auto-fix lint issues with ruff |
 | `make screenshot` | Capture current VM display |
-| `make destroy` | Tear down VM |
 
 ## Architecture
 

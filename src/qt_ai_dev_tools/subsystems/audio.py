@@ -45,8 +45,8 @@ def virtual_mic_start(node_name: str = "virtual-mic") -> VirtualMicInfo:
             "pw-loopback",
             f"--capture-props=media.class=Audio/Source,node.name={node_name}",
         ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     _virtual_mic_pid = process.pid
@@ -174,6 +174,10 @@ def record(
             capture_output=True,
             text=True,
         )
+
+    if not output.exists() or output.stat().st_size == 0:
+        msg = f"Recording failed: output file missing or empty at {output}"
+        raise RuntimeError(msg)
 
     return output
 

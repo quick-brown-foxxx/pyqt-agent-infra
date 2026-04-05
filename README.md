@@ -100,7 +100,7 @@ pip install qt-ai-dev-tools
 - Workspace init & VM lifecycle management from the CLI
 - Compound commands — `fill` (focus + clear + type), `do` (click + verify/screenshot)
 - Bridge — execute arbitrary Python inside running Qt apps via Unix socket (chrome-dev-tools MCP `evaluate_script` equivalent)
-- Linux subsystems — clipboard (xclip), file dialogs (AT-SPI), system tray (D-Bus SNI), notifications (D-Bus), audio (PipeWire virtual mic, recording, verification)
+- Linux subsystems — clipboard (xsel/xclip), file dialogs (AT-SPI), system tray (D-Bus SNI), notifications (D-Bus), audio (PipeWire virtual mic, recording, verification)
 - Distribution — `pip install qt-ai-dev-tools` or `uvx qt-ai-dev-tools init` (shadcn-style local copy)
 - AI skills — teach agents the inspect→interact→verify workflow
 

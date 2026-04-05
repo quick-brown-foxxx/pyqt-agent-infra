@@ -12,9 +12,11 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import Qt
 
+pytestmark = pytest.mark.unit
+
 # app/ is not a package — add project root to path for test discovery
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from app.main import MainWindow  # noqa: I001
+from app.main import MainWindow  # noqa: E402, I001
 
 
 # -- pytest-qt tests ----------------------------------------------------------
@@ -77,6 +79,7 @@ class TestMainWindowLogic:
 # -- AT-SPI smoke test --------------------------------------------------------
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("DISPLAY"),
     reason="DISPLAY not set, AT-SPI unavailable",
@@ -110,6 +113,7 @@ def test_atspi_accessibility_tree(qtbot):
 # -- Screenshot smoke test ----------------------------------------------------
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not os.environ.get("DISPLAY"),
     reason="DISPLAY not set, scrot unavailable",

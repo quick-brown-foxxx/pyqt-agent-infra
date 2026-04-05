@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Final
+from typing import Final, Literal
+
+type EvalMode = Literal["auto", "eval", "exec"]
 
 
 @dataclass(slots=True)
@@ -12,7 +14,7 @@ class EvalRequest:
     """Code execution request sent from CLI to bridge server."""
 
     code: str
-    mode: str = "auto"  # "auto" | "eval" | "exec"
+    mode: EvalMode = "auto"
 
 
 @dataclass(slots=True)
@@ -53,10 +55,15 @@ def decode_request(data: bytes) -> EvalRequest:
     if not isinstance(code, str):
         msg = f"Expected 'code' to be str, got {type(code).__name__}"
         raise TypeError(msg)
-    mode = d.get("mode", "auto")
-    if not isinstance(mode, str):
-        msg = f"Expected 'mode' to be str, got {type(mode).__name__}"
+    mode_raw = d.get("mode", "auto")
+    if not isinstance(mode_raw, str):
+        msg = f"Expected 'mode' to be str, got {type(mode_raw).__name__}"
         raise TypeError(msg)
+    if mode_raw not in ("auto", "eval", "exec"):
+        msg = f"Invalid mode {mode_raw!r}, expected one of 'auto', 'eval', 'exec'"
+        raise ValueError(msg)
+    # Narrow from str to EvalMode — validated above
+    mode: EvalMode = mode_raw  # basedpyright narrows via the `not in` guard above
     return EvalRequest(code=code, mode=mode)
 
 

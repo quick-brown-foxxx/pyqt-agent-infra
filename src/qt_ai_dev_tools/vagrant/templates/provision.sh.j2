@@ -126,13 +126,6 @@ export QT_AI_DEV_TOOLS_BRIDGE=1
 if [ -z "\$DBUS_SESSION_BUS_ADDRESS" ]; then
     export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/\$(id -u)/bus"
 fi
-
-# PulseAudio null sink (lazy start)
-if ! pulseaudio --check 2>/dev/null; then
-    pulseaudio --start --log-target=syslog
-    sleep 0.5
-    pactl load-module module-null-sink sink_name=virtual_out sink_properties=device.description=VirtualOut 2>/dev/null || true
-fi
 EOF
 fi
 

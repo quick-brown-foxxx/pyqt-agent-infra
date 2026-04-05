@@ -8,6 +8,7 @@ import socket
 from pathlib import Path
 
 from qt_ai_dev_tools.bridge._protocol import (
+    EvalMode,
     EvalRequest,
     EvalResponse,
     decode_response,
@@ -57,7 +58,7 @@ def _extract_pid(socket_path: str) -> str:
     return name.rsplit("-", 1)[-1]
 
 
-def eval_code(socket_path: Path, code: str, mode: str = "auto", timeout: float = 30.0) -> EvalResponse:
+def eval_code(socket_path: Path, code: str, mode: EvalMode = "auto", timeout: float = 30.0) -> EvalResponse:
     """Send code to bridge server and return the response.
 
     Args:

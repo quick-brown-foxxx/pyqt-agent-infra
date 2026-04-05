@@ -107,14 +107,6 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
     # Generate SSH config if needed
     ssh_config = ws / ".vagrant-ssh-config"
     if not ssh_config.exists():
-        subprocess.run(
-            ["vagrant", "ssh-config"],
-            cwd=ws,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        # Write ssh config
         config_result = subprocess.run(
             ["vagrant", "ssh-config"],
             cwd=ws,

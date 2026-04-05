@@ -14,19 +14,22 @@ Follow these steps in order. Each step must succeed before proceeding.
 
 ## Step 1: Install the toolkit
 
-qt-ai-dev-tools is not on PyPI. Install by copying the package source into your project.
+Install using one of these methods:
 
-Clone or download from GitHub, then copy the package into a `qt-ai-dev-tools/` subdirectory of your project:
-
+**Option A — shadcn-style local copy** (recommended, agent owns the code):
 ```bash
-git clone https://github.com/quick-brown-foxxx/qt-ai-dev-tools.git /tmp/qt-ai-dev-tools
-cp -r /tmp/qt-ai-dev-tools/src /tmp/qt-ai-dev-tools/pyproject.toml ./qt-ai-dev-tools/
+uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+```
+
+**Option B — pip install** (system-wide CLI/library):
+```bash
+pip install qt-ai-dev-tools
 ```
 
 Verify the CLI works:
 
 ```bash
-cd qt-ai-dev-tools
+cd qt-ai-dev-tools  # if Option A
 uv sync
 uv run qt-ai-dev-tools --help
 ```

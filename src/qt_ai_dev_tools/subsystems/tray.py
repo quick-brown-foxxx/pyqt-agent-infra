@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import logging
 import re
-import sys
 
 from qt_ai_dev_tools.subsystems._subprocess import check_tool, run_tool
 from qt_ai_dev_tools.subsystems.models import TrayItem, TrayMenuEntry
@@ -15,6 +15,8 @@ _SNI_WATCHER_IFACE = "org.freedesktop.DBus.Properties"
 
 # D-Bus interface for SNI items
 _SNI_ITEM_IFACE = "org.kde.StatusNotifierItem"
+
+logger = logging.getLogger(__name__)
 
 
 def list_items() -> list[TrayItem]:
@@ -44,13 +46,13 @@ def list_items() -> list[TrayItem]:
                 "RegisteredStatusNotifierItems",
             ]
         )
-    except RuntimeError:
-        print(
-            "Warning: StatusNotifierWatcher D-Bus service not available. "
-            "Install an SNI host (e.g. stalonetray, snixembed) to enable tray support.",
-            file=sys.stderr,
-        )
-        return []
+    except RuntimeError as exc:
+        if "ServiceUnknown" in str(exc) or "not found" in str(exc):
+            logger.warning(
+                "StatusNotifierWatcher D-Bus service not available — install an SNI host (KDE/GNOME or snixembed)"
+            )
+            return []
+        raise
     return _parse_registered_items(output)
 
 

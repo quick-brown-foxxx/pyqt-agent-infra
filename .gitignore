@@ -43,3 +43,5 @@ wrktrs/
 # Vagrant
 .vagrant/
 .vagrant-ssh-config
+Vagrantfile
+provision.sh

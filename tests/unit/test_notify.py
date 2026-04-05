@@ -141,6 +141,39 @@ class TestListen:
             mock_check.assert_called_once_with("dbus-monitor")
             assert isinstance(result, list)
 
+    def test_listen_parses_notifications_from_timeout(self) -> None:
+        """listen() should parse real dbus-monitor output captured via TimeoutExpired."""
+        from qt_ai_dev_tools.subsystems.notify import listen
+
+        with (
+            patch("qt_ai_dev_tools.subsystems.notify.check_tool"),
+            patch("subprocess.run", side_effect=_make_timeout_expired(_MOCK_DBUS_MONITOR_OUTPUT)),
+        ):
+            notifications = listen(timeout=1)
+
+            assert len(notifications) == 1
+            notif = notifications[0]
+            assert notif.app_name == "test-app"
+            assert notif.summary == "Test Summary"
+            assert notif.body == "Test body text"
+            assert notif.id == 0
+            assert len(notif.actions) == 2
+            assert notif.actions[0].key == "default"
+            assert notif.actions[0].label == "OK"
+            assert notif.actions[1].key == "reply"
+            assert notif.actions[1].label == "Reply"
+
+    def test_listen_returns_empty_on_no_notifications(self) -> None:
+        """listen() should return empty list when dbus-monitor captures nothing."""
+        from qt_ai_dev_tools.subsystems.notify import listen
+
+        with (
+            patch("qt_ai_dev_tools.subsystems.notify.check_tool"),
+            patch("subprocess.run", side_effect=_make_timeout_expired("")),
+        ):
+            notifications = listen(timeout=1)
+            assert notifications == []
+
 
 def _make_timeout_expired(output: str) -> type[BaseException]:
     """Create a TimeoutExpired exception class with stdout."""

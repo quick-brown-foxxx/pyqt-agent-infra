@@ -96,9 +96,12 @@ def _write_bootstrap_script(pid: int) -> Path:
     package_path = _find_package_path()
     script = _BOOTSTRAP_TEMPLATE.format(package_path=package_path)
 
-    # Write to a temp file that the target process can read
-    script_path = Path(tempfile.gettempdir()) / f"qt-ai-dev-tools-bootstrap-{pid}.py"
-    script_path.write_text(script)
+    # Write to a temp file that the target process can read (mkstemp for safe creation)
+    fd, path_str = tempfile.mkstemp(prefix=f"qt-ai-dev-tools-bootstrap-{pid}-", suffix=".py")
+    os.fchmod(fd, 0o600)  # restrict to owner (same uid as target process)
+    with os.fdopen(fd, "w") as f:
+        f.write(script)
+    script_path = Path(path_str)
     return script_path
 
 

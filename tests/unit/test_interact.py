@@ -141,5 +141,12 @@ class TestFocus:
             patch("qt_ai_dev_tools.interact.subprocess.run") as mock_run,
         ):
             focus(node, pause=0.0)
-            # Should have called xdotool (click fallback)
-            assert mock_run.called
+
+            # Should have called xdotool mousemove then click (same as click())
+            # Center of (10, 20, 100, 50) = (60, 45)
+            calls = mock_run.call_args_list
+            assert len(calls) == 2
+            assert calls[0][0][0][:2] == ["xdotool", "mousemove"]
+            assert "60" in calls[0][0][0]
+            assert "45" in calls[0][0][0]
+            assert calls[1][0][0] == ["xdotool", "click", "1"]

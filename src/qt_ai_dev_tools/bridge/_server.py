@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, Qt, Signal  # type: ignore[import-not-found]
 
 from qt_ai_dev_tools.bridge._eval import build_qt_namespace, execute
 from qt_ai_dev_tools.bridge._protocol import (
+    EvalMode,
     EvalResponse,
     decode_request,
     encode_response,
@@ -52,12 +53,12 @@ class BridgeExecutor(QObject):  # type: ignore[reportGeneralClassIssue]  # ratio
             Qt.ConnectionType.BlockingQueuedConnection,  # type: ignore[reportAttributeAccessIssue]  # rationale: PySide6 enum not in venv
         )
 
-    def _on_eval(self, code: str, mode: str) -> None:
+    def _on_eval(self, code: str, mode: EvalMode) -> None:
         """Execute code on the main thread. Connected via BlockingQueuedConnection."""
         self._refresh_widgets()
         self._result = execute(code, self._namespace, mode)
 
-    def dispatch(self, code: str, mode: str) -> EvalResponse:
+    def dispatch(self, code: str, mode: EvalMode) -> EvalResponse:
         """Dispatch an eval request to the main thread (called from server thread).
 
         Thread-safe: serialized via lock. Emits _eval_requested which blocks
@@ -117,6 +118,7 @@ class BridgeServer:
 
         self._socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._socket.bind(socket_path)
+        os.chmod(socket_path, 0o600)
         self._socket.listen(1)
         self._socket.settimeout(1.0)  # periodic check of _running flag
         self._running = True

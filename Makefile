@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync run test test-unit test-full screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
+.PHONY: up provision ssh sync run test test-unit test-full test-all test-proxy screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
 
 SHELL := /bin/bash
 
@@ -50,8 +50,15 @@ test: ## fast pytest-qt tests (offscreen, no Xvfb)
 test-unit: ## unit tests only (parallel, no VM needed)
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/unit/ -v -n auto -p xdist -p timeout
 
-test-full: ## all tests: unit parallel, then e2e/integration serial (requires VM + Xvfb)
+test-full: ## all VM tests: unit parallel, then e2e/integration serial (requires VM + Xvfb)
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto && uv run pytest tests/e2e/ tests/integration/ -v"
+
+test-all: ## 100% coverage: VM tests + host-side proxy tests — zero skips
+	$(MAKE) test-full
+	$(MAKE) test-proxy
+
+test-proxy: ## host-side bridge proxy tests (requires running VM with app)
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/e2e/test_bridge_proxy.py -v -p timeout --timeout=120
 
 test-atspi: ## AT-SPI smoke test only
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v -k atspi"

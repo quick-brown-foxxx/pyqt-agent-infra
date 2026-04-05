@@ -104,7 +104,9 @@ def vm_bridge_app() -> None:
             "qt-ai-dev-tools",
             "vm",
             "run",
-            "cd /vagrant && QT_AI_DEV_TOOLS_BRIDGE=1 nohup python3 app/main.py > /tmp/app-test.log 2>&1 &",
+            "cd /vagrant && QT_AI_DEV_TOOLS_BRIDGE=1"
+            " nohup $HOME/.venv-qt-ai-dev-tools/bin/python3"
+            " app/main.py > /tmp/app-test.log 2>&1 &",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

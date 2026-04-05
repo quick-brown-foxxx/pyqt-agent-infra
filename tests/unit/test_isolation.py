@@ -42,8 +42,7 @@ class TestGiMockIsolation:
 
         atspi = mod.Atspi  # type: ignore[reportUnknownMemberType]  # gi.repository.Atspi has no stubs
         assert not isinstance(atspi, MagicMock), (
-            "_atspi.Atspi is a MagicMock despite real gi being available — "
-            "test_atspi.py mock leaked into sys.modules"
+            "_atspi.Atspi is a MagicMock despite real gi being available — test_atspi.py mock leaked into sys.modules"
         )
 
     def test_gi_modules_are_coherent(self) -> None:

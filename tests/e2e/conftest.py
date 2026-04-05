@@ -30,14 +30,21 @@ def _ensure_real_atspi() -> None:
     With xdist (-n auto), unit and e2e tests run in separate worker
     processes, so this fixture is a no-op. It exists as a safety net for
     serial runs (debugging, CI without xdist, etc.).
+
+    Skips silently on host (no gi) — the bridge proxy tests run from host
+    and don't need AT-SPI.
     """
-    import importlib
     import sys
     from unittest.mock import MagicMock
 
-    import qt_ai_dev_tools._atspi as _atspi_mod
+    try:
+        import qt_ai_dev_tools._atspi as _atspi_mod
+    except (ImportError, ModuleNotFoundError):
+        return  # No gi available (host) — nothing to fix
 
     if isinstance(getattr(_atspi_mod, "Atspi", None), MagicMock):
+        import importlib
+
         # Remove mock gi modules so the real ones get imported on reload
         for mod_name in ["gi", "gi.repository", "gi.repository.Atspi"]:
             if mod_name in sys.modules and isinstance(sys.modules[mod_name], MagicMock):

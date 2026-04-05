@@ -21,3 +21,6 @@
 - mark that rn implementation only for x11 mode
 - use it as accessibility tool?
 - potential for non-qt apps?
+- record screen?
+- live screen stream?
+- live intreractive connection like vnc? will virt-manager work?

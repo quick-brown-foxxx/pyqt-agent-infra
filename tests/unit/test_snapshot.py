@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -33,16 +33,6 @@ from qt_ai_dev_tools.snapshot import (  # noqa: E402
     save_snapshot,
 )
 
-# Configure Atspi.Text on the _atspi module's Atspi reference so that
-# AtspiNode.get_text() works correctly via the class-level call chain.
-# We use side_effect functions that dispatch based on the iface argument,
-# reading text data stored directly on each iface mock.  This avoids
-# cross-test pollution when test_atspi.py runs first and patches the same
-# Atspi reference.
-_real_atspi = _atspi_mod.Atspi  # type: ignore[reportUnknownMemberType]
-_real_atspi.Text.get_character_count.side_effect = lambda iface: len(iface._stored_text)
-_real_atspi.Text.get_text.side_effect = lambda iface, _start, _end: iface._stored_text
-
 
 def _make_node(
     *,
@@ -55,11 +45,11 @@ def _make_node(
     """Create a mock AtspiNode for snapshot tests.
 
     When *text* differs from *name*, a text interface mock is attached to
-    the native object with the desired text stored on it.  The module-level
-    ``Atspi.Text`` side_effect functions read from this stored value, so the
-    real ``AtspiNode.get_text()`` code path works without monkey-patching
-    (which ``__slots__`` prevents) and without depending on shared mock state
-    that other test modules may mutate.
+    the native object with the desired text stored on it.  Tests that exercise
+    the text code path must patch ``_atspi_mod.Atspi`` so that the class-level
+    ``Atspi.Text.get_character_count`` / ``Atspi.Text.get_text`` calls dispatch
+    to the stored value — this works both on the host (mocked gi) and in the VM
+    (real gi.repository.Atspi).
     """
     native = MagicMock()
     native.get_name.return_value = name
@@ -138,7 +128,21 @@ class TestCaptureTree:
 
     def test_text_preserved_when_different(self) -> None:
         node = _make_node(name="input", role_name="text", text="hello world")
-        entries = capture_tree(node)
+
+        # Patch Atspi on the _atspi module so that the class-level
+        # Atspi.Text.get_character_count / get_text calls work with our
+        # mock text iface.  This is necessary because in the VM,
+        # gi.repository.Atspi is the real C library and won't accept
+        # MagicMock objects as arguments.
+        mock_atspi = MagicMock()
+        mock_atspi.Text.get_character_count.side_effect = (
+            lambda iface: len(iface._stored_text)
+        )
+        mock_atspi.Text.get_text.side_effect = (
+            lambda iface, _start, _end: iface._stored_text
+        )
+        with patch.object(_atspi_mod, "Atspi", mock_atspi):
+            entries = capture_tree(node)
 
         assert entries[0].text == "hello world"
 

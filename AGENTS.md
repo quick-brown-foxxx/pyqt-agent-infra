@@ -76,7 +76,10 @@ Phases 1-7 complete (except 7.7 manual testing). The project is a proper Python 
 - **Jinja2 templates** — Vagrantfile and provision.sh are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
 - **Transparent VM proxy** — UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set inside the VM). On the host, they proxy through SSH to the VM. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
 - **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
-- **Bridge** — runtime code execution inside Qt apps via Unix socket. `bridge.start()` in the app starts a server on `/tmp/qt-ai-dev-tools-bridge-<pid>.sock`. CLI `eval` command sends code, gets results as JSON. Pre-populated namespace includes `app`, `widgets`, `find()`, `findall()`, and common Qt classes. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE=1` env var.
+- **Bridge** — runtime code execution inside Qt apps via Unix socket. `bridge.start()` in the app starts a server on `/tmp/qt-ai-dev-tools-bridge-<pid>.sock`. CLI `eval` command sends code, gets results as JSON. Pre-populated namespace includes `app`, `widgets`, `find()`, `findall()`, and common Qt classes. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE=1` env var. **Note:** bridge cannot respond while a modal dialog (QFileDialog, QMessageBox) is open — use AT-SPI/xdotool for dialog interaction.
+- **Clipboard** — uses `xsel` (preferred, exits immediately) with `xclip` fallback. `xclip` write hangs because it stays alive to serve the X selection — `xsel` avoids this.
+- **System tray** — requires SNI (StatusNotifierItem) D-Bus watcher. Openbox + stalonetray provides XEmbed tray only, not SNI. Full tray D-Bus interaction needs KDE/GNOME or `snixembed`.
+- **Notifications** — `notify.listen()` uses `dbus-monitor` on `org.freedesktop.Notifications`. Qt's `QSystemTrayIcon.showMessage()` may not emit standard D-Bus signals depending on the notification backend.
 
 ## AI Skills
 

@@ -113,6 +113,7 @@ markers = [
     "unit: Unit tests (no external dependencies)",
     "integration: Integration tests (require VM/display)",
     "e2e: End-to-end tests via transparent VM proxy (require running VM)",
+    "xdist_group: Group tests on one xdist worker for serial execution",
 ]
 
 [tool.poe.tasks]

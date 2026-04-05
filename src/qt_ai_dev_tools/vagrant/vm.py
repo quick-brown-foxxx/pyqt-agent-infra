@@ -109,6 +109,7 @@ def vm_run(
         " QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1"
         " QT_AI_DEV_TOOLS_VM=1"
         " UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools"
+        " PATH=$HOME/.venv-qt-ai-dev-tools/bin:$PATH"
         ' DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus";'
     )
     return _vagrant(["ssh", "-c", f"{env_prefix} {command}"], ws, stream=stream)

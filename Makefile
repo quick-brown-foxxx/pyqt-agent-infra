@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync run test test-unit test-full test-all test-proxy screenshot destroy help status lint lint-fix test-cli test-e2e workspace-init setup
+.PHONY: up provision ssh sync run test test-unit test-vm test-e2e test-cli test-atspi screenshot destroy help status lint lint-fix workspace-init setup
 
 SHELL := /bin/bash
 
@@ -37,37 +37,45 @@ destroy: ## destroy VM and clean up
 # ── App ─────────────────────────────────────────────────────────────────────
 
 run: ## launch app in VM (headless)
-	uv run qt-ai-dev-tools vm run "python3 /vagrant/app/main.py &"
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run python3 app/main.py &"
 	sleep 1
 	uv run qt-ai-dev-tools screenshot --output /tmp/app-running.png
 	@echo "Screenshot: /tmp/app-running.png"
 
 # ── Tests ────────────────────────────────────────────────────────────────────
+#
+# Hierarchy:
+#   test           = everything (VM tests + host proxy tests) — the default
+#   ├── test-vm    = all tests that run inside the VM
+#   │   ├── test-unit  (parallel via xdist, also works on host)
+#   │   ├── test-e2e   (serial, real apps + AT-SPI + bridge)
+#   │   └── test-cli   (serial, CLI integration)
+#   └── host-side proxy tests (bridge proxy, runs from host)
+#
+# Subsets for focused work:
+#   test-unit      = unit tests only (fast, no VM needed)
+#   test-e2e       = e2e tests only
+#   test-cli       = CLI integration only
+#   test-atspi     = AT-SPI smoke tests only
 
-test: ## fast pytest-qt tests (offscreen, no Xvfb)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && QT_QPA_PLATFORM=offscreen uv run pytest tests/test_main.py -v -k 'not atspi and not scrot'"
+test: ## all tests — VM + host proxy, zero skips
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto && uv run pytest tests/e2e/ tests/integration/ -v"
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/e2e/test_bridge_proxy.py -v -p timeout --timeout=120
+
+test-vm: ## all VM tests: unit parallel + e2e/integration serial
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto && uv run pytest tests/e2e/ tests/integration/ -v"
 
 test-unit: ## unit tests only (parallel, no VM needed)
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/unit/ -v -n auto -p xdist -p timeout
 
-test-full: ## all VM tests: unit parallel, then e2e/integration serial (requires VM + Xvfb)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto && uv run pytest tests/e2e/ tests/integration/ -v"
+test-e2e: ## e2e tests only (requires VM + Xvfb)
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/e2e/ -v"
 
-test-all: ## 100% coverage: VM tests + host-side proxy tests — zero skips
-	$(MAKE) test-full
-	$(MAKE) test-proxy
-
-test-proxy: ## host-side bridge proxy tests (requires running VM with app)
-	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/e2e/test_bridge_proxy.py -v -p timeout --timeout=120
-
-test-atspi: ## AT-SPI smoke test only
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v -k atspi"
-
-test-cli: ## CLI integration tests only
+test-cli: ## CLI integration tests only (requires VM + Xvfb)
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/integration/ -v"
 
-test-e2e: ## e2e bridge tests (real app in VM)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/e2e/ -v"
+test-atspi: ## AT-SPI smoke tests only
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v -k atspi"
 
 # ── Lint ─────────────────────────────────────────────────────────────────────
 

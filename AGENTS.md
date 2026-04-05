@@ -80,7 +80,7 @@ Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **Clipboard** — uses `xsel` (preferred, exits immediately) with `xclip` fallback. `xclip` write hangs because it stays alive to serve the X selection — `xsel` avoids this.
 - **System tray** — requires SNI (StatusNotifierItem) D-Bus watcher. Openbox + stalonetray provides XEmbed tray only, not SNI. Full tray D-Bus interaction needs KDE/GNOME or `snixembed`.
 - **Notifications** — `notify.listen()` uses `dbus-monitor` on `org.freedesktop.Notifications`. Qt's `QSystemTrayIcon.showMessage()` may not emit standard D-Bus signals depending on the notification backend.
-- **Test parallelism** — `make test-unit` runs unit tests in parallel via pytest-xdist (`-n auto`) on the host without VM. `make test-full` uses a two-phase approach: unit tests in parallel first, then e2e/integration tests serially. E2E tests cannot run with xdist (Qt/AT-SPI worker crashes). The `pytest_collection_modifyitems` hook in `tests/conftest.py` auto-groups tests for loadgroup mode if used manually.
+- **Test parallelism** — `make test-unit` runs unit tests in parallel via pytest-xdist (`-n auto`) on the host without VM. `make test-vm` uses a two-phase approach: unit tests in parallel first, then e2e/integration tests serially. `make test` runs `test-vm` plus host-side proxy tests. E2E tests cannot run with xdist (Qt/AT-SPI worker crashes). The `pytest_collection_modifyitems` hook in `tests/conftest.py` auto-groups tests for loadgroup mode if used manually.
 
 ## AI Skills
 
@@ -95,11 +95,11 @@ Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
 ```bash
 make setup         # initial project setup (uv sync + pre-commit install)
 make up            # start VM (~10min first time)
-make test          # fast offscreen pytest-qt tests
+make test          # ALL tests — VM + host proxy, zero skips
+make test-vm       # all VM tests (unit parallel + e2e/integration serial)
 make test-unit     # unit tests only (parallel, no VM needed)
-make test-full     # all tests with xdist (unit parallel + e2e/integration serial, requires VM)
-make test-cli      # CLI integration tests only
-make test-e2e      # e2e bridge tests only
+make test-e2e      # e2e tests only
+make test-cli      # CLI integration only
 make lint          # run ruff check + basedpyright
 make lint-fix      # auto-fix lint issues
 make screenshot    # screenshot current VM display

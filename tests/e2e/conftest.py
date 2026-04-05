@@ -6,6 +6,7 @@ import glob as glob_mod
 import os
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Generator
 from pathlib import Path

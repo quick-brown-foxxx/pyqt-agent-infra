@@ -69,7 +69,13 @@ class TrayTestWindow(QMainWindow):
         quit_action.triggered.connect(QApplication.quit)
 
         self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self._on_tray_activated)
         self.tray_icon.show()
+
+    def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
+        """Handle tray icon activation (e.g. left-click via D-Bus Activate)."""
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self._on_show()
 
     def _on_show(self) -> None:
         self.show()

@@ -180,11 +180,28 @@ def file_dialog_app() -> Generator[subprocess.Popen[str], None, None]:
 
 
 @pytest.fixture(scope="module")
-def tray_app() -> Generator[subprocess.Popen[str], None, None]:
+def clean_sni_watcher() -> Generator[None, None, None]:
+    """Restart snixembed to clear stale SNI entries before tray tests."""
+    subprocess.run(["killall", "snixembed"], capture_output=True, check=False)
+    time.sleep(0.5)
+    subprocess.Popen(
+        ["snixembed", "--fork"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    time.sleep(1.0)  # wait for D-Bus registration
+    yield
+    # Kill any leftover test app processes that might leave stale SNI entries
+    subprocess.run(["pkill", "-f", "tray_app.py"], capture_output=True, check=False)
+    time.sleep(0.3)
+
+
+@pytest.fixture(scope="module")
+def tray_app(clean_sni_watcher: None) -> Generator[subprocess.Popen[str], None, None]:
     """Start the tray test app, yield process, then kill."""
     app_path = _APPS_DIR / "tray_app.py"
     proc = _start_app(app_path, bridge=True)
-    _wait_for_app_window(proc, "Tray Test App")
+    _wait_for_app_window(proc, "tray_app.py")  # AT-SPI app name, not window title
     yield proc
     _kill_app(proc)
 

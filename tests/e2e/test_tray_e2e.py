@@ -9,19 +9,32 @@ from pathlib import Path
 
 import pytest
 
+from qt_ai_dev_tools.subsystems.models import TrayItem
+
 pytestmark = [
     pytest.mark.skipif(
         not os.environ.get("DISPLAY"),
         reason="E2E tests require Xvfb (run in VM via 'make test-e2e')",
     ),
     pytest.mark.e2e,
+    pytest.mark.usefixtures("clean_sni_watcher"),
 ]
 
 
-_skip_no_sni = pytest.mark.skip(
-    reason="SNI watcher (org.kde.StatusNotifierWatcher) not available — "
-    "openbox+stalonetray provides XEmbed only, not StatusNotifierItem D-Bus interface"
-)
+def _find_tray_item(name_substring: str) -> TrayItem:
+    """Find a tray item by name substring.
+
+    Searches the live SNI tray items for one whose name contains
+    the given substring (case-insensitive). Fails the test if no
+    matching item is found.
+    """
+    from qt_ai_dev_tools.subsystems import tray
+
+    items = tray.list_items()
+    for item in items:
+        if name_substring.lower() in item.name.lower():
+            return item
+    pytest.fail(f"No tray item matching '{name_substring}' found. Available: {[i.name for i in items]}")
 
 
 def _read_status_label(sock_path: Path) -> str:
@@ -36,7 +49,6 @@ def _read_status_label(sock_path: Path) -> str:
 class TestTrayListAndClick:
     """Flow 3A: Restore window from tray click."""
 
-    @_skip_no_sni
     def test_list_tray_items(self, tray_app: subprocess.Popen[str]) -> None:
         """Verify the tray app appears in the SNI tray item list."""
         from qt_ai_dev_tools.subsystems import tray
@@ -45,7 +57,6 @@ class TestTrayListAndClick:
         # The tray app should have registered an SNI item
         assert len(items) > 0, "No tray items found — SNI watcher may not be running"
 
-    @_skip_no_sni
     def test_tray_click_restores_window(self, tray_app: subprocess.Popen[str]) -> None:
         """Close/hide window, verify tray item exists, click to restore."""
         from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
@@ -58,13 +69,8 @@ class TestTrayListAndClick:
         eval_code(sock, "widgets['TrayTestWindow'].hide()")
         time.sleep(0.5)
 
-        # Verify tray items exist
-        items = tray.list_items()
-        assert len(items) > 0, "No tray items found after hiding window"
-
-        # Click the tray item to restore — try matching any available item
-        # The bus name or item name should partially match
-        tray_item = items[0]
+        # Find our tray app item by name (avoids picking stale entries)
+        tray_item = _find_tray_item("tray_app")
         tray.click(tray_item.name)
         time.sleep(0.5)
 
@@ -75,17 +81,13 @@ class TestTrayListAndClick:
 
 
 class TestTrayContextMenu:
-    """Flow 3B: Tray context menu interaction."""
+    """Flow 3B: Tray context menu reading."""
 
-    @_skip_no_sni
     def test_tray_menu_entries(self, tray_app: subprocess.Popen[str]) -> None:
         """Read the tray context menu and verify expected entries."""
         from qt_ai_dev_tools.subsystems import tray
 
-        items = tray.list_items()
-        assert len(items) > 0, "No tray items found"
-
-        tray_item = items[0]
+        tray_item = _find_tray_item("tray_app")
         entries = tray.menu(tray_item.name)
         labels = [e.label for e in entries]
 
@@ -94,35 +96,10 @@ class TestTrayContextMenu:
             f"Expected 'Show' in menu entries, got: {labels}"
         )
 
-    @_skip_no_sni
-    def test_tray_select_settings(self, tray_app: subprocess.Popen[str]) -> None:
-        """Select 'Settings' from tray menu, verify app reacts."""
-        from qt_ai_dev_tools.bridge._client import find_bridge_socket
-        from qt_ai_dev_tools.subsystems import tray
-
-        sock = find_bridge_socket(pid=tray_app.pid)
-        assert sock is not None, "No bridge socket found"
-
-        items = tray.list_items()
-        assert len(items) > 0
-        tray_item = items[0]
-
-        tray.select(tray_item.name, "Settings")
-        time.sleep(0.5)
-
-        # Verify status label changed (app sets "Settings opened")
-        status = _read_status_label(sock)
-        assert "settings" in status.lower() or "Settings" in status
-
 
 class TestNotificationCapture:
     """Flow 3C: Send notification from app, capture via dbus-monitor."""
 
-    @pytest.mark.xfail(
-        reason="Qt QSystemTrayIcon.showMessage() may not emit standard D-Bus Notify — "
-        "depends on notification daemon and Qt backend; works with notify-send but not always with Qt",
-        strict=False,
-    )
     def test_notification_listen(self, tray_app: subprocess.Popen[str]) -> None:
         """Click Send Notification, capture via notify.listen()."""
         import threading
@@ -158,3 +135,35 @@ class TestNotificationCapture:
         first = captured[0]
         # The tray app sends: showMessage("Test", "Notification from tray app", ...)
         assert hasattr(first, "summary")
+
+
+class TestTraySelect:
+    """Flow 3D: Tray menu item selection via D-Bus Event.
+
+    NOTE: This class MUST be last — select() triggers a D-Bus dbusmenu Event
+    that crashes PySide6 apps due to thread-safety (Qt menu action fires on
+    non-main thread). The test verifies select() works at the D-Bus level
+    but the target app segfaults, so it's marked xfail.
+    """
+
+    @pytest.mark.xfail(
+        reason="D-Bus com.canonical.dbusmenu Event triggers Qt menu action on non-main thread, "
+        "causing PySide6 segfault. Known Qt/dbusmenu limitation — select() works at D-Bus level "
+        "but crashes the target app. Use bridge eval to trigger menu actions instead.",
+        strict=False,
+    )
+    def test_tray_select_settings(self, tray_app: subprocess.Popen[str]) -> None:
+        """Select 'Settings' from tray menu, verify app reacts."""
+        from qt_ai_dev_tools.bridge._client import find_bridge_socket
+        from qt_ai_dev_tools.subsystems import tray
+
+        sock = find_bridge_socket(pid=tray_app.pid)
+        assert sock is not None, "No bridge socket found"
+
+        tray_item = _find_tray_item("tray_app")
+        tray.select(tray_item.name, "Settings")
+        time.sleep(0.5)
+
+        # Verify status label changed (app sets "Settings opened")
+        status = _read_status_label(sock)
+        assert "settings" in status.lower() or "Settings" in status

@@ -37,6 +37,10 @@ apt-get install -y --no-install-recommends \
     pipewire \
     pipewire-pulse \
     wireplumber \
+    valac \
+    libgtk-3-dev \
+    libdbusmenu-gtk3-dev \
+    libdbusmenu-glib-dev \
     fonts-dejavu{% for pkg in extra_packages %} \
     {{ pkg }}{% endfor %}
 
@@ -44,6 +48,80 @@ echo "==> Installing Python packages"
 pip3 install --quiet --break-system-packages \
 {% for pkg in python_packages %}    {{ pkg }}{% if not loop.last %} \
 {% endif %}{% endfor %}
+
+# ── Build and install snixembed (SNI tray proxy) ───────────────────────────
+# snixembed proxies StatusNotifierItem (SNI) D-Bus tray icons into the XEmbed
+# tray provided by stalonetray.  Not packaged for Ubuntu 24.04, so we build
+# from source and apply a patch to fix the RegisteredStatusNotifierItems
+# property (upstream returns empty).
+echo "==> Building snixembed from source"
+SNIXEMBED_BUILD=$(mktemp -d)
+git clone --depth 1 https://git.sr.ht/~steef/snixembed "$SNIXEMBED_BUILD/snixembed"
+
+cat > "$SNIXEMBED_BUILD/snixembed/src/statusnotifierwatcher.vala" << 'VALA_EOF'
+[DBus (name = "org.kde.StatusNotifierWatcher")]
+public class StatusNotifierWatcher : Object {
+    public const string NAME = "org.kde.StatusNotifierWatcher";
+    public const string OBJECT = "/StatusNotifierWatcher";
+
+    GenericArray<string> _registered_items;
+
+    // Methods
+    public void register_status_notifier_item(string service, BusName sender) {
+        var name = service;
+        if (!DBus.is_name(service)) {
+            // appindicator fallback
+            name = sender;
+        }
+
+        if (watchers.contains(name)) {
+            stdout.printf("%s (%s) is already registered; ignoring registration\n", name, service);
+            return;
+        }
+
+        watchers[name] = Bus.watch_name(BusType.SESSION, name, BusNameWatcherFlags.NONE,
+            (conn, item, owner) => status_notifier_item_registered(service, sender),
+            (conn, item) => {
+                Bus.unwatch_name(watchers[name]);
+                watchers.remove(name);
+                _registered_items.remove(item);
+                status_notifier_item_unregistered(item);
+            });
+        _registered_items.add(name);
+    }
+
+    public void register_status_notifier_host(string service) {
+        // We probably don't have to anything here, as we just proxy
+    }
+
+    // Properties
+    public string[] registered_status_notifier_items {
+        owned get {
+            return _registered_items.data;
+        }
+    }
+    public bool is_status_notifier_host_registered { get { return true; } }
+
+    // This property is undocumented yet KDE implements it
+    public int protocol_version { get { return 0; } }
+
+    // Signals
+    internal signal bool status_notifier_item_registered(string service, BusName sender);
+    public signal bool status_notifier_item_unregistered(string service);
+    public signal bool status_notifier_host_registered();
+
+    // Internal
+    HashTable<string, uint> watchers;
+    construct {
+        watchers = new HashTable<string, uint>(str_hash, str_equal);
+        _registered_items = new GenericArray<string>();
+    }
+}
+VALA_EOF
+
+make -C "$SNIXEMBED_BUILD/snixembed"
+make -C "$SNIXEMBED_BUILD/snixembed" install
+rm -rf "$SNIXEMBED_BUILD"
 
 # ── Xvfb service (system) ───────────────────────────────────────────────────
 echo "==> Setting up Xvfb as a service"
@@ -82,6 +160,8 @@ ExecStart=/bin/bash -c '\
     /usr/libexec/at-spi-bus-launcher --launch-immediately & \
     sleep 0.5; \
     openbox & \
+    sleep 0.5; \
+    snixembed --fork & \
     sleep 0.5; \
     stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE & \
     sleep 0.5; \

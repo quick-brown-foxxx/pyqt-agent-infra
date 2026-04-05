@@ -19,6 +19,63 @@ _SNI_ITEM_IFACE = "org.kde.StatusNotifierItem"
 logger = logging.getLogger(__name__)
 
 
+def _query_sni_property(bus_name: str, object_path: str, prop: str) -> str | None:
+    """Query a single property from an SNI item via busctl.
+
+    Args:
+        bus_name: D-Bus connection name (e.g. ":1.340").
+        object_path: Object path (e.g. "/StatusNotifierItem").
+        prop: Property name (e.g. "Id", "Menu").
+
+    Returns:
+        The property value as a string, or None if the query fails.
+    """
+    try:
+        output = run_tool(
+            [
+                "busctl",
+                "--user",
+                "get-property",
+                "--",
+                bus_name,
+                object_path,
+                _SNI_ITEM_IFACE,
+                prop,
+            ]
+        )
+    except RuntimeError:
+        return None
+    # busctl output for string: s "value"
+    # busctl output for object path: o "/MenuBar"
+    m = re.search(r'[so]\s+"([^"]*)"', output)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _resolve_menu_path(item: TrayItem) -> str:
+    """Resolve the DBusMenu object path for a tray item.
+
+    Queries the SNI item's Menu property first. Falls back to
+    object_path + "/Menu" if the property is not available.
+
+    Args:
+        item: The tray item to resolve the menu path for.
+
+    Returns:
+        The D-Bus object path for the item's menu.
+    """
+    menu_prop = _query_sni_property(item.bus_name, item.object_path, "Menu")
+    if menu_prop and menu_prop.startswith("/"):
+        return menu_prop
+
+    # Fallback: append /Menu to the object path
+    fallback = item.object_path + "/Menu"
+    if not fallback.startswith("/"):
+        fallback = "/" + fallback
+    return fallback
+
+
 def list_items() -> list[TrayItem]:
     """Query the StatusNotifierWatcher for registered tray items.
 
@@ -62,6 +119,9 @@ def _parse_registered_items(output: str) -> list[TrayItem]:
     The output format is:
         as N "bus_name/obj_path" "bus_name2/obj_path2" ...
 
+    For connection IDs (e.g. ":1.340"), queries the SNI item's Id
+    property to get the real application name.
+
     Args:
         output: Raw busctl output string.
 
@@ -83,6 +143,13 @@ def _parse_registered_items(output: str) -> list[TrayItem]:
 
         # Extract a readable name from the bus name
         name = bus_name.split(".")[-1] if "." in bus_name else bus_name
+
+        # If the name is just a number (connection ID like :1.340 -> "340"),
+        # query the SNI item's Id property to get the real app name
+        if name.isdigit():
+            sni_id = _query_sni_property(bus_name, obj_path, "Id")
+            if sni_id:
+                name = sni_id
 
         items.append(
             TrayItem(
@@ -115,6 +182,7 @@ def click(app_name: str) -> None:
             "busctl",
             "--user",
             "call",
+            "--",
             item.bus_name,
             item.object_path,
             _SNI_ITEM_IFACE,
@@ -130,6 +198,8 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
     """Get the context menu entries for a tray item.
 
     Calls the DBusMenu interface to retrieve menu items.
+    Resolves the menu path from the SNI item's Menu property,
+    falling back to object_path + "/Menu" and then object_path.
 
     Args:
         app_name: Name substring to match against tray items.
@@ -144,10 +214,7 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
     item = _find_item(app_name)
     check_tool("busctl")
 
-    # DBusMenu is usually at object_path + "/Menu" or a Menu property
-    menu_path = item.object_path + "/Menu"
-    if not menu_path.startswith("/"):
-        menu_path = "/" + menu_path
+    menu_path = _resolve_menu_path(item)
 
     try:
         output = run_tool(
@@ -155,6 +222,7 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
                 "busctl",
                 "--user",
                 "call",
+                "--",
                 item.bus_name,
                 menu_path,
                 "com.canonical.dbusmenu",
@@ -166,12 +234,13 @@ def menu(app_name: str) -> list[TrayMenuEntry]:
             ]
         )
     except RuntimeError:
-        # Some apps use a different menu path
+        # Some apps use the item's own object path for the menu
         output = run_tool(
             [
                 "busctl",
                 "--user",
                 "call",
+                "--",
                 item.bus_name,
                 item.object_path,
                 "com.canonical.dbusmenu",
@@ -232,9 +301,7 @@ def select(app_name: str, item_label: str) -> None:
     for entry in entries:
         if item_label.lower() in entry.label.lower():
             item = _find_item(app_name)
-            menu_path = item.object_path + "/Menu"
-            if not menu_path.startswith("/"):
-                menu_path = "/" + menu_path
+            menu_path = _resolve_menu_path(item)
 
             try:
                 run_tool(
@@ -242,6 +309,7 @@ def select(app_name: str, item_label: str) -> None:
                         "busctl",
                         "--user",
                         "call",
+                        "--",
                         item.bus_name,
                         menu_path,
                         "com.canonical.dbusmenu",
@@ -260,6 +328,7 @@ def select(app_name: str, item_label: str) -> None:
                         "busctl",
                         "--user",
                         "call",
+                        "--",
                         item.bus_name,
                         item.object_path,
                         "com.canonical.dbusmenu",

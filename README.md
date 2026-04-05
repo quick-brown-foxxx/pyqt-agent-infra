@@ -61,7 +61,7 @@ VirtualBox is partially supported in templates but only libvirt has been tested.
 ### 1. Install the agent skills
 
 ```bash
-npx -y @anthropic-ai/claude-code skill add quick-brown-foxxx/qt-ai-dev-tools
+npx -y skills add quick-brown-foxxx/qt-ai-dev-tools
 ```
 
 This gives your agent the `qt-dev-tools-setup` and `qt-app-interaction` skills — structured guidance for setting up the environment and interacting with Qt apps.

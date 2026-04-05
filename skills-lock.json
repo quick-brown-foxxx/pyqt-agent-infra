@@ -19,7 +19,7 @@
     "setting-up-python-projects": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "affc5a2884eb81aa70b537ff84445300ddf6490eb9ba688922fb09b9765c9f57"
+      "computedHash": "f9a8ee1cf504069a7743d4a3343f6b2852021fc720cb20512f8630872b95938f"
     },
     "setting-up-shortcuts": {
       "source": "quick-brown-foxxx/coding_rules_python",
@@ -34,12 +34,12 @@
     "writing-python-code": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "b4dca0b5b79fabb75b2d056f2a34dd5a932efa870acf0d180739d062fe15b464"
+      "computedHash": "99cc0f373b8cb8aeaf3b08f6266bef8ba6fb96238cc13828641b38c74aaf3875"
     },
     "writing-python-scripts": {
       "source": "quick-brown-foxxx/coding_rules_python",
       "sourceType": "github",
-      "computedHash": "92245e6ff30fed6f695d1ce3e50a2453a3ec9c2b1a3113ad6360fd83b17a88af"
+      "computedHash": "bf4164e77b5c36da9d9295cd7786283d93f5a6791f8aaba0008d57fc7fda89b1"
     }
   }
 }

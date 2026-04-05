@@ -116,8 +116,9 @@ class TestFill:
         """fill() should find the filename field and type the path."""
         from qt_ai_dev_tools.subsystems.file_dialog import fill
 
+        dialog = MockNode(name="Open File", role_name="file chooser")
         field = MockNode(name="fileNameEdit", role_name="text")
-        pilot = MockPilot({"fields": [field]})
+        pilot = MockPilot({"dialogs": [dialog], "fields": [field]})
 
         fill(pilot, "/tmp/test.txt")  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
 
@@ -127,68 +128,46 @@ class TestFill:
         assert "Delete" in pilot.keys_pressed
         assert "/tmp/test.txt" in pilot.typed
 
-    def test_fill_raises_when_no_field(self) -> None:
-        """fill() should raise LookupError when no text field is found."""
+    def test_fill_raises_when_no_dialog(self) -> None:
+        """fill() should raise LookupError when no file dialog is found."""
         from qt_ai_dev_tools.subsystems.file_dialog import fill
 
         pilot = MockPilot()
+
+        with pytest.raises(LookupError, match="No file dialog found"):
+            fill(pilot, "/tmp/test.txt")  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
+
+    def test_fill_raises_when_no_field(self) -> None:
+        """fill() should raise LookupError when dialog exists but no text field."""
+        from qt_ai_dev_tools.subsystems.file_dialog import fill
+
+        dialog = MockNode(name="Open File", role_name="file chooser")
+        pilot = MockPilot({"dialogs": [dialog]})
 
         with pytest.raises(LookupError, match="No filename text field"):
             fill(pilot, "/tmp/test.txt")  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
 
 
 class TestAccept:
-    def test_accept_clicks_open_button(self) -> None:
-        """accept() should click the Open button."""
-        from qt_ai_dev_tools.subsystems.file_dialog import accept
-
-        btn = MockNode(name="Open", role_name="push button")
-        pilot = MockPilot({"buttons": [btn]})
-
-        result = accept(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
-
-        assert result.accepted is True
-        assert len(pilot.clicked) == 1
-        assert pilot.clicked[0] is btn
-
-    def test_accept_clicks_save_button(self) -> None:
-        """accept() should click the Save button when Open is absent."""
-        from qt_ai_dev_tools.subsystems.file_dialog import accept
-
-        btn = MockNode(name="Save", role_name="push button")
-        pilot = MockPilot({"buttons": [btn]})
-
-        result = accept(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
-        assert result.accepted is True
-
-    def test_accept_raises_when_no_button(self) -> None:
-        """accept() should raise LookupError when no accept button exists."""
+    def test_accept_presses_return(self) -> None:
+        """accept() should press Return to confirm the dialog."""
         from qt_ai_dev_tools.subsystems.file_dialog import accept
 
         pilot = MockPilot()
 
-        with pytest.raises(LookupError, match="No accept button found"):
-            accept(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
+        result = accept(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
+
+        assert result.accepted is True
+        assert "Return" in pilot.keys_pressed
 
 
 class TestCancel:
-    def test_cancel_clicks_cancel_button(self) -> None:
-        """cancel() should click the Cancel button."""
-        from qt_ai_dev_tools.subsystems.file_dialog import cancel
-
-        btn = MockNode(name="Cancel", role_name="push button")
-        pilot = MockPilot({"buttons": [btn]})
-
-        cancel(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
-
-        assert len(pilot.clicked) == 1
-        assert pilot.clicked[0] is btn
-
-    def test_cancel_raises_when_no_button(self) -> None:
-        """cancel() should raise LookupError when no Cancel button exists."""
+    def test_cancel_presses_escape(self) -> None:
+        """cancel() should press Escape to dismiss the dialog."""
         from qt_ai_dev_tools.subsystems.file_dialog import cancel
 
         pilot = MockPilot()
 
-        with pytest.raises(LookupError, match="No Cancel button found"):
-            cancel(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
+        cancel(pilot)  # type: ignore[reportArgumentType]  # rationale: MockPilot for testing
+
+        assert "Escape" in pilot.keys_pressed

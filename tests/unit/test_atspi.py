@@ -142,15 +142,21 @@ class TestGetExtents:
 
 class TestGetText:
     def test_returns_text_from_text_iface(self) -> None:
+        from qt_ai_dev_tools import _atspi as _atspi_mod
+
         native = _make_native(name="FallbackName")
         text_iface = MagicMock()
-        text_iface.get_character_count.return_value = 11
-        text_iface.get_text.return_value = "Hello World"
         native.get_text_iface.return_value = text_iface
-        node = AtspiNode(native)
 
-        assert node.get_text() == "Hello World"
-        text_iface.get_text.assert_called_once_with(0, 11)
+        # get_text calls Atspi.Text.get_character_count / Atspi.Text.get_text (class-level).
+        # Patch Atspi on the actual _atspi module (may be real gi or mock depending on env).
+        mock_text = MagicMock()
+        mock_text.get_character_count.return_value = 11
+        mock_text.get_text.return_value = "Hello World"
+        with patch.object(_atspi_mod, "Atspi", **{"Text": mock_text}):
+            node = AtspiNode(native)
+            assert node.get_text() == "Hello World"
+            mock_text.get_text.assert_called_once_with(text_iface, 0, 11)
 
     def test_falls_back_to_name_when_no_text_iface(self) -> None:
         native = _make_native(name="ButtonLabel")

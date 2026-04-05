@@ -261,7 +261,7 @@ def find(
     widgets = pilot.find(role=role, name=name)
     if not widgets:
         typer.echo("No widgets found.", err=True)
-        raise typer.Exit(code=1)
+        return
     if output_json:
         typer.echo(json.dumps([_widget_dict(w) for w in widgets], indent=2, ensure_ascii=False))
     else:

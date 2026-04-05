@@ -24,10 +24,10 @@ class TestDefaultConfig:
         assert config.provider == "libvirt"
         assert config.memory == 4096
         assert config.cpus == 4
-        assert config.mac_address == "52:54:00:AB:CD:EF"
+        assert config.mac_address == ""
         assert config.static_ip == ""
         assert config.shared_folder == "."
-        assert config.rsync_excludes == [".git/", ".vagrant/"]
+        assert config.rsync_excludes == [".git/", ".vagrant/", ".venv/"]
         assert config.display == ":99"
         assert config.resolution == "1920x1080x24"
         assert config.extra_packages == []

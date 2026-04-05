@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import glob as glob_mod
+import importlib
 import os
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Generator
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -17,6 +20,27 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("DISPLAY"),
     reason="E2E tests require Xvfb (run in VM via 'make test-e2e')",
 )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_real_atspi() -> None:
+    """Reload _atspi module to clear any mocks leaked from unit tests.
+
+    Unit tests in ``tests/unit/test_atspi.py`` inject mock ``gi`` modules at
+    module level via ``sys.modules.setdefault``.  If unit tests run before e2e
+    tests in the same pytest process, the ``qt_ai_dev_tools._atspi`` module
+    holds a reference to the mocked ``Atspi`` forever.  This fixture detects
+    that contamination and forces a reload with the real ``gi`` bindings.
+    """
+    import qt_ai_dev_tools._atspi as _atspi_mod
+
+    if isinstance(getattr(_atspi_mod, "Atspi", None), MagicMock):
+        # Remove mock gi modules so the real ones get imported on reload
+        for mod_name in ["gi", "gi.repository", "gi.repository.Atspi"]:
+            if mod_name in sys.modules and isinstance(sys.modules[mod_name], MagicMock):
+                del sys.modules[mod_name]
+        importlib.reload(_atspi_mod)
+
 
 _SOCKET_GLOB = "/tmp/qt-ai-dev-tools-bridge-*.sock"
 _APPS_DIR = Path(__file__).parent.parent / "apps"
@@ -174,7 +198,7 @@ def file_dialog_app() -> Generator[subprocess.Popen[str], None, None]:
     """Start the file dialog test app, yield process, then kill."""
     app_path = _APPS_DIR / "file_dialog_app.py"
     proc = _start_app(app_path, bridge=True)
-    _wait_for_app_window(proc, "File Dialog Test App")
+    _wait_for_app_window(proc, "file_dialog_app.py")  # AT-SPI app name, not window title
     yield proc
     _kill_app(proc)
 
@@ -299,7 +323,7 @@ def audio_app() -> Generator[subprocess.Popen[str], None, None]:
     """Start the audio test app, yield process, then kill."""
     app_path = _APPS_DIR / "audio_app.py"
     proc = _start_app(app_path, bridge=True)
-    _wait_for_app_window(proc, "Audio Test App")
+    _wait_for_app_window(proc, "audio_app.py")  # AT-SPI app name, not window title
     yield proc
     _kill_app(proc)
 
@@ -309,6 +333,6 @@ def stt_app() -> Generator[subprocess.Popen[str], None, None]:
     """Start the STT test app, yield process, then kill."""
     app_path = _APPS_DIR / "stt_app.py"
     proc = _start_app(app_path, bridge=True)
-    _wait_for_app_window(proc, "STT Test App")
+    _wait_for_app_window(proc, "stt_app.py")  # AT-SPI app name, not window title
     yield proc
     _kill_app(proc)

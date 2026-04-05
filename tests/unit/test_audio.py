@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -76,19 +77,16 @@ class TestVerifyNotSilence:
         audio_file = tmp_path / "test.wav"
         audio_file.write_bytes(b"fake wav data")
 
-        mock_result = type(
-            "Result",
-            (),
-            {
-                "returncode": 0,
-                "stdout": "",
-                "stderr": "Maximum amplitude:   0.5\nRMS     amplitude:   0.3\nLength (seconds):      1.0\n",
-            },
-        )()
+        mock_result = subprocess.CompletedProcess(
+            args=["sox", str(audio_file), "-n", "stat"],
+            returncode=0,
+            stdout="",
+            stderr="Maximum amplitude:   0.5\nRMS     amplitude:   0.3\nLength (seconds):      1.0\n",
+        )
 
         with (
             patch("qt_ai_dev_tools.subsystems.audio.check_tool"),
-            patch("subprocess.run", return_value=mock_result),
+            patch("qt_ai_dev_tools.subsystems.audio.run_command", return_value=mock_result),
         ):
             result = verify_not_silence(audio_file)
 

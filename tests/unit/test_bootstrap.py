@@ -62,7 +62,7 @@ class TestDetectPythonVersion:
 
         with (
             patch("qt_ai_dev_tools.bridge._bootstrap.Path") as mock_path_cls,
-            patch("qt_ai_dev_tools.run.subprocess.run", return_value=mock_result),
+            patch("qt_ai_dev_tools.bridge._bootstrap.run_command", return_value=mock_result),
         ):
             mock_exe_link = MagicMock()
             mock_exe_link.exists.return_value = True
@@ -86,7 +86,7 @@ class TestDetectPythonVersion:
 
         with (
             patch("qt_ai_dev_tools.bridge._bootstrap.Path") as mock_path_cls,
-            patch("qt_ai_dev_tools.run.subprocess.run", return_value=mock_result),
+            patch("qt_ai_dev_tools.bridge._bootstrap.run_command", return_value=mock_result),
         ):
             mock_exe_link = MagicMock()
             mock_exe_link.exists.return_value = True

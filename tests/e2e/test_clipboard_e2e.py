@@ -23,6 +23,39 @@ def _run_cli(*args: str, timeout: int = 10) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
 
 
+def _activate_app_window() -> None:
+    """Focus the X11 window so xdotool key events reach the app.
+
+    Bridge setFocus() sets Qt-internal widget focus but does not raise/activate
+    the X11 window.  xdotool sends keys to whatever window has X11 input focus,
+    so we must explicitly focus it first.
+
+    Uses ``windowfocus --sync`` instead of ``windowactivate`` because
+    ``windowfocus`` sets X11 input focus directly, which is more reliable
+    for keyboard events in headless Xvfb mode.  The last window ID returned
+    by ``xdotool search`` is typically the actual top-level window (not child
+    widgets).
+    """
+    result = subprocess.run(
+        ["xdotool", "search", "--name", "Qt Dev Proto"],
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    wids = result.stdout.strip().splitlines()
+    # Use the last window ID -- typically the actual main window
+    wid = wids[-1] if wids else ""
+    if wid:
+        subprocess.run(
+            ["xdotool", "windowfocus", "--sync", wid],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+        time.sleep(0.3)
+
+
 class TestClipboardWriteAndPaste:
     """Flow 2A: Write to clipboard + paste into app text field."""
 
@@ -43,6 +76,9 @@ class TestClipboardWriteAndPaste:
 
         # Write to clipboard
         clipboard.write(test_text)
+
+        # Activate the X11 window so xdotool key events reach the app
+        _activate_app_window()
 
         # Paste via xdotool (ctrl+v)
         _run_cli("key", "ctrl+v")
@@ -73,6 +109,9 @@ class TestClipboardCopyAndRead:
         eval_code(sock, "widgets['text_input'].setFocus()")
         eval_code(sock, "widgets['text_input'].selectAll()")
         time.sleep(0.3)
+
+        # Activate the X11 window so xdotool key events reach the app
+        _activate_app_window()
 
         # Copy via xdotool (ctrl+c)
         _run_cli("key", "ctrl+c")

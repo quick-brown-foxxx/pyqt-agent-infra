@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess as _subprocess
 from pathlib import Path
-from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -56,8 +55,8 @@ class TestFindWorkspace:
 
 
 class TestVagrant:
-    def test_vagrant_helper_calls_subprocess(self, tmp_path: Path) -> None:
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+    def test_vagrant_helper_calls_run_command(self, tmp_path: Path) -> None:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "status"], returncode=0, stdout="", stderr=""
             )
@@ -71,7 +70,7 @@ class TestVagrant:
 class TestVmUp:
     def test_calls_vagrant_up_with_provider(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "up", "--provider=libvirt"], returncode=0, stdout="", stderr=""
             )
@@ -85,7 +84,7 @@ class TestVmUp:
 class TestVmStatus:
     def test_calls_vagrant_status(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "status"], returncode=0, stdout="", stderr=""
             )
@@ -99,7 +98,7 @@ class TestVmStatus:
 class TestVmDestroy:
     def test_calls_vagrant_destroy_force(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "destroy", "-f"], returncode=0, stdout="", stderr=""
             )
@@ -113,7 +112,7 @@ class TestVmDestroy:
 class TestVmSync:
     def test_calls_vagrant_rsync(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "rsync"], returncode=0, stdout="", stderr=""
             )
@@ -128,7 +127,7 @@ class TestVmRun:
     def test_vagrant_ssh_with_env_prefix(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
 
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
                 args=["vagrant", "ssh", "-c", "..."], returncode=0, stdout="output", stderr=""
             )
@@ -147,38 +146,47 @@ class TestVmStream:
     """Test that stream parameter is passed through to run_command."""
 
     def test_vagrant_helper_passes_stream(self, tmp_path: Path) -> None:
-        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
-            mock_call.return_value = 0
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
+            )
             _vagrant(["status"], tmp_path, stream=True)
-            mock_call.assert_called_once()
-            call_args = mock_call.call_args
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
             assert call_args[0][0] == ["vagrant", "status"]
             assert call_args[1]["cwd"] == tmp_path
+            assert call_args[1]["stream"] is True
 
     def test_vm_up_passes_stream(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
-            mock_call.return_value = 0
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "up", "--provider=libvirt"], returncode=0, stdout="", stderr=""
+            )
             vm_up(tmp_path, stream=True)
-            mock_call.assert_called_once()
-            assert mock_call.call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
+            mock_run.assert_called_once()
+            assert mock_run.call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
+            assert mock_run.call_args[1]["stream"] is True
 
     def test_vm_run_passes_stream(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
-            mock_call.return_value = 0
+        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
+            mock_run.return_value = _subprocess.CompletedProcess(
+                args=["vagrant", "ssh", "-c", "..."], returncode=0, stdout="", stderr=""
+            )
             vm_run("echo hello", tmp_path, stream=True)
-            mock_call.assert_called_once()
-            cmd = mock_call.call_args[0][0]
+            mock_run.assert_called_once()
+            cmd = mock_run.call_args[0][0]
             assert cmd[0] == "vagrant"
             assert "echo hello" in cmd[3]
+            assert mock_run.call_args[1]["stream"] is True
 
 
 class TestVmSyncAuto:
     def test_starts_rsync_auto_process(self, tmp_path: Path) -> None:
         vagrantfile = tmp_path / "Vagrantfile"
         vagrantfile.touch()
-        with mock.patch("qt_ai_dev_tools.vagrant.vm.subprocess.Popen") as mock_popen:
+        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.Popen") as mock_popen:
             vm_sync_auto(tmp_path)
             mock_popen.assert_called_once()
             args = mock_popen.call_args

@@ -157,6 +157,142 @@ class QtPilot:
             interact.press_key("Delete")
         self.type_text(value)
 
+    def select_combo_item(
+        self,
+        item_text: str,
+        role: str = "combo box",
+        name: str | None = None,
+    ) -> None:
+        """Select an item in a combo box by exact text match.
+
+        Finds the combo box, iterates its children, and selects the one
+        whose name matches item_text exactly.
+
+        Raises:
+            LookupError: If no child matches item_text.
+        """
+        combo = self.find_one(role=role, name=name)
+        for i, child in enumerate(combo.children):
+            if child.name == item_text:
+                combo.select_child(i)
+                return
+        available = [c.name for c in combo.children]
+        msg = f"Item {item_text!r} not found in combo box. Available: {available}"
+        raise LookupError(msg)
+
+    def switch_tab(
+        self,
+        tab_text: str,
+        role: str = "page tab list",
+        name: str | None = None,
+    ) -> None:
+        """Switch to a tab by substring match on tab name.
+
+        Finds the tab list, iterates its children, and selects the first
+        tab whose name contains tab_text.
+
+        Raises:
+            LookupError: If no tab name contains tab_text.
+        """
+        tab_list = self.find_one(role=role, name=name)
+        for i, child in enumerate(tab_list.children):
+            if tab_text in child.name:
+                tab_list.select_child(i)
+                return
+        available = [c.name for c in tab_list.children]
+        msg = f"Tab {tab_text!r} not found. Available: {available}"
+        raise LookupError(msg)
+
+    def get_table_cell(
+        self,
+        row: int,
+        col: int,
+        role: str = "table",
+        name: str | None = None,
+    ) -> str:
+        """Get text content of a table cell.
+
+        Raises:
+            LookupError: If the cell at (row, col) does not exist.
+        """
+        table = self.find_one(role=role, name=name)
+        cell = table.get_cell_at(row, col)
+        if cell is None:
+            msg = f"No cell at ({row}, {col}) in table"
+            raise LookupError(msg)
+        return cell.get_text()
+
+    def get_table_size(
+        self,
+        role: str = "table",
+        name: str | None = None,
+    ) -> tuple[int, int]:
+        """Get (rows, columns) of a table."""
+        table = self.find_one(role=role, name=name)
+        return (table.get_n_rows(), table.get_n_columns())
+
+    def check_checkbox(
+        self,
+        checked: bool = True,
+        role: str = "check box",
+        name: str | None = None,
+    ) -> None:
+        """Toggle a checkbox via AT-SPI action.
+
+        Tries the 'Toggle' action first, falls back to 'Press'.
+
+        Args:
+            checked: Unused — AT-SPI only supports toggling, not setting
+                     a specific state. Kept for API symmetry.
+            role: Widget role to search for.
+            name: Widget name substring to match.
+        """
+        _ = checked  # AT-SPI only supports toggle, not set-to-state
+        widget = self.find_one(role=role, name=name)
+        try:
+            widget.do_action("Toggle")
+        except LookupError:
+            widget.do_action("Press")
+
+    def set_slider_value(
+        self,
+        value: float,
+        role: str = "slider",
+        name: str | None = None,
+    ) -> None:
+        """Set a slider (or spinner) to a specific value via the Value interface."""
+        widget = self.find_one(role=role, name=name)
+        widget.set_value(value)
+
+    def get_widget_value(
+        self,
+        role: str | None = None,
+        name: str | None = None,
+    ) -> float | None:
+        """Get the numeric value of a widget via the Value interface.
+
+        Returns None if the widget has no Value interface.
+        """
+        widget = self.find_one(role=role, name=name)
+        return widget.get_value()
+
+    def select_menu_item(self, *path: str, pause: float = 0.3) -> None:
+        """Navigate a menu hierarchy by clicking each level.
+
+        Each string in path is a menu item name. The method finds and clicks
+        widgets matching that name in sequence, pausing between each click
+        for the submenu to appear.
+
+        Raises:
+            LookupError: If any item in the path is not found.
+        """
+        for menu_text in path:
+            found = self.find(name=menu_text)
+            if not found:
+                msg = f"Menu item {menu_text!r} not found"
+                raise LookupError(msg)
+            self.click(found[0], pause=pause)
+
     # ── Screenshots ──────────────────────────────────────────────
 
     def screenshot(self, path: str = "/tmp/screenshot.png") -> str:  # noqa: S108

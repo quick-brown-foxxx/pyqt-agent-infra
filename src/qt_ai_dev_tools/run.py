@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import shlex
+import signal
 import subprocess
 from pathlib import Path
 
@@ -54,6 +55,37 @@ def set_silent(*, enabled: bool) -> None:
 def is_silent() -> bool:
     """Check if silent mode is active."""
     return _silent
+
+
+def _terminate_process(proc: subprocess.Popen[str], cmd_str: str) -> None:
+    """Terminate a subprocess and its children via process group signals.
+
+    Sends SIGTERM to the process group, waits up to 3 seconds for graceful
+    shutdown, then escalates to SIGKILL if the process is still alive.
+    """
+    pid = proc.pid
+    logger.debug("Terminating process %d: %s", pid, cmd_str)
+
+    try:
+        pgid = os.getpgid(pid)
+        os.killpg(pgid, signal.SIGTERM)
+        logger.debug("Sent SIGTERM to process group %d", pgid)
+    except (ProcessLookupError, PermissionError):
+        logger.debug("Process %d already gone (SIGTERM phase)", pid)
+        return
+
+    try:
+        proc.wait(timeout=3)
+        logger.debug("Process %d terminated gracefully", pid)
+    except subprocess.TimeoutExpired:
+        logger.debug("Process %d did not exit after SIGTERM, sending SIGKILL", pid)
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGKILL)
+            logger.debug("Sent SIGKILL to process group %d", pgid)
+        except (ProcessLookupError, PermissionError):
+            logger.debug("Process %d already gone (SIGKILL phase)", pid)
+        proc.wait()
 
 
 def run_command(
@@ -101,17 +133,25 @@ def run_command(
 
     if stream:
         try:
-            returncode = subprocess.call(
+            proc = subprocess.Popen(
                 args,
-                timeout=timeout,
+                text=True,
                 env=merged_env,
                 cwd=cwd,
+                start_new_session=True,
             )
-        except subprocess.TimeoutExpired as exc:
-            msg = f"Command timed out after {timeout}s: {cmd_str}"
-            raise RuntimeError(msg) from exc
         except FileNotFoundError as exc:
             msg = f"Command not found: {args[0]}"
+            raise RuntimeError(msg) from exc
+
+        try:
+            returncode = proc.wait(timeout=timeout)
+        except KeyboardInterrupt:
+            _terminate_process(proc, cmd_str)
+            raise
+        except subprocess.TimeoutExpired as exc:
+            _terminate_process(proc, cmd_str)
+            msg = f"Command timed out after {timeout}s: {cmd_str}"
             raise RuntimeError(msg) from exc
 
         if check and returncode != 0:
@@ -121,20 +161,34 @@ def run_command(
         return subprocess.CompletedProcess(args=args, returncode=returncode, stdout="", stderr="")
 
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             args,
-            input=input_data,
-            capture_output=True,
+            stdin=subprocess.PIPE if input_data is not None else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
             env=merged_env,
             cwd=cwd,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired as exc:
-        msg = f"Command timed out after {timeout}s: {cmd_str}"
-        raise RuntimeError(msg) from exc
     except FileNotFoundError as exc:
         msg = f"Command not found: {args[0]}"
+        raise RuntimeError(msg) from exc
+
+    try:
+        stdout, stderr = proc.communicate(input=input_data, timeout=timeout)
+        result = subprocess.CompletedProcess(
+            args=args,
+            returncode=proc.returncode,
+            stdout=stdout or "",
+            stderr=stderr or "",
+        )
+    except KeyboardInterrupt:
+        _terminate_process(proc, cmd_str)
+        raise
+    except subprocess.TimeoutExpired as exc:
+        _terminate_process(proc, cmd_str)
+        msg = f"Command timed out after {timeout}s: {cmd_str}"
         raise RuntimeError(msg) from exc
 
     if result.stdout:

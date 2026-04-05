@@ -56,7 +56,16 @@ def vm_ssh(workspace: Path | None = None) -> None:
     """SSH into the VM (interactive)."""
     ws = find_workspace(workspace)
     logger.info("$ vagrant ssh (interactive)")
-    subprocess.run(["vagrant", "ssh"], cwd=ws, check=False)
+    proc = subprocess.Popen(["vagrant", "ssh"], cwd=ws)
+    try:
+        proc.wait()
+    except KeyboardInterrupt:
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
 
 
 def vm_destroy(workspace: Path | None = None, *, stream: bool = False) -> subprocess.CompletedProcess[str]:

@@ -38,10 +38,6 @@ dev = [
     "basedpyright>=1.34.0",
     "pre-commit",
     "poethepoet",
-]
-# PySide6 stubs for host-side type checking. In the VM, PySide6 is a system
-# package symlinked into the venv — don't install this group there.
-typing = [
     "PySide6-Essentials>=6.8.0",
 ]
 

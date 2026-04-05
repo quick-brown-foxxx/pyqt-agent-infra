@@ -71,9 +71,6 @@ ln -sf /opt/uv/uvx /usr/local/bin/uvx
 echo "==> Creating project venv with uv sync"
 VM_VENV="/home/vagrant/.venv-qt-ai-dev-tools"
 su - vagrant -c "UV_PROJECT_ENVIRONMENT=$VM_VENV uv sync --project /vagrant"
-# Install PySide6 into the venv (not a project dep — it's a system package that
-# needs to be in the venv for pytest-qt and e2e tests to work)
-su - vagrant -c "VIRTUAL_ENV=$VM_VENV uv pip install PySide6"
 
 # Link system-only gi/pygobject into the venv (not pip-installable).
 # gi.repository.Atspi requires: gi package, _gi C extension, pygtkcompat.

@@ -39,3 +39,4 @@
 ### future thoughts
 - potential use it as accessibility tool?
 - potential for non-qt apps?
+- more AT-SPI coverage

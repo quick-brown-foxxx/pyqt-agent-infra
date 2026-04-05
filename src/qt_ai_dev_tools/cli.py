@@ -1277,3 +1277,67 @@ def audio_verify_cmd(
 
     if result.is_silent:
         raise typer.Exit(code=1)
+
+
+# ── Snapshot commands ────────────────────────────────────────────
+
+snapshot_app = typer.Typer(help="Widget tree snapshot and diff.", context_settings=_CONTEXT)
+app.add_typer(snapshot_app, name="snapshot")
+
+
+@snapshot_app.command(name="save")
+def snapshot_save_cmd(
+    name: typing.Annotated[str, typer.Argument(help="Snapshot name")],
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    max_depth: typing.Annotated[int, typer.Option("--depth", help="Maximum tree depth")] = 8,
+) -> None:
+    """Capture the current widget tree and save to a snapshot file."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.snapshot import capture_tree, save_snapshot
+
+    pilot = _get_pilot(app_name)
+    if pilot.app is None:
+        typer.echo("Error: no app connected", err=True)
+        raise typer.Exit(code=1)
+
+    entries = capture_tree(pilot.app, max_depth=max_depth)
+    out_path = Path("snapshots") / f"{name}.json"
+    save_snapshot(entries, out_path)
+    typer.echo(f"Saved snapshot '{name}' ({len(entries)} widgets) to {out_path}")
+
+
+@snapshot_app.command(name="diff")
+def snapshot_diff_cmd(
+    name: typing.Annotated[str, typer.Argument(help="Snapshot name to compare against")],
+    app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    max_depth: typing.Annotated[int, typer.Option("--depth", help="Maximum tree depth")] = 8,
+    output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Compare the current widget tree against a saved snapshot."""
+    _proxy_to_vm()
+    from qt_ai_dev_tools.snapshot import capture_tree, diff_snapshots, format_diff, load_snapshot
+
+    snap_path = Path("snapshots") / f"{name}.json"
+    try:
+        old_entries = load_snapshot(snap_path)
+    except FileNotFoundError:
+        typer.echo(f"Error: snapshot '{name}' not found at {snap_path}", err=True)
+        raise typer.Exit(code=1) from None
+
+    pilot = _get_pilot(app_name)
+    if pilot.app is None:
+        typer.echo("Error: no app connected", err=True)
+        raise typer.Exit(code=1)
+
+    new_entries = capture_tree(pilot.app, max_depth=max_depth)
+    diff = diff_snapshots(old_entries, new_entries)
+
+    if output_json:
+        diff_data: dict[str, object] = {
+            "added": [e.to_dict() for e in diff.added],
+            "removed": [e.to_dict() for e in diff.removed],
+            "changed": [{"old": old_e.to_dict(), "new": new_e.to_dict()} for old_e, new_e in diff.changed],
+        }
+        typer.echo(json.dumps(diff_data, indent=2, ensure_ascii=False))
+    else:
+        typer.echo(format_diff(diff))

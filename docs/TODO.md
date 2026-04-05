@@ -13,6 +13,7 @@
   - rename default init action to smth more scary to use (available for users who want to override/edit but not recommended for all)
   - auto bundle skills on installation
   - override command name in skills on local installation
+- rewrite cli api
   
 ## propmpts
 

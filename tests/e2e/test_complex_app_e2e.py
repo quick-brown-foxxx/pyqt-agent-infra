@@ -62,16 +62,20 @@ class TestTabNavigation:
         assert len(tables) >= 1, "Expected at least one table on the Data tab"
 
     def test_switch_to_settings_tab(self, complex_app: subprocess.Popen[str]) -> None:
-        """Switch to Settings tab, verify scroll area is findable."""
+        """Switch to Settings tab, verify settings widgets are findable."""
         from qt_ai_dev_tools.pilot import QtPilot
 
         pilot = QtPilot(app_name="complex_app.py")
         pilot.switch_tab("Settings")
         time.sleep(0.5)
 
-        # Scroll area should be visible on the Settings tab
-        scroll_panes = pilot.find(role="scroll pane")
-        assert len(scroll_panes) >= 1, "Expected at least one scroll pane on Settings tab"
+        # QScrollArea exposes as nested filler nodes in AT-SPI, not
+        # "scroll pane".  Verify that settings-specific widgets are
+        # present instead (e.g. "Show Dialog" button and Option checkboxes).
+        dialog_btns = pilot.find(role="push button", name="Show Dialog")
+        assert len(dialog_btns) >= 1, "Expected 'Show Dialog' button on the Settings tab"
+        option_checks = pilot.find(role="check box", name="Option 1")
+        assert len(option_checks) >= 1, "Expected 'Option 1' checkbox on the Settings tab"
 
     def test_switch_to_inputs_tab(self, complex_app: subprocess.Popen[str]) -> None:
         """Switch to Inputs tab, verify combo box is findable."""

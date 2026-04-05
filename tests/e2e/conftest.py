@@ -81,7 +81,7 @@ def _start_app(
         env["QT_AI_DEV_TOOLS_BRIDGE"] = "1"
 
     return subprocess.Popen(
-        ["python3", str(app_path)],
+        [sys.executable, str(app_path)],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -117,29 +117,32 @@ def _wait_for_app_window(
             stderr = proc.stderr.read() if proc.stderr else ""
             pytest.fail(f"App exited early (code {proc.returncode}).\nstdout: {stdout}\nstderr: {stderr}")
 
-        # Strategy 1: check AT-SPI app names (matches script filenames)
-        apps_result = subprocess.run(
-            ["python3", "-m", "qt_ai_dev_tools", "apps"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        if term_lower in apps_result.stdout.lower():
-            time.sleep(0.5)
-            return
+        try:
+            # Strategy 1: check AT-SPI app names (matches script filenames)
+            apps_result = subprocess.run(
+                [sys.executable, "-m", "qt_ai_dev_tools", "apps"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if term_lower in apps_result.stdout.lower():
+                time.sleep(0.5)
+                return
 
-        # Strategy 2: check the widget tree for window titles
-        tree_result = subprocess.run(
-            ["python3", "-m", "qt_ai_dev_tools", "tree"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        if term_lower in tree_result.stdout.lower():
-            time.sleep(0.5)
-            return
+            # Strategy 2: check the widget tree for window titles
+            tree_result = subprocess.run(
+                [sys.executable, "-m", "qt_ai_dev_tools", "tree"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if term_lower in tree_result.stdout.lower():
+                time.sleep(0.5)
+                return
+        except subprocess.TimeoutExpired:
+            pass  # AT-SPI query timed out; retry on next loop iteration
 
         time.sleep(_APP_POLL_INTERVAL)
 

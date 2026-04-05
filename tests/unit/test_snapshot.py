@@ -135,12 +135,8 @@ class TestCaptureTree:
         # gi.repository.Atspi is the real C library and won't accept
         # MagicMock objects as arguments.
         mock_atspi = MagicMock()
-        mock_atspi.Text.get_character_count.side_effect = (
-            lambda iface: len(iface._stored_text)
-        )
-        mock_atspi.Text.get_text.side_effect = (
-            lambda iface, _start, _end: iface._stored_text
-        )
+        mock_atspi.Text.get_character_count.side_effect = lambda iface: len(iface._stored_text)
+        mock_atspi.Text.get_text.side_effect = lambda iface, _start, _end: iface._stored_text
         with patch.object(_atspi_mod, "Atspi", mock_atspi):
             entries = capture_tree(node)
 

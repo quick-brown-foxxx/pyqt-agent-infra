@@ -213,31 +213,49 @@ def _make_atspi_node_mock(
 
 
 class TestSelectComboItem:
-    """Test QtPilot.select_combo_item."""
+    """Test QtPilot.select_combo_item.
 
-    def test_selects_matching_child(self) -> None:
-        """Should call select_child with the correct index."""
-        child_a = _make_atspi_node_mock(name="Apple")
-        child_b = _make_atspi_node_mock(name="Banana")
-        combo = _make_atspi_node_mock(name="fruit", role_name="combo box", children=[child_a, child_b])
+    Implementation uses keyboard navigation: click combo to open popup,
+    arrow keys to navigate to target item, Enter to confirm.
+    AT-SPI tree: [combo box "current"] -> [list] -> [list item]*
+    """
+
+    def test_navigates_to_matching_item(self) -> None:
+        """Should click combo, arrow down to target, and press Enter."""
+        item_a = _make_atspi_node_mock(name="Apple", role_name="list item")
+        item_b = _make_atspi_node_mock(name="Banana", role_name="list item")
+        item_c = _make_atspi_node_mock(name="Cherry", role_name="list item")
+        list_node = _make_atspi_node_mock(name="", role_name="list", children=[item_a, item_b, item_c])
+        combo = _make_atspi_node_mock(name="Apple", role_name="combo box", children=[list_node])
+        combo.get_extents.return_value = MagicMock(center=(100, 100))
 
         pilot = _make_pilot_with_mock_find()
-        with patch.object(pilot, "find_one", return_value=combo):
-            pilot.select_combo_item("Banana", role="combo box", name="fruit")
+        # Patch click and press_key on the pilot instance methods to avoid xdotool
+        with (
+            patch.object(pilot, "find_one", return_value=combo),
+            patch.object(pilot, "click") as mock_click,
+            patch.object(pilot, "press_key") as mock_press,
+        ):
+            pilot.select_combo_item("Cherry", role="combo box")
 
-        combo.select_child.assert_called_once_with(1)
+        mock_click.assert_called()
+        # Navigate from Apple (idx 0) to Cherry (idx 2) = 2 Down + Enter
+        key_calls = [c[0][0] for c in mock_press.call_args_list]
+        assert key_calls.count("Down") == 2
+        assert "Return" in key_calls
 
     def test_raises_when_item_not_found(self) -> None:
         """Should raise LookupError when no child matches item_text."""
-        child = _make_atspi_node_mock(name="Apple")
-        combo = _make_atspi_node_mock(name="fruit", role_name="combo box", children=[child])
+        item = _make_atspi_node_mock(name="Apple", role_name="list item")
+        list_node = _make_atspi_node_mock(name="", role_name="list", children=[item])
+        combo = _make_atspi_node_mock(name="Apple", role_name="combo box", children=[list_node])
 
         pilot = _make_pilot_with_mock_find()
         with (
             patch.object(pilot, "find_one", return_value=combo),
             pytest.raises(LookupError, match="not found in combo box"),
         ):
-            pilot.select_combo_item("Cherry")
+            pilot.select_combo_item("Mango")
 
 
 # ── Tests for switch_tab ─────────────────────────────────────────

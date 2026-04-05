@@ -163,22 +163,81 @@ class QtPilot:
         role: str = "combo box",
         name: str | None = None,
     ) -> None:
-        """Select an item in a combo box by exact text match.
+        """Select an item in a combo box by keyboard navigation.
 
-        Finds the combo box, iterates its children, and selects the one
-        whose name matches item_text exactly.
+        Qt's AT-SPI Selection interface does not work for QComboBox
+        (select_child returns False), and clicking popup items is
+        unreliable because the popup overlaps the combo box.
+
+        Instead, this method:
+        1. Reads the item list from the combo's AT-SPI children
+        2. Clicks the combo to open its popup
+        3. Navigates to the target item using arrow keys
+        4. Presses Enter to confirm the selection
 
         Raises:
-            LookupError: If no child matches item_text.
+            LookupError: If no item matches item_text.
         """
         combo = self.find_one(role=role, name=name)
-        for i, child in enumerate(combo.children):
-            if child.name == item_text:
-                combo.select_child(i)
-                return
-        available = [c.name for c in combo.children]
-        msg = f"Item {item_text!r} not found in combo box. Available: {available}"
-        raise LookupError(msg)
+
+        # AT-SPI tree: [combo box] -> [list] -> [list item]*
+        items: list[AtspiNode] = []
+        for child in combo.children:
+            if child.role_name == "list":
+                items = child.children
+                break
+
+        if not items:
+            items = combo.children
+
+        item_names = [it.name for it in items]
+
+        # Find the target index
+        target_index = -1
+        for i, it in enumerate(items):
+            if it.name == item_text:
+                target_index = i
+                break
+
+        if target_index < 0:
+            msg = f"Item {item_text!r} not found in combo box. Available: {item_names}"
+            raise LookupError(msg)
+
+        # Find the currently selected index
+        current_index = -1
+        current_name = combo.name  # combo's accessible name = current selection
+        for i, it in enumerate(items):
+            if it.name == current_name:
+                current_index = i
+                break
+
+        logger.debug(
+            "select_combo_item: target=%r (idx=%d), current=%r (idx=%d), items=%r",
+            item_text,
+            target_index,
+            current_name,
+            current_index,
+            item_names,
+        )
+
+        # Click to open the popup (popup opens with current item highlighted)
+        self.click(combo, pause=0.3)
+
+        # Navigate from current to target using arrow keys
+        if current_index >= 0:
+            diff = target_index - current_index
+            key = "Down" if diff > 0 else "Up"
+            for _ in range(abs(diff)):
+                self.press_key(key, pause=0.05)
+        else:
+            # Unknown current position: go to top, then navigate down
+            for _ in range(len(items)):
+                self.press_key("Up", pause=0.02)
+            for _ in range(target_index):
+                self.press_key("Down", pause=0.05)
+
+        # Confirm selection
+        self.press_key("Return", pause=0.2)
 
     def switch_tab(
         self,

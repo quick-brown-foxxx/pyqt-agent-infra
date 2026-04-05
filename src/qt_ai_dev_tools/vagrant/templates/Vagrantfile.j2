@@ -9,6 +9,8 @@ Vagrant.configure("2") do |config|
   config.vm.provider "libvirt" do |v|
     v.memory = {{ memory }}
     v.cpus = {{ cpus }}
+    v.management_network_name = "{{ management_network_name }}"
+    v.management_network_address = "{{ management_network_address }}"
     {% if mac_address %}
     v.management_network_mac = "{{ mac_address }}"
     {% endif %}

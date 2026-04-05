@@ -1,1 +1,1 @@
-tests/AGENTS.md
+AGENTS.md

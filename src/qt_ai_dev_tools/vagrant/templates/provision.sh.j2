@@ -4,6 +4,16 @@ set -euo pipefail
 echo "==> Installing system deps"
 apt-get update -qq
 apt-get install -y --no-install-recommends \
+    make \
+    nano \
+    curl \
+    wget \
+    jq \
+    ca-certificates \
+    tree \
+    micro \
+    net-tools \
+    traceroute \
     xvfb \
     x11-utils \
     xdotool \

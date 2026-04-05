@@ -165,6 +165,25 @@ qt-ai-dev-tools audio record --duration 3 -o /tmp/out.wav
 qt-ai-dev-tools audio verify /tmp/out.wav                # check not silence
 ```
 
+### Debugging
+
+```bash
+# Show all shell commands being executed:
+qt-ai-dev-tools -v tree
+
+# Show commands + their full stdout/stderr:
+qt-ai-dev-tools -vv vm up
+
+# Preview what would run without executing:
+qt-ai-dev-tools --dry-run vm up
+
+# Combine verbose + dry-run:
+qt-ai-dev-tools -v --dry-run click --role "push button" --name "Save"
+
+# Log file (always written, even without -v):
+# ~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.log
+```
+
 ## Workflow for improving this project
 
 ### Before starting work

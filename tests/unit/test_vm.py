@@ -143,6 +143,37 @@ class TestVmRun:
             assert "echo hello" in cmd[3]
 
 
+class TestVmStream:
+    """Test that stream parameter is passed through to run_command."""
+
+    def test_vagrant_helper_passes_stream(self, tmp_path: Path) -> None:
+        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
+            mock_call.return_value = 0
+            _vagrant(["status"], tmp_path, stream=True)
+            mock_call.assert_called_once()
+            call_args = mock_call.call_args
+            assert call_args[0][0] == ["vagrant", "status"]
+            assert call_args[1]["cwd"] == tmp_path
+
+    def test_vm_up_passes_stream(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
+            mock_call.return_value = 0
+            vm_up(tmp_path, stream=True)
+            mock_call.assert_called_once()
+            assert mock_call.call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
+
+    def test_vm_run_passes_stream(self, tmp_path: Path) -> None:
+        (tmp_path / "Vagrantfile").touch()
+        with patch("qt_ai_dev_tools.run.subprocess.call") as mock_call:
+            mock_call.return_value = 0
+            vm_run("echo hello", tmp_path, stream=True)
+            mock_call.assert_called_once()
+            cmd = mock_call.call_args[0][0]
+            assert cmd[0] == "vagrant"
+            assert "echo hello" in cmd[3]
+
+
 class TestVmSyncAuto:
     def test_starts_rsync_auto_process(self, tmp_path: Path) -> None:
         vagrantfile = tmp_path / "Vagrantfile"

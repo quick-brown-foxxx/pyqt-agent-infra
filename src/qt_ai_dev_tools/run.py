@@ -23,6 +23,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _dry_run: bool = False
+_silent: bool = False
 
 
 def set_dry_run(*, enabled: bool) -> None:
@@ -40,6 +41,21 @@ def is_dry_run() -> bool:
     return _dry_run
 
 
+def set_silent(*, enabled: bool) -> None:
+    """Enable or disable silent mode globally.
+
+    Args:
+        enabled: Whether to enable silent mode.
+    """
+    global _silent
+    _silent = enabled
+
+
+def is_silent() -> bool:
+    """Check if silent mode is active."""
+    return _silent
+
+
 def run_command(
     args: list[str],
     *,
@@ -48,6 +64,7 @@ def run_command(
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
     check: bool = False,
+    stream: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run a subprocess with logging and optional dry-run.
 
@@ -61,9 +78,11 @@ def run_command(
         env: Extra environment variables (merged with current env).
         cwd: Working directory for the command.
         check: If True, raise RuntimeError on non-zero exit code.
+        stream: If True, let stdout/stderr inherit from parent (print to terminal).
+            Returns CompletedProcess with empty stdout/stderr.
 
     Returns:
-        CompletedProcess with captured stdout and stderr.
+        CompletedProcess with captured stdout and stderr (empty when stream=True).
 
     Raises:
         RuntimeError: If command times out, is not found, or fails with check=True.
@@ -79,6 +98,27 @@ def run_command(
     merged_env: dict[str, str] | None = None
     if env is not None:
         merged_env = {**os.environ, **env}
+
+    if stream:
+        try:
+            returncode = subprocess.call(
+                args,
+                timeout=timeout,
+                env=merged_env,
+                cwd=cwd,
+            )
+        except subprocess.TimeoutExpired as exc:
+            msg = f"Command timed out after {timeout}s: {cmd_str}"
+            raise RuntimeError(msg) from exc
+        except FileNotFoundError as exc:
+            msg = f"Command not found: {args[0]}"
+            raise RuntimeError(msg) from exc
+
+        if check and returncode != 0:
+            msg = f"Command failed (exit {returncode}): {cmd_str}"
+            raise RuntimeError(msg)
+
+        return subprocess.CompletedProcess(args=args, returncode=returncode, stdout="", stderr="")
 
     try:
         result = subprocess.run(

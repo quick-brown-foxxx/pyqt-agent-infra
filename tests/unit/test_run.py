@@ -133,3 +133,52 @@ class TestDryRun:
         assert is_dry_run() is True
         set_dry_run(enabled=False)
         assert is_dry_run() is False
+
+
+class TestStreamMode:
+    """Test that stream mode passes output to terminal and returns empty strings."""
+
+    def test_stream_mode_returns_empty_stdout(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        result = run_command(["echo", "streamed"], stream=True)
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_stream_mode_returns_empty_stderr(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        result = run_command(["sh", "-c", "echo err >&2"], stream=True)
+        assert result.returncode == 0
+        assert result.stderr == ""
+
+    def test_stream_mode_nonzero_exit_code(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        result = run_command(["sh", "-c", "exit 42"], stream=True)
+        assert result.returncode == 42
+
+    def test_stream_mode_check_raises_on_failure(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        with pytest.raises(RuntimeError, match="Command failed"):
+            run_command(["sh", "-c", "exit 1"], stream=True, check=True)
+
+    def test_stream_mode_command_not_found(self) -> None:
+        from qt_ai_dev_tools.run import run_command
+
+        with pytest.raises(RuntimeError, match="not found"):
+            run_command(["nonexistent_binary_xyz_12345"], stream=True)
+
+
+class TestSilentMode:
+    """Test silent mode global toggle."""
+
+    def test_set_silent_toggle(self) -> None:
+        from qt_ai_dev_tools.run import is_silent, set_silent
+
+        assert is_silent() is False
+        set_silent(enabled=True)
+        assert is_silent() is True
+        set_silent(enabled=False)
+        assert is_silent() is False

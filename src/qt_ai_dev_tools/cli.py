@@ -17,10 +17,13 @@ if TYPE_CHECKING:
     from qt_ai_dev_tools._atspi import AtspiNode
     from qt_ai_dev_tools.pilot import QtPilot
 
+_CONTEXT: dict[str, list[str]] = {"help_option_names": ["-h", "--help"]}
+
 app = typer.Typer(
     name="qt-ai-dev-tools",
     help="AI agent tools for Qt/PySide app interaction via AT-SPI.",
     no_args_is_help=True,
+    context_settings=_CONTEXT,
 )
 
 
@@ -42,12 +45,19 @@ def main_callback(
             help="Show commands that would be run without executing them.",
         ),
     ] = False,
+    silent: typing.Annotated[
+        bool,
+        typer.Option(
+            "--silent",
+            help="Suppress command output (vagrant commands print by default).",
+        ),
+    ] = False,
 ) -> None:
     """AI agent tools for Qt/PySide app interaction via AT-SPI."""
     import logging
 
     from qt_ai_dev_tools.logging import setup_file_logging, setup_stderr_logging
-    from qt_ai_dev_tools.run import set_dry_run
+    from qt_ai_dev_tools.run import set_dry_run, set_silent
 
     # File logging is always on
     log_dir = Path("~/.local/state/qt-ai-dev-tools/logs").expanduser()
@@ -61,6 +71,9 @@ def main_callback(
 
     if dry_run:
         set_dry_run(enabled=True)
+
+    if silent:
+        set_silent(enabled=True)
 
 
 def _get_pilot(app_name: str | None = None, retries: int = 5) -> QtPilot:
@@ -522,7 +535,7 @@ def _verify_condition(pilot: QtPilot, condition: str) -> None:
 
 # ── Workspace commands ──────────────────────────────────────────────
 
-workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.")
+workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.", context_settings=_CONTEXT)
 app.add_typer(workspace_app, name="workspace")
 
 
@@ -568,7 +581,7 @@ def workspace_init(
 
 # ── VM commands ─────────────────────────────────────────────────────
 
-vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.")
+vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.", context_settings=_CONTEXT)
 app.add_typer(vm_app, name="vm")
 
 
@@ -578,15 +591,18 @@ def vm_up_cmd(
     provider: typing.Annotated[str, typer.Option("--provider", help="Vagrant provider")] = "libvirt",
 ) -> None:
     """Start the VM."""
+    from qt_ai_dev_tools.run import is_silent
     from qt_ai_dev_tools.vagrant.vm import vm_up
 
     if provider == "virtualbox":
         typer.echo("WARNING: VirtualBox provider is NOT TESTED. Only libvirt has been verified.", err=True)
 
-    result = vm_up(workspace, provider=provider)
-    typer.echo(result.stdout)
+    result = vm_up(workspace, provider=provider, stream=not is_silent())
+    if is_silent() and result.stdout:
+        typer.echo(result.stdout)
     if result.returncode != 0:
-        typer.echo(result.stderr, err=True)
+        if is_silent() and result.stderr:
+            typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
 
 
@@ -595,10 +611,12 @@ def vm_status_cmd(
     workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Check VM status."""
+    from qt_ai_dev_tools.run import is_silent
     from qt_ai_dev_tools.vagrant.vm import vm_status
 
-    result = vm_status(workspace)
-    typer.echo(result.stdout)
+    result = vm_status(workspace, stream=not is_silent())
+    if is_silent() and result.stdout:
+        typer.echo(result.stdout)
 
 
 @vm_app.command(name="ssh")
@@ -616,12 +634,15 @@ def vm_destroy_cmd(
     workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Destroy the VM."""
+    from qt_ai_dev_tools.run import is_silent
     from qt_ai_dev_tools.vagrant.vm import vm_destroy
 
-    result = vm_destroy(workspace)
-    typer.echo(result.stdout)
+    result = vm_destroy(workspace, stream=not is_silent())
+    if is_silent() and result.stdout:
+        typer.echo(result.stdout)
     if result.returncode != 0:
-        typer.echo(result.stderr, err=True)
+        if is_silent() and result.stderr:
+            typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
 
 
@@ -630,12 +651,15 @@ def vm_sync_cmd(
     workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Sync files to VM."""
+    from qt_ai_dev_tools.run import is_silent
     from qt_ai_dev_tools.vagrant.vm import vm_sync
 
-    result = vm_sync(workspace)
-    typer.echo(result.stdout or "Synced.")
+    result = vm_sync(workspace, stream=not is_silent())
+    if is_silent():
+        typer.echo(result.stdout or "Synced.")
     if result.returncode != 0:
-        typer.echo(result.stderr, err=True)
+        if is_silent() and result.stderr:
+            typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
 
 
@@ -662,13 +686,15 @@ def vm_run_cmd(
     workspace: typing.Annotated[Path | None, typer.Option("--workspace", "-w", help="Workspace path")] = None,
 ) -> None:
     """Run a command inside the VM."""
+    from qt_ai_dev_tools.run import is_silent
     from qt_ai_dev_tools.vagrant.vm import vm_run
 
-    result = vm_run(command, workspace)
-    if result.stdout:
+    result = vm_run(command, workspace, stream=not is_silent())
+    if is_silent() and result.stdout:
         typer.echo(result.stdout)
     if result.returncode != 0:
-        typer.echo(result.stderr, err=True)
+        if is_silent() and result.stderr:
+            typer.echo(result.stderr, err=True)
         raise typer.Exit(code=result.returncode)
 
 
@@ -758,7 +784,7 @@ def eval_cmd(
             raise typer.Exit(code=1)
 
 
-bridge_app = typer.Typer(help="Manage bridge lifecycle.")
+bridge_app = typer.Typer(help="Manage bridge lifecycle.", context_settings=_CONTEXT)
 app.add_typer(bridge_app, name="bridge")
 
 
@@ -801,7 +827,7 @@ def bridge_inject_cmd(
 
 # ── Clipboard commands ────────────────────────────────────────────
 
-clipboard_app = typer.Typer(help="Clipboard operations.")
+clipboard_app = typer.Typer(help="Clipboard operations.", context_settings=_CONTEXT)
 app.add_typer(clipboard_app, name="clipboard")
 
 
@@ -837,7 +863,7 @@ def clipboard_read_cmd() -> None:
 
 # ── File dialog commands ──────────────────────────────────────────
 
-file_dialog_app = typer.Typer(help="File dialog automation.")
+file_dialog_app = typer.Typer(help="File dialog automation.", context_settings=_CONTEXT)
 app.add_typer(file_dialog_app, name="file-dialog")
 
 
@@ -920,7 +946,7 @@ def file_dialog_cancel_cmd(
 
 # ── System tray commands ──────────────────────────────────────────
 
-tray_app_cli = typer.Typer(help="System tray interaction.")
+tray_app_cli = typer.Typer(help="System tray interaction.", context_settings=_CONTEXT)
 app.add_typer(tray_app_cli, name="tray")
 
 
@@ -1024,7 +1050,7 @@ def tray_select_cmd(
 
 # ── Notification commands ─────────────────────────────────────────
 
-notify_app_cli = typer.Typer(help="Desktop notification interaction.")
+notify_app_cli = typer.Typer(help="Desktop notification interaction.", context_settings=_CONTEXT)
 app.add_typer(notify_app_cli, name="notify")
 
 
@@ -1095,11 +1121,11 @@ def notify_action_cmd(
 
 # ── Audio commands ────────────────────────────────────────────────
 
-audio_app_cli = typer.Typer(help="PipeWire audio interaction.")
+audio_app_cli = typer.Typer(help="PipeWire audio interaction.", context_settings=_CONTEXT)
 app.add_typer(audio_app_cli, name="audio")
 
 # Virtual mic sub-group
-vmic_app = typer.Typer(help="Virtual microphone management.")
+vmic_app = typer.Typer(help="Virtual microphone management.", context_settings=_CONTEXT)
 audio_app_cli.add_typer(vmic_app, name="virtual-mic")
 
 

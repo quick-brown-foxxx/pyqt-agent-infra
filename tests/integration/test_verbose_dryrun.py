@@ -63,6 +63,28 @@ class TestDryRunPreventsExecution:
         assert result.stdout.strip() == ""
 
 
+class TestSilentOption:
+    """Verify --silent flag appears in help."""
+
+    pytestmark: typing.ClassVar[list[pytest.MarkDecorator]] = [pytest.mark.integration]
+
+    def test_help_shows_silent_option(self) -> None:
+        result = run_cli("--help")
+        assert result.returncode == 0
+        assert "--silent" in result.stdout
+
+
+class TestHelpShortFlag:
+    """Verify -h works as alias for --help."""
+
+    pytestmark: typing.ClassVar[list[pytest.MarkDecorator]] = [pytest.mark.integration]
+
+    def test_dash_h_shows_help(self) -> None:
+        result = run_cli("-h")
+        assert result.returncode == 0
+        assert "qt-ai-dev-tools" in result.stdout.lower() or "Usage" in result.stdout
+
+
 class TestVerboseOutput:
     """Verify -v flag produces command logging on stderr."""
 

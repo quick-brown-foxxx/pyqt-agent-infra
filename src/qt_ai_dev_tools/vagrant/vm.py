@@ -31,23 +31,25 @@ def find_workspace(workspace: Path | None = None) -> Path:
     raise FileNotFoundError(msg)
 
 
-def _vagrant(args: list[str], workspace: Path) -> subprocess.CompletedProcess[str]:
+def _vagrant(args: list[str], workspace: Path, *, stream: bool = False) -> subprocess.CompletedProcess[str]:
     """Run a vagrant command in the workspace directory."""
     from qt_ai_dev_tools.run import run_command
 
-    return run_command(["vagrant", *args], cwd=workspace)
+    return run_command(["vagrant", *args], cwd=workspace, stream=stream)
 
 
-def vm_up(workspace: Path | None = None, provider: str = "libvirt") -> subprocess.CompletedProcess[str]:
+def vm_up(
+    workspace: Path | None = None, provider: str = "libvirt", *, stream: bool = False
+) -> subprocess.CompletedProcess[str]:
     """Start the VM (vagrant up)."""
     ws = find_workspace(workspace)
-    return _vagrant(["up", f"--provider={provider}"], ws)
+    return _vagrant(["up", f"--provider={provider}"], ws, stream=stream)
 
 
-def vm_status(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
+def vm_status(workspace: Path | None = None, *, stream: bool = False) -> subprocess.CompletedProcess[str]:
     """Check VM status."""
     ws = find_workspace(workspace)
-    return _vagrant(["status"], ws)
+    return _vagrant(["status"], ws, stream=stream)
 
 
 def vm_ssh(workspace: Path | None = None) -> None:
@@ -57,16 +59,16 @@ def vm_ssh(workspace: Path | None = None) -> None:
     subprocess.run(["vagrant", "ssh"], cwd=ws, check=False)
 
 
-def vm_destroy(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
+def vm_destroy(workspace: Path | None = None, *, stream: bool = False) -> subprocess.CompletedProcess[str]:
     """Destroy the VM."""
     ws = find_workspace(workspace)
-    return _vagrant(["destroy", "-f"], ws)
+    return _vagrant(["destroy", "-f"], ws, stream=stream)
 
 
-def vm_sync(workspace: Path | None = None) -> subprocess.CompletedProcess[str]:
+def vm_sync(workspace: Path | None = None, *, stream: bool = False) -> subprocess.CompletedProcess[str]:
     """Sync files to VM via rsync."""
     ws = find_workspace(workspace)
-    return _vagrant(["rsync"], ws)
+    return _vagrant(["rsync"], ws, stream=stream)
 
 
 def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
@@ -85,7 +87,9 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
     )
 
 
-def vm_run(command: str, workspace: Path | None = None, display: str = ":99") -> subprocess.CompletedProcess[str]:
+def vm_run(
+    command: str, workspace: Path | None = None, display: str = ":99", *, stream: bool = False
+) -> subprocess.CompletedProcess[str]:
     """Run a command inside the VM with proper Qt/AT-SPI environment."""
     if not re.fullmatch(r":\d+(\.\d+)?", display):
         msg = f"Invalid display format: {display!r} (expected ':N' or ':N.M')"
@@ -98,4 +102,4 @@ def vm_run(command: str, workspace: Path | None = None, display: str = ":99") ->
         " UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools"
         ' DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus";'
     )
-    return _vagrant(["ssh", "-c", f"{env_prefix} {command}"], ws)
+    return _vagrant(["ssh", "-c", f"{env_prefix} {command}"], ws, stream=stream)

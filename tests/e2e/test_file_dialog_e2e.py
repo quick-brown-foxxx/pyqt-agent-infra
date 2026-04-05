@@ -49,7 +49,7 @@ class TestFileDialogOpen:
         test_file.write_text("file dialog e2e content")
 
         # Click the "Open File" button via AT-SPI (not bridge — modal dialog blocks bridge)
-        pilot = QtPilot(app_name="file_dialog_app")
+        pilot = QtPilot(app_name="file_dialog_app.py")
         open_btn = pilot.find_one(role="push button", name="Open File")
         pilot.click(open_btn)
         time.sleep(1.0)  # Wait for dialog to appear
@@ -90,7 +90,7 @@ class TestFileDialogSave:
         eval_code(sock, "widgets['text_edit'].setPlainText('saved by e2e test')")
 
         # Click the "Save As" button via AT-SPI (not bridge — modal dialog blocks bridge)
-        pilot = QtPilot(app_name="file_dialog_app")
+        pilot = QtPilot(app_name="file_dialog_app.py")
         save_btn = pilot.find_one(role="push button", name="Save As")
         pilot.click(save_btn)
         time.sleep(1.0)  # Wait for dialog
@@ -119,7 +119,7 @@ class TestFileDialogCancel:
         assert sock is not None, "No bridge socket found"
 
         # Click "Open File" to trigger dialog via AT-SPI (not bridge — modal blocks)
-        pilot = QtPilot(app_name="file_dialog_app")
+        pilot = QtPilot(app_name="file_dialog_app.py")
         open_btn = pilot.find_one(role="push button", name="Open File")
         pilot.click(open_btn)
         time.sleep(1.0)

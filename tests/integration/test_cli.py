@@ -95,7 +95,7 @@ class TestCLITree:
 
 class TestCLIFind:
     def test_find_by_role(self) -> None:
-        result = run_cli("find", "--role", "push button")
+        result = run_cli("find", "--role", "push button", "--app", "main.py")
         assert result.returncode == 0
         assert "push button" in result.stdout
 
@@ -104,7 +104,7 @@ class TestCLIFind:
         assert result.returncode != 0
 
     def test_find_json(self) -> None:
-        result = run_cli("find", "--role", "label", "--json")
+        result = run_cli("find", "--role", "label", "--json", "--app", "main.py")
         assert result.returncode == 0
         data = json.loads(result.stdout)
         assert isinstance(data, list)

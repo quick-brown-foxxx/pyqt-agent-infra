@@ -16,6 +16,7 @@ _mock_gi.require_version = MagicMock()
 _mock_gi.repository.Atspi = _mock_atspi_module
 
 with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.repository}):
+    from qt_ai_dev_tools import interact as _interact_mod
     from qt_ai_dev_tools._atspi import AtspiNode
     from qt_ai_dev_tools.interact import (
         _xdotool_env,
@@ -24,6 +25,8 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
         press_key,
         type_text,
     )
+
+_COMPLETED_OK = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
 
 pytestmark = pytest.mark.unit
 
@@ -58,8 +61,8 @@ class TestClick:
         native.get_extents.return_value = ext
         node = AtspiNode(native)
 
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _COMPLETED_OK
             click(node, pause=0.0)
 
             # Center should be (125, 215)
@@ -78,8 +81,8 @@ class TestTypeText:
 
     def test_type_text_calls_xdotool(self) -> None:
         """Should invoke xdotool type with the given text."""
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _COMPLETED_OK
             type_text("hello world", delay_ms=10, pause=0.0)
 
             mock_run.assert_called_once()
@@ -94,8 +97,8 @@ class TestPressKey:
 
     def test_press_key_calls_xdotool(self) -> None:
         """Should invoke xdotool key with the key name."""
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _COMPLETED_OK
             press_key("Return", pause=0.0)
 
             mock_run.assert_called_once()
@@ -104,8 +107,8 @@ class TestPressKey:
 
     def test_press_key_combo(self) -> None:
         """Should handle key combinations like ctrl+a."""
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _COMPLETED_OK
             press_key("ctrl+a", pause=0.0)
 
             args = mock_run.call_args[0][0]
@@ -124,7 +127,7 @@ class TestFocus:
         action_iface.get_action_name.return_value = "SetFocus"
         node = AtspiNode(native)
 
-        with patch("qt_ai_dev_tools.interact.time.sleep"):
+        with patch.object(_interact_mod.time, "sleep"):
             focus(node, pause=0.0)
             action_iface.do_action.assert_called_once_with(0)
 
@@ -142,8 +145,8 @@ class TestFocus:
 
         node = AtspiNode(native)
 
-        with patch("qt_ai_dev_tools.run.subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _COMPLETED_OK
             focus(node, pause=0.0)
 
             # Should have called xdotool mousemove then click (same as click())

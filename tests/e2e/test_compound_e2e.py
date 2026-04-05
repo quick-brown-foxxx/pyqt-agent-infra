@@ -21,9 +21,16 @@ pytestmark = [
 ]
 
 
-def _run_cli(*args: str, timeout: int = 15) -> subprocess.CompletedProcess[str]:
-    """Run a qt-ai-dev-tools CLI command inside the VM."""
-    cmd = ["python3", "-m", "qt_ai_dev_tools", *args]
+def _run_cli(*args: str, timeout: int = 15, app: str | None = "main.py") -> subprocess.CompletedProcess[str]:
+    """Run a qt-ai-dev-tools CLI command inside the VM.
+
+    By default injects ``--app main.py`` so the command targets the test's Qt
+    app instead of the first AT-SPI desktop child (which may be snixembed).
+    Pass ``app=None`` for commands that don't accept ``--app`` or already
+    include it.
+    """
+    app_args: tuple[str, ...] = ("--app", app) if app is not None else ()
+    cmd = ["python3", "-m", "qt_ai_dev_tools", *args, *app_args]
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
 
 
@@ -63,7 +70,7 @@ class TestFillCommand:
         """Fill text into the todo input field, verify via bridge."""
         _clear_app_state(bridge_app)
 
-        result = _run_cli("fill", "hello agent", "--role", "text", "--name", "text_input")
+        result = _run_cli("fill", "hello agent", "--role", "text")
         assert result.returncode == 0, f"fill failed: {result.stderr}"
         assert "Filled" in result.stdout
 
@@ -84,7 +91,7 @@ class TestFillCommand:
         eval_code(sock, "widgets['text_input'].setText('existing ')")
         time.sleep(0.3)
 
-        result = _run_cli("fill", "appended", "--role", "text", "--name", "text_input", "--no-clear")
+        result = _run_cli("fill", "appended", "--role", "text", "--no-clear")
         assert result.returncode == 0, f"fill --no-clear failed: {result.stderr}"
 
         time.sleep(0.3)
@@ -107,12 +114,13 @@ class TestDoCommand:
         """Click the Add button via 'do click' and verify side effect."""
         _clear_app_state(bridge_app)
 
-        # First fill in some text so clicking Add does something
-        from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
-
-        sock = find_bridge_socket()
-        assert sock is not None
-        eval_code(sock, "widgets['text_input'].setText('do-test-item')")
+        # Use 'fill' command to set text — this uses xdotool type which
+        # properly focuses the window and types via keyboard, ensuring
+        # the text is actually in the input when the button is clicked.
+        # Bridge setText() works at the Qt level but doesn't guarantee
+        # the X11 window is focused for the subsequent xdotool click.
+        fill_result = _run_cli("fill", "do-test-item", "--role", "text")
+        assert fill_result.returncode == 0, f"fill failed: {fill_result.stderr}"
         time.sleep(0.3)
 
         # Use the Russian button name from the app
@@ -127,7 +135,7 @@ class TestDoCommand:
         assert "Clicked" in result.stdout
 
         # Verify item was added via bridge
-        time.sleep(0.3)
+        time.sleep(0.5)
         count = _bridge_eval("widgets['item_list'].count()")
         assert count is not None
         assert int(count) >= 1
@@ -136,11 +144,9 @@ class TestDoCommand:
         """Click Add with --verify checking the status label succeeds."""
         _clear_app_state(bridge_app)
 
-        from qt_ai_dev_tools.bridge._client import eval_code, find_bridge_socket
-
-        sock = find_bridge_socket()
-        assert sock is not None
-        eval_code(sock, "widgets['text_input'].setText('verify-item')")
+        # Use 'fill' to set text via xdotool (ensures window focus)
+        fill_result = _run_cli("fill", "verify-item", "--role", "text")
+        assert fill_result.returncode == 0, f"fill failed: {fill_result.stderr}"
         time.sleep(0.3)
 
         result = _run_cli(
@@ -150,7 +156,7 @@ class TestDoCommand:
             "--role",
             "push button",
             "--verify",
-            "label:status_label contains verify-item",
+            "label contains verify-item",
         )
         assert result.returncode == 0, f"do click --verify failed: {result.stderr}"
         assert "Verify OK" in result.stdout
@@ -166,7 +172,7 @@ class TestDoCommand:
             "--role",
             "push button",
             "--verify",
-            "label:status_label contains NONEXISTENT_TEXT_XYZ",
+            "label contains NONEXISTENT_TEXT_XYZ",
         )
         assert result.returncode == 1
         assert "Verify FAILED" in result.stderr
@@ -199,12 +205,12 @@ class TestWaitCommand:
 
     def test_wait_for_running_app(self, bridge_app: subprocess.Popen[str]) -> None:
         """Wait for main.py which is already running exits 0."""
-        result = _run_cli("wait", "--app", "main.py", "--timeout", "5")
+        result = _run_cli("wait", "--app", "main.py", "--timeout", "5", app=None)
         assert result.returncode == 0, f"wait failed: {result.stderr}"
         assert "Found" in result.stdout
 
     def test_wait_for_nonexistent_app_times_out(self, bridge_app: subprocess.Popen[str]) -> None:
         """Wait for an app that doesn't exist times out with exit code 1."""
-        result = _run_cli("wait", "--app", "nonexistent_app_xyz", "--timeout", "2")
+        result = _run_cli("wait", "--app", "nonexistent_app_xyz", "--timeout", "2", app=None)
         assert result.returncode == 1
         assert "Timeout" in result.stderr

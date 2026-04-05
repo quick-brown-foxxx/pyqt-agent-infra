@@ -1,4 +1,9 @@
-"""Tests for VM management functions."""
+"""Tests for VM management functions.
+
+Tests focus on real logic: filesystem workspace discovery and env string
+construction. Tautological tests (assert subprocess was called with args)
+have been removed.
+"""
 
 from __future__ import annotations
 
@@ -9,14 +14,8 @@ from unittest.mock import patch
 import pytest
 
 from qt_ai_dev_tools.vagrant.vm import (
-    _vagrant,
     find_workspace,
-    vm_destroy,
     vm_run,
-    vm_status,
-    vm_sync,
-    vm_sync_auto,
-    vm_up,
 )
 
 pytestmark = pytest.mark.unit
@@ -29,8 +28,6 @@ class TestFindWorkspace:
         assert result == tmp_path
 
     def test_explicit_path_without_vagrantfile_raises(self, tmp_path: Path) -> None:
-        import pytest
-
         with pytest.raises(FileNotFoundError, match="No Vagrantfile found in"):
             find_workspace(tmp_path)
 
@@ -43,8 +40,6 @@ class TestFindWorkspace:
         assert result == tmp_path
 
     def test_no_vagrantfile_anywhere_raises(self, tmp_path: Path) -> None:
-        import pytest
-
         nested = tmp_path / "empty" / "dir"
         nested.mkdir(parents=True)
         with (
@@ -53,142 +48,71 @@ class TestFindWorkspace:
         ):
             find_workspace()
 
+    def test_finds_vagrantfile_in_parent_not_grandparent(self, tmp_path: Path) -> None:
+        """Vagrantfile in parent/ should be found from parent/child/ (not grandparent)."""
+        parent = tmp_path / "parent"
+        parent.mkdir()
+        (parent / "Vagrantfile").touch()
+        child = parent / "child"
+        child.mkdir()
 
-class TestVagrant:
-    def test_vagrant_helper_calls_run_command(self, tmp_path: Path) -> None:
+        # Should NOT find a Vagrantfile in tmp_path (grandparent) —
+        # only the one in parent/
+        with patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=child):
+            result = find_workspace()
+        assert result == parent
+
+
+class TestVmRunEnvConstruction:
+    """Tests that vm_run builds the correct env-prefix + command string.
+
+    These test real string-building logic, not subprocess invocation.
+    """
+
+    def _get_ssh_command(self, command: str, **kwargs: object) -> str:
+        """Run vm_run with mocked subprocess and return the SSH -c argument."""
+        tmp_path = kwargs.pop("workspace", None)
+        if tmp_path is None:
+            msg = "workspace is required"
+            raise ValueError(msg)
+
         with patch("qt_ai_dev_tools.run.run_command") as mock_run:
             mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
+                args=["vagrant", "ssh", "-c", "..."],
+                returncode=0,
+                stdout="",
+                stderr="",
             )
-            _vagrant(["status"], tmp_path)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "status"]
-            assert call_args[1]["cwd"] == tmp_path
+            vm_run(command, tmp_path, **kwargs)  # type: ignore[arg-type]  # rationale: test helper passes dynamic kwargs
+            return mock_run.call_args[0][0][3]  # type: ignore[no-any-return]  # rationale: mock call_args is untyped
 
-
-class TestVmUp:
-    def test_calls_vagrant_up_with_provider(self, tmp_path: Path) -> None:
+    def test_env_contains_required_variables(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "up", "--provider=libvirt"], returncode=0, stdout="", stderr=""
-            )
-            vm_up(tmp_path)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
-            assert call_args[1]["cwd"] == tmp_path
+        ssh_cmd = self._get_ssh_command("echo hello", workspace=tmp_path)
 
+        assert "DISPLAY=:99" in ssh_cmd
+        assert "QT_QPA_PLATFORM=xcb" in ssh_cmd
+        assert "QT_ACCESSIBILITY=1" in ssh_cmd
+        assert "QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1" in ssh_cmd
+        assert "QT_AI_DEV_TOOLS_VM=1" in ssh_cmd
+        assert "UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools" in ssh_cmd
+        assert "DBUS_SESSION_BUS_ADDRESS=" in ssh_cmd
 
-class TestVmStatus:
-    def test_calls_vagrant_status(self, tmp_path: Path) -> None:
+    def test_custom_display_parameter(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
-            )
-            vm_status(tmp_path)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "status"]
-            assert call_args[1]["cwd"] == tmp_path
+        ssh_cmd = self._get_ssh_command("echo hello", workspace=tmp_path, display=":42")
 
+        assert "DISPLAY=:42" in ssh_cmd
+        assert "DISPLAY=:99" not in ssh_cmd
 
-class TestVmDestroy:
-    def test_calls_vagrant_destroy_force(self, tmp_path: Path) -> None:
+    def test_preserves_user_command_intact(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "destroy", "-f"], returncode=0, stdout="", stderr=""
-            )
-            vm_destroy(tmp_path)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "destroy", "-f"]
-            assert call_args[1]["cwd"] == tmp_path
+        complex_cmd = 'cd /vagrant && uv run pytest tests/ -v -k "test_foo"'
+        ssh_cmd = self._get_ssh_command(complex_cmd, workspace=tmp_path)
 
+        assert ssh_cmd.endswith(complex_cmd)
 
-class TestVmSync:
-    def test_calls_vagrant_rsync(self, tmp_path: Path) -> None:
+    def test_invalid_display_raises_value_error(self, tmp_path: Path) -> None:
         (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "rsync"], returncode=0, stdout="", stderr=""
-            )
-            vm_sync(tmp_path)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "rsync"]
-            assert call_args[1]["cwd"] == tmp_path
-
-
-class TestVmRun:
-    def test_vagrant_ssh_with_env_prefix(self, tmp_path: Path) -> None:
-        (tmp_path / "Vagrantfile").touch()
-
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "ssh", "-c", "..."], returncode=0, stdout="output", stderr=""
-            )
-            vm_run("echo hello", tmp_path)
-            call_args = mock_run.call_args
-            cmd = call_args[0][0]
-            assert cmd[0] == "vagrant"
-            assert cmd[1] == "ssh"
-            assert cmd[2] == "-c"
-            assert "DISPLAY=:99" in cmd[3]
-            assert "QT_AI_DEV_TOOLS_VM=1" in cmd[3]
-            assert "echo hello" in cmd[3]
-
-
-class TestVmStream:
-    """Test that stream parameter is passed through to run_command."""
-
-    def test_vagrant_helper_passes_stream(self, tmp_path: Path) -> None:
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "status"], returncode=0, stdout="", stderr=""
-            )
-            _vagrant(["status"], tmp_path, stream=True)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
-            assert call_args[0][0] == ["vagrant", "status"]
-            assert call_args[1]["cwd"] == tmp_path
-            assert call_args[1]["stream"] is True
-
-    def test_vm_up_passes_stream(self, tmp_path: Path) -> None:
-        (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "up", "--provider=libvirt"], returncode=0, stdout="", stderr=""
-            )
-            vm_up(tmp_path, stream=True)
-            mock_run.assert_called_once()
-            assert mock_run.call_args[0][0] == ["vagrant", "up", "--provider=libvirt"]
-            assert mock_run.call_args[1]["stream"] is True
-
-    def test_vm_run_passes_stream(self, tmp_path: Path) -> None:
-        (tmp_path / "Vagrantfile").touch()
-        with patch("qt_ai_dev_tools.run.run_command") as mock_run:
-            mock_run.return_value = _subprocess.CompletedProcess(
-                args=["vagrant", "ssh", "-c", "..."], returncode=0, stdout="", stderr=""
-            )
-            vm_run("echo hello", tmp_path, stream=True)
-            mock_run.assert_called_once()
-            cmd = mock_run.call_args[0][0]
-            assert cmd[0] == "vagrant"
-            assert "echo hello" in cmd[3]
-            assert mock_run.call_args[1]["stream"] is True
-
-
-class TestVmSyncAuto:
-    def test_starts_rsync_auto_process(self, tmp_path: Path) -> None:
-        vagrantfile = tmp_path / "Vagrantfile"
-        vagrantfile.touch()
-        with patch("qt_ai_dev_tools.vagrant.vm.subprocess.Popen") as mock_popen:
-            vm_sync_auto(tmp_path)
-            mock_popen.assert_called_once()
-            args = mock_popen.call_args
-            assert args[0][0] == ["vagrant", "rsync-auto"]
-            assert args[1]["cwd"] == tmp_path
+        with pytest.raises(ValueError, match="Invalid display format"):
+            vm_run("echo hello", tmp_path, display="bad")

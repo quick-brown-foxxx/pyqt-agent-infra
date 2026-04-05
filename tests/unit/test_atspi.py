@@ -1,4 +1,9 @@
-"""Unit tests for AtspiNode typed wrapper."""
+"""Unit tests for AtspiNode typed wrapper.
+
+Tests focus on real logic: None handling, fallback behavior, error paths,
+dataclass conversion, and interface availability checks. Tautological tests
+(mock returns what it was told to return) have been removed.
+"""
 
 from __future__ import annotations
 
@@ -42,69 +47,40 @@ def _make_native(
     else:
         native.get_child_at_index.return_value = None
 
-    # Default: no text iface, no action iface
+    # Default: no interfaces
     native.get_text_iface.return_value = None
     native.get_action_iface.return_value = None
+    native.get_value_iface.return_value = None
+    native.get_selection_iface.return_value = None
+    native.get_table_iface.return_value = None
 
     return native
 
 
-class TestNameProperty:
-    def test_returns_name(self) -> None:
-        native = _make_native(name="Save")
-        node = AtspiNode(native)
-        assert node.name == "Save"
+# ------------------------------------------------------------------
+# Name property: only the None/empty → "" conversion logic is tested
+# ------------------------------------------------------------------
 
-    def test_returns_empty_string_for_none(self) -> None:
+
+class TestNameProperty:
+    def test_none_name_returns_empty_string(self) -> None:
         native = _make_native(name=None)
         node = AtspiNode(native)
         assert node.name == ""
 
-    def test_returns_empty_string_for_empty(self) -> None:
+    def test_empty_name_returns_empty_string(self) -> None:
         native = _make_native(name="")
         node = AtspiNode(native)
         assert node.name == ""
 
 
-class TestRoleNameProperty:
-    def test_returns_role_name(self) -> None:
-        native = _make_native(role_name="label")
-        node = AtspiNode(native)
-        assert node.role_name == "label"
+# ------------------------------------------------------------------
+# Children: filtering None entries is real logic
+# ------------------------------------------------------------------
 
 
-class TestChildCount:
-    def test_returns_count(self) -> None:
-        native = _make_native(child_count=5)
-        node = AtspiNode(native)
-        assert node.child_count == 5
-
-    def test_returns_zero(self) -> None:
-        native = _make_native(child_count=0)
-        node = AtspiNode(native)
-        assert node.child_count == 0
-
-
-class TestChildAt:
-    def test_returns_node_for_valid_child(self) -> None:
-        child_native = _make_native(name="Child")
-        native = _make_native(child_count=1, children=[child_native])
-        node = AtspiNode(native)
-
-        child = node.child_at(0)
-        assert child is not None
-        assert child.name == "Child"
-
-    def test_returns_none_for_none_child(self) -> None:
-        native = _make_native(child_count=1, children=[None])
-        node = AtspiNode(native)
-
-        child = node.child_at(0)
-        assert child is None
-
-
-class TestChildrenProperty:
-    def test_returns_all_non_none_children(self) -> None:
+class TestChildrenFiltering:
+    def test_filters_none_children(self) -> None:
         child1 = _make_native(name="A")
         child2 = _make_native(name="B")
         native = _make_native(child_count=3, children=[child1, None, child2])
@@ -120,9 +96,33 @@ class TestChildrenProperty:
         node = AtspiNode(native)
         assert node.children == []
 
+    def test_all_none_children(self) -> None:
+        native = _make_native(child_count=3, children=[None, None, None])
+        node = AtspiNode(native)
+        assert node.children == []
+
+
+# ------------------------------------------------------------------
+# child_at: only None-wrapping logic tested (not tautological wrap)
+# ------------------------------------------------------------------
+
+
+class TestChildAt:
+    def test_returns_none_for_none_child(self) -> None:
+        native = _make_native(child_count=1, children=[None])
+        node = AtspiNode(native)
+
+        child = node.child_at(0)
+        assert child is None
+
+
+# ------------------------------------------------------------------
+# Extents: tests conversion to Extents dataclass + center calc
+# ------------------------------------------------------------------
+
 
 class TestGetExtents:
-    def test_returns_extents(self) -> None:
+    def test_converts_to_extents_dataclass(self) -> None:
         native = _make_native()
         ext_mock = MagicMock()
         ext_mock.x = 10
@@ -139,6 +139,24 @@ class TestGetExtents:
         assert extents.width == 100
         assert extents.height == 50
 
+    def test_center_calculation(self) -> None:
+        native = _make_native()
+        ext_mock = MagicMock()
+        ext_mock.x = 100
+        ext_mock.y = 200
+        ext_mock.width = 60
+        ext_mock.height = 40
+        native.get_extents.return_value = ext_mock
+        node = AtspiNode(native)
+
+        extents = node.get_extents()
+        assert extents.center == (130, 220)
+
+
+# ------------------------------------------------------------------
+# Text: fallback logic (text iface → name)
+# ------------------------------------------------------------------
+
 
 class TestGetText:
     def test_returns_text_from_text_iface(self) -> None:
@@ -148,8 +166,6 @@ class TestGetText:
         text_iface = MagicMock()
         native.get_text_iface.return_value = text_iface
 
-        # get_text calls Atspi.Text.get_character_count / Atspi.Text.get_text (class-level).
-        # Patch Atspi on the actual _atspi module (may be real gi or mock depending on env).
         mock_text = MagicMock()
         mock_text.get_character_count.return_value = 11
         mock_text.get_text.return_value = "Hello World"
@@ -164,6 +180,32 @@ class TestGetText:
         node = AtspiNode(native)
 
         assert node.get_text() == "ButtonLabel"
+
+    def test_empty_text_returns_empty_string(self) -> None:
+        from qt_ai_dev_tools import _atspi as _atspi_mod
+
+        native = _make_native(name="")
+        text_iface = MagicMock()
+        native.get_text_iface.return_value = text_iface
+
+        mock_text = MagicMock()
+        mock_text.get_character_count.return_value = 0
+        mock_text.get_text.return_value = ""
+        with patch.object(_atspi_mod, "Atspi", **{"Text": mock_text}):
+            node = AtspiNode(native)
+            assert node.get_text() == ""
+
+    def test_no_text_iface_and_none_name_returns_empty(self) -> None:
+        native = _make_native(name=None)
+        native.get_text_iface.return_value = None
+        node = AtspiNode(native)
+
+        assert node.get_text() == ""
+
+
+# ------------------------------------------------------------------
+# Actions: lookup logic, error paths
+# ------------------------------------------------------------------
 
 
 class TestGetActionNames:
@@ -231,6 +273,209 @@ class TestHasActionIface:
         node = AtspiNode(native)
 
         assert node.has_action_iface is False
+
+
+# ------------------------------------------------------------------
+# Value interface
+# ------------------------------------------------------------------
+
+
+class TestValueInterface:
+    def test_has_value_iface_true(self) -> None:
+        native = _make_native()
+        native.get_value_iface.return_value = MagicMock()
+        node = AtspiNode(native)
+        assert node.has_value_iface is True
+
+    def test_has_value_iface_false(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.has_value_iface is False
+
+    def test_get_value_returns_none_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_value() is None
+
+    def test_get_value_returns_current_value(self) -> None:
+        native = _make_native()
+        value_iface = MagicMock()
+        value_iface.get_current_value.return_value = 42.5
+        native.get_value_iface.return_value = value_iface
+        node = AtspiNode(native)
+        assert node.get_value() == 42.5
+
+    def test_set_value_raises_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        with pytest.raises(RuntimeError, match="no value interface"):
+            node.set_value(10.0)
+
+    def test_set_value_calls_iface(self) -> None:
+        native = _make_native()
+        value_iface = MagicMock()
+        native.get_value_iface.return_value = value_iface
+        node = AtspiNode(native)
+        node.set_value(75.0)
+        value_iface.set_current_value.assert_called_once_with(75.0)
+
+    def test_get_minimum_value_returns_none_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_minimum_value() is None
+
+    def test_get_maximum_value_returns_none_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_maximum_value() is None
+
+    def test_get_minimum_value_returns_value(self) -> None:
+        native = _make_native()
+        value_iface = MagicMock()
+        value_iface.get_minimum_value.return_value = 0.0
+        native.get_value_iface.return_value = value_iface
+        node = AtspiNode(native)
+        assert node.get_minimum_value() == 0.0
+
+    def test_get_maximum_value_returns_value(self) -> None:
+        native = _make_native()
+        value_iface = MagicMock()
+        value_iface.get_maximum_value.return_value = 100.0
+        native.get_value_iface.return_value = value_iface
+        node = AtspiNode(native)
+        assert node.get_maximum_value() == 100.0
+
+
+# ------------------------------------------------------------------
+# Selection interface
+# ------------------------------------------------------------------
+
+
+class TestSelectionInterface:
+    def test_has_selection_iface_true(self) -> None:
+        native = _make_native()
+        native.get_selection_iface.return_value = MagicMock()
+        node = AtspiNode(native)
+        assert node.has_selection_iface is True
+
+    def test_has_selection_iface_false(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.has_selection_iface is False
+
+    def test_get_n_selected_returns_zero_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_n_selected_children() == 0
+
+    def test_select_child_returns_false_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.select_child(0) is False
+
+    def test_select_child_calls_iface(self) -> None:
+        native = _make_native()
+        sel_iface = MagicMock()
+        sel_iface.select_child.return_value = True
+        native.get_selection_iface.return_value = sel_iface
+        node = AtspiNode(native)
+        result = node.select_child(2)
+        assert result is True
+        sel_iface.select_child.assert_called_once_with(2)
+
+    def test_get_selected_child_returns_none_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_selected_child() is None
+
+    def test_get_selected_child_wraps_result(self) -> None:
+        native = _make_native()
+        sel_iface = MagicMock()
+        child_native = _make_native(name="Selected")
+        sel_iface.get_selected_child.return_value = child_native
+        native.get_selection_iface.return_value = sel_iface
+        node = AtspiNode(native)
+
+        child = node.get_selected_child(0)
+        assert child is not None
+        assert child.name == "Selected"
+
+    def test_get_selected_child_returns_none_for_none_child(self) -> None:
+        native = _make_native()
+        sel_iface = MagicMock()
+        sel_iface.get_selected_child.return_value = None
+        native.get_selection_iface.return_value = sel_iface
+        node = AtspiNode(native)
+        assert node.get_selected_child(0) is None
+
+    def test_is_child_selected_returns_false_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.is_child_selected(0) is False
+
+    def test_deselect_child_returns_false_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.deselect_child(0) is False
+
+
+# ------------------------------------------------------------------
+# Table interface
+# ------------------------------------------------------------------
+
+
+class TestTableInterface:
+    def test_has_table_iface_true(self) -> None:
+        native = _make_native()
+        native.get_table_iface.return_value = MagicMock()
+        node = AtspiNode(native)
+        assert node.has_table_iface is True
+
+    def test_has_table_iface_false(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.has_table_iface is False
+
+    def test_get_n_rows_returns_zero_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_n_rows() == 0
+
+    def test_get_n_columns_returns_zero_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_n_columns() == 0
+
+    def test_get_cell_at_returns_none_when_no_iface(self) -> None:
+        native = _make_native()
+        node = AtspiNode(native)
+        assert node.get_cell_at(0, 0) is None
+
+    def test_get_cell_at_wraps_result(self) -> None:
+        native = _make_native()
+        table_iface = MagicMock()
+        cell_native = _make_native(name="Cell_0_1")
+        table_iface.get_accessible_at.return_value = cell_native
+        native.get_table_iface.return_value = table_iface
+        node = AtspiNode(native)
+
+        cell = node.get_cell_at(0, 1)
+        assert cell is not None
+        assert cell.name == "Cell_0_1"
+        table_iface.get_accessible_at.assert_called_once_with(0, 1)
+
+    def test_get_cell_at_returns_none_for_none_cell(self) -> None:
+        native = _make_native()
+        table_iface = MagicMock()
+        table_iface.get_accessible_at.return_value = None
+        native.get_table_iface.return_value = table_iface
+        node = AtspiNode(native)
+        assert node.get_cell_at(0, 0) is None
+
+
+# ------------------------------------------------------------------
+# Desktop + repr
+# ------------------------------------------------------------------
 
 
 class TestDesktop:

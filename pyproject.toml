@@ -104,6 +104,7 @@ log_cli = true
 log_cli_level = "INFO"
 filterwarnings = [
     "ignore::pytest.PytestConfigWarning",
+    "ignore:Atspi\\.Action\\.get_action_name is deprecated:DeprecationWarning",
 ]
 markers = [
     "unit: Unit tests (no external dependencies)",

@@ -19,6 +19,9 @@ def _xdotool_env() -> dict[str, str]:
 def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
     """Click at absolute screen coordinates using xdotool.
 
+    Moves the mouse, activates the window under the cursor (to handle
+    focus loss between separate CLI invocations), then clicks.
+
     Args:
         x: Absolute X screen coordinate.
         y: Absolute Y screen coordinate.
@@ -31,6 +34,26 @@ def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
         env=env,
         check=True,
     )
+    # Focus the window under the cursor so it receives the click.
+    # This prevents a race condition where the target window loses X11
+    # focus between separate CLI subprocess invocations (e.g. fill then do click).
+    # Uses windowfocus (not windowactivate) because windowactivate requires
+    # _NET_WM_DESKTOP which may not be set in Xvfb + openbox environments.
+    result = run_command(
+        ["xdotool", "getmouselocation", "--shell"],
+        env=env,
+        check=True,
+    )
+    for line in result.stdout.splitlines():
+        if line.startswith("WINDOW="):
+            window_id = line.split("=", 1)[1]
+            run_command(
+                ["xdotool", "windowfocus", window_id],
+                env=env,
+                check=False,
+            )
+            break
+    time.sleep(0.05)
     run_command(["xdotool", "click", str(button)], env=env, check=True)
     time.sleep(pause)
 

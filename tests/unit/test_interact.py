@@ -27,6 +27,9 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
     )
 
 _COMPLETED_OK = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+_MOUSELOCATION_RESULT = subprocess.CompletedProcess(
+    args=[], returncode=0, stdout="X=125\nY=215\nSCREEN=0\nWINDOW=12345\n", stderr=""
+)
 
 pytestmark = pytest.mark.unit
 
@@ -51,7 +54,7 @@ class TestClick:
     """Test xdotool click on widget center."""
 
     def test_click_computes_center_and_calls_xdotool(self) -> None:
-        """Should compute widget center and invoke xdotool mousemove + click."""
+        """Should compute widget center and invoke xdotool mousemove + focus + click."""
         native = MagicMock()
         ext = MagicMock()
         ext.x = 100
@@ -61,19 +64,28 @@ class TestClick:
         native.get_extents.return_value = ext
         node = AtspiNode(native)
 
+        def _side_effect(args: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+            if "getmouselocation" in args:
+                return _MOUSELOCATION_RESULT
+            return _COMPLETED_OK
+
         with patch.object(_interact_mod, "run_command") as mock_run:
-            mock_run.return_value = _COMPLETED_OK
+            mock_run.side_effect = _side_effect
             click(node, pause=0.0)
 
             # Center should be (125, 215)
             calls = mock_run.call_args_list
-            assert len(calls) == 2
-            # First call: mousemove
+            assert len(calls) == 4
+            # 1. mousemove
             assert calls[0][0][0][:2] == ["xdotool", "mousemove"]
             assert "125" in calls[0][0][0]
             assert "215" in calls[0][0][0]
-            # Second call: click
-            assert calls[1][0][0] == ["xdotool", "click", "1"]
+            # 2. getmouselocation
+            assert calls[1][0][0] == ["xdotool", "getmouselocation", "--shell"]
+            # 3. windowfocus
+            assert calls[2][0][0] == ["xdotool", "windowfocus", "12345"]
+            # 4. click
+            assert calls[3][0][0] == ["xdotool", "click", "1"]
 
 
 class TestTypeText:
@@ -145,15 +157,26 @@ class TestFocus:
 
         node = AtspiNode(native)
 
+        focus_mouselocation = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="X=60\nY=45\nSCREEN=0\nWINDOW=99999\n", stderr=""
+        )
+
+        def _side_effect(args: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+            if "getmouselocation" in args:
+                return focus_mouselocation
+            return _COMPLETED_OK
+
         with patch.object(_interact_mod, "run_command") as mock_run:
-            mock_run.return_value = _COMPLETED_OK
+            mock_run.side_effect = _side_effect
             focus(node, pause=0.0)
 
-            # Should have called xdotool mousemove then click (same as click())
+            # Should have called xdotool mousemove + getmouselocation + windowfocus + click
             # Center of (10, 20, 100, 50) = (60, 45)
             calls = mock_run.call_args_list
-            assert len(calls) == 2
+            assert len(calls) == 4
             assert calls[0][0][0][:2] == ["xdotool", "mousemove"]
             assert "60" in calls[0][0][0]
             assert "45" in calls[0][0][0]
-            assert calls[1][0][0] == ["xdotool", "click", "1"]
+            assert calls[1][0][0] == ["xdotool", "getmouselocation", "--shell"]
+            assert calls[2][0][0] == ["xdotool", "windowfocus", "99999"]
+            assert calls[3][0][0] == ["xdotool", "click", "1"]

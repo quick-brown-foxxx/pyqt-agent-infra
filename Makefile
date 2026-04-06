@@ -45,7 +45,7 @@ start-app: ## launch app in VM (headless)
 # ── Tests ────────────────────────────────────────────────────────────────────
 
 test-full: ## all tests — VM + host proxy, zero skips
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto -k 'not BridgeProxy' && uv run pytest tests/e2e/ tests/integration/ -v"
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/unit/ tests/test_main.py -v -n auto -k 'not BridgeProxy' && uv run pytest tests/e2e/ tests/integration/ -v --ignore=tests/e2e/test_bridge_proxy.py"
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/e2e/test_bridge_proxy.py -v -p timeout --timeout=120
 
 test-unit: ## unit tests only (parallel, some in vm)
@@ -53,7 +53,7 @@ test-unit: ## unit tests only (parallel, some in vm)
 	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/ -v -k atspi && uv run pytest tests/test_main.py -v -n auto"
 
 test-e2e: ## e2e tests only (requires VM + Xvfb)
-	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/e2e/ -v -k 'not BridgeProxy'"
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv run pytest tests/e2e/ -v --ignore=tests/e2e/test_bridge_proxy.py"
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 uv run pytest tests/e2e/test_bridge_proxy.py -v -p timeout --timeout=120
 
 test-integration: ## integration tests only (requires VM + Xvfb)

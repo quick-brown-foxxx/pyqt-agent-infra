@@ -62,10 +62,45 @@ _APP_STARTUP_TIMEOUT = 25.0
 _APP_POLL_INTERVAL = 0.5
 
 
+def _raise_app_window(window_title: str) -> None:
+    """Raise and focus the app window so xdotool clicks land correctly.
+
+    In Xvfb + openbox, a freshly started window may not receive X11 input
+    events until it's been explicitly focused by the window manager.
+    """
+    env = {**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")}
+    result = subprocess.run(
+        ["xdotool", "search", "--name", window_title],
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+    for wid in result.stdout.strip().splitlines():
+        subprocess.run(
+            ["xdotool", "windowactivate", wid],
+            capture_output=True,
+            env=env,
+            check=False,
+        )
+    time.sleep(0.3)
+
+
 def _clean_stale_sockets() -> None:
-    """Remove any leftover bridge sockets."""
+    """Remove any leftover bridge sockets and kill orphaned app processes.
+
+    Previous test runs may leave behind processes that hold sockets or create
+    duplicate windows, causing xdotool clicks to land on the wrong window.
+    """
     for sock in glob_mod.glob(_SOCKET_GLOB):
         Path(sock).unlink(missing_ok=True)
+    # Kill any leftover main.py processes from previous runs
+    subprocess.run(
+        ["pkill", "-f", "python3.*app/main.py"],
+        capture_output=True,
+        check=False,
+    )
+    time.sleep(0.3)
 
 
 def _start_app(
@@ -200,6 +235,12 @@ def bridge_app() -> Generator[subprocess.Popen[str], None, None]:
         stderr = proc.stderr.read() if proc.stderr else ""
         proc.wait(timeout=5)
         pytest.fail(f"Bridge socket did not appear within {_APP_STARTUP_TIMEOUT}s.\nstdout: {stdout}\nstderr: {stderr}")
+
+    # Wait for the window to appear on AT-SPI and raise it so xdotool clicks
+    # land correctly. Without this, the freshly started window may not receive
+    # X11 input events because openbox hasn't focused it yet.
+    _wait_for_app_window(proc, "main.py")
+    _raise_app_window("Qt Dev Proto")
 
     yield proc
 

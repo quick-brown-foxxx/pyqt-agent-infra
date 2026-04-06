@@ -91,36 +91,44 @@ def vm_bridge_app() -> None:
     if check.returncode == 0 and "2" in check.stdout:
         return  # Bridge already running and responsive
 
-    # Kill any existing app instances and stale sockets
-    _vm_run("pkill -f 'python3 app/main.py' 2>/dev/null || true")
+    # Stop any existing app service and clean up stale sockets.
+    _vm_run("systemctl --user stop test-bridge-app 2>/dev/null || true")
+    _vm_run("pkill -9 -f 'python3.*main.py' 2>/dev/null || true")
     time.sleep(1)
     _vm_run("rm -f /tmp/qt-ai-dev-tools-bridge-*.sock")
 
-    # Start the app with bridge enabled (use Popen — vm run with & hangs over SSH)
-    subprocess.Popen(
-        [
-            "uv",
-            "run",
-            "qt-ai-dev-tools",
-            "vm",
-            "run",
-            "cd /vagrant && QT_AI_DEV_TOOLS_BRIDGE=1 nohup uv run python3 app/main.py > /tmp/app-test.log 2>&1 &",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+    # Start the app as a transient systemd user service.
+    # This properly daemonizes the process so SSH can exit immediately.
+    # Using vagrant ssh -c "... &" hangs because SSH keeps the connection
+    # open while the background process holds file descriptors.
+    start = _vm_run(
+        "systemd-run --user --unit=test-bridge-app"
+        " --property=Environment=DISPLAY=:99"
+        " --property=Environment=QT_AI_DEV_TOOLS_BRIDGE=1"
+        " --property=Environment=QT_QPA_PLATFORM=xcb"
+        " --property=Environment=QT_ACCESSIBILITY=1"
+        " --property=Environment=QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1"
+        " --property=Environment=UV_PROJECT_ENVIRONMENT=/home/vagrant/.venv-qt-ai-dev-tools"
+        " --property=Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
+        " --property=WorkingDirectory=/vagrant"
+        " /home/vagrant/.venv-qt-ai-dev-tools/bin/python3 app/main.py",
+        timeout=10,
     )
+    if start.returncode != 0:
+        pytest.fail(f"Failed to start app service: {start.stderr}")
 
     # Wait for bridge socket to appear
     deadline = time.monotonic() + 15.0
     while time.monotonic() < deadline:
-        check = _vm_run("ls /tmp/qt-ai-dev-tools-bridge-*.sock 2>/dev/null")
+        check = _vm_run("ls /tmp/qt-ai-dev-tools-bridge-*.sock 2>/dev/null", timeout=5)
         if check.returncode == 0 and check.stdout.strip():
             return
         time.sleep(0.5)
 
-    # Get debug info on failure
-    log = _vm_run("cat /tmp/app-test.log 2>/dev/null")
-    pytest.fail(f"Bridge socket did not appear within 15s.\nApp log: {log.stdout}")
+    # Debug info on failure
+    log = _vm_run("journalctl --user -u test-bridge-app --no-pager -n 30 2>/dev/null")
+    ps = _vm_run("systemctl --user status test-bridge-app 2>/dev/null")
+    pytest.fail(f"Bridge socket did not appear within 15s.\nService status: {ps.stdout}\nJournal: {log.stdout}")
 
 
 class TestBridgeProxy:

@@ -104,10 +104,10 @@ pip install qt-ai-dev-tools
 - Distribution — `pip install qt-ai-dev-tools` or `uvx qt-ai-dev-tools init` (shadcn-style local copy)
 - AI skills — teach agents the inspect→interact→verify workflow
 
-**Not yet built:**
-- Complex widget helpers (combo boxes, tables, tabs, menus, scroll areas)
-- Visual diffing & state snapshots
-- Container & direct-host environments (lighter alternatives to VM)
+**Next up:**
+- Architecture rewrite — backend abstraction for multiple environments (VM, container, host)
+- Docker environment — lighter-weight alternative to VM (~95% feature coverage)
+- Real-world validation against production Qt apps
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full plan and phase details.
 

@@ -27,12 +27,14 @@
     - highlight that tool works both from host and from vm
     - rm obsessive "transparent proxy" mentions from docs
 
-- rewrite cli api
-  - make it more logical, simple and structured
+- cli api
+  - rewrite: make it more logical, simple and structured
   - support config loading
   - allow to put -v/--dry-run anywhere? like global options? Is it good pattern? idk
   - --dry-run should be auto -v
   - do we need -v vs -vv? maybe leave only one?
+  - print short helper instructions for some commands
+    - workspace init: suggest to edit vagrantfile/provision script
 
 - proper configuration: env vars, config files - for all long-term persistent stuff. eg cfg goes into worktree init to render vagrant files
 

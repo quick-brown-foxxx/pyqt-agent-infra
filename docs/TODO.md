@@ -10,10 +10,6 @@
   - reproducibility?
   - cleanup?
 
-- "proxy" mentions
-  - highlight that tool works both from host and from vm
-  - rm obsessive "transparent proxy" mentions from docs
-
 - installer
   - uvx as recommended option, rm pip
   - update available warning at top of cli output
@@ -24,13 +20,24 @@
   - in installation skill highlight that vagrantfile may need to be edited to work with particular host/networking
   - default dir .qt-ai-dev-tools/ for workspace and tooling
 
-- proper configuration: env vars, config files - for all long-term persistent stuff. eg cfg goes into worktree init to render vagrant files
-- rewrite cli api
-- rename to qt-dev-tools
-- mark in docs/skills that it is mostly for python+qt, smth may work with cpp+qt but never tested
-- mark that rn implementation only for x11 no wayland
+- docs
+  - mark in docs/skills that it is mostly for python+qt, smth may work with cpp+qt but never tested
+  - mark that rn implementation only for x11 no wayland
+  - "proxy" mentions
+    - highlight that tool works both from host and from vm
+    - rm obsessive "transparent proxy" mentions from docs
 
-- rewrite tests launchink: move responsibility of proper tests launch environment (vm/host etc) from makefile to pytest/config/pyproj/python helpers etc. Ensure each test action produces exactly one pytest run with all summarization at bottom, not multiple runs with logs on top of each other
+- rewrite cli api
+  - make it more logical, simple and structured
+  - support config loading
+  - allow to put -v/--dry-run anywhere? like global options? Is it good pattern? idk
+  - --dry-run should be auto -v
+  - do we need -v vs -vv? maybe leave only one?
+
+- proper configuration: env vars, config files - for all long-term persistent stuff. eg cfg goes into worktree init to render vagrant files
+
+- rename to qt-dev-tools
+- rewrite tests launching: move responsibility of proper tests launch environment (vm/host etc) from makefile to pytest/config/pyproj/python helpers etc. Ensure each test action produces exactly one pytest run with all summarization at bottom, not multiple runs with logs on top of each other
 
 #### later
 

@@ -1,7 +1,7 @@
 [project]
 name = "qt-ai-dev-tools"
 description = "AI agent infrastructure for Qt/PySide apps — inspect, interact, screenshot via AT-SPI"
-version = "0.2.0"
+version = "0.3.0"
 readme = "README.md"
 license = { text = "GPL-3.0" }
 requires-python = ">=3.12"

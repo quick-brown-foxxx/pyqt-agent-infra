@@ -196,14 +196,14 @@ mkdir -p /home/vagrant/.config/systemd/user
 cat > /home/vagrant/.local/bin/desktop-session.sh << 'EOF'
 #!/bin/bash
 # Desktop session startup: openbox + AT-SPI + tray + audio
-set -euo pipefail
+set -eu
 
 /usr/libexec/at-spi-bus-launcher --launch-immediately &
 sleep 0.5
 
 ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
   /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
-  grep 'string "' | sed 's/.*string "//;s/"//')
+  grep 'string "' | sed 's/.*string "//;s/"//') || true
 
 if [ -n "$ATSPI_ADDR" ]; then
   xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"
@@ -211,7 +211,7 @@ fi
 
 openbox &
 sleep 0.5
-snixembed --fork &
+snixembed &
 sleep 0.5
 stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE &
 sleep 0.5

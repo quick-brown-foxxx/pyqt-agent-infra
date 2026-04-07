@@ -105,7 +105,7 @@ def _widget_dict(widget: AtspiNode) -> dict[str, object]:
         "name": widget.name,
         "text": widget.get_text(),
         "extents": {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height},
-        "visible": ext.width > 0 and ext.height > 0,
+        "visible": ext.width > 0 and ext.height > 0 and not (ext.x == 0 and ext.y == 0),
     }
     if widget.has_value_iface:
         d["value"] = widget.get_value()

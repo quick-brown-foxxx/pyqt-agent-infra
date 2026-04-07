@@ -22,7 +22,7 @@ Use this skill for:
 
 For single-widget interaction (one click, one type, reading a label), use `qt-app-interaction` instead. This skill builds on that foundation with multi-step recipes.
 
-All commands auto-proxy to the VM. Run them directly -- no `vm run` wrapping.
+All commands work the same from host or VM -- no SSH wrapping needed. Use `vm run` only for arbitrary commands.
 
 ## Form filling
 

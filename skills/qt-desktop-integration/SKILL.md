@@ -15,7 +15,7 @@ description: >
 
 System tray, notifications, and audio operate outside the widget tree. They use D-Bus and PipeWire, not AT-SPI. For widget interaction, use the `qt-app-interaction` skill instead.
 
-All commands auto-detect host vs VM and proxy transparently through SSH. Run them directly -- no `vm run` wrapping needed.
+All commands work the same from host or VM -- no SSH wrapping needed. Use `vm run` only for arbitrary commands.
 
 ## When to Use This Skill
 

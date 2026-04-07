@@ -7,8 +7,8 @@ description: >
   "dismiss notification", "test audio", "create virtual microphone",
   "record audio", "verify audio output", or any OS-level desktop
   integration testing. Covers D-Bus system tray (SNI), notification
-  monitoring, and PipeWire audio. Do NOT use for widget interaction
-  -- see qt-app-interaction.
+  monitoring, and PipeWire audio. All commands in this skill are alpha.
+  Do NOT use for widget interaction -- see qt-app-interaction.
 ---
 
 # Qt Desktop Integration

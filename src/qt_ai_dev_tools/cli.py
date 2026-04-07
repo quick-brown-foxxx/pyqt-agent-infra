@@ -107,13 +107,20 @@ def _widget_line(widget: AtspiNode) -> str:
 
 def _widget_dict(widget: AtspiNode) -> dict[str, object]:
     """Convert a widget to a JSON-serializable dict."""
-    ext = widget.get_extents()
+    from qt_ai_dev_tools.pilot import is_visible
+
+    try:
+        ext = widget.get_extents()
+        extents_dict: dict[str, int] = {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height}
+    except (RuntimeError, OSError):
+        extents_dict = {"x": 0, "y": 0, "width": 0, "height": 0}
+
     d: dict[str, object] = {
         "role": widget.role_name,
         "name": widget.name,
         "text": widget.get_text(),
-        "extents": {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height},
-        "visible": ext.width > 0 and ext.height > 0 and not (ext.x == 0 and ext.y == 0),
+        "extents": extents_dict,
+        "visible": is_visible(widget),
     }
     if widget.has_value_iface:
         d["value"] = widget.get_value()

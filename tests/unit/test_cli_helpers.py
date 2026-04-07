@@ -20,13 +20,14 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
 pytestmark = pytest.mark.unit
 
 
-def _make_widget(name: str, role_name: str, extents: Extents, text: str = "") -> MagicMock:
+def _make_widget(name: str, role_name: str, extents: Extents, text: str = "", *, showing: bool = True) -> MagicMock:
     """Create a mock AtspiNode-like widget."""
     widget = MagicMock()
     widget.name = name
     widget.role_name = role_name
     widget.get_extents.return_value = extents
     widget.get_text.return_value = text
+    widget.is_showing = showing
     return widget
 
 

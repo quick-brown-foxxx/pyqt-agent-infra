@@ -13,22 +13,18 @@ from qt_ai_dev_tools.screenshot import take_screenshot
 logger = logging.getLogger(__name__)
 
 
-def _is_visible(widget: AtspiNode) -> bool:
+def is_visible(widget: AtspiNode) -> bool:
     """Check if a widget is likely visible on screen.
 
-    Rejects widgets with zero-size extents AND widgets positioned at
-    the screen origin (0, 0) — Qt/AT-SPI reports (0, 0) with non-zero
-    size for items inside closed popup menus (e.g. menu items when their
-    parent menu is not open).  Clicking such widgets sends xdotool to the
-    top-left corner of the screen, which is never correct.
+    Uses AT-SPI SHOWING state as the primary indicator — this flag is
+    set by the toolkit when a widget is actually rendered.  Widgets with
+    zero-size extents are always rejected regardless of state.
     """
     try:
         ext = widget.get_extents()
         if ext.width <= 0 or ext.height <= 0:
             return False
-        # Reject origin (0, 0) — closed popup menu items report real
-        # width/height but position (0, 0) which is a Qt/AT-SPI artifact.
-        return not (ext.x == 0 and ext.y == 0)
+        return widget.is_showing
     except (RuntimeError, OSError):
         return False
 
@@ -91,7 +87,7 @@ class QtPilot:
         results: list[AtspiNode] = []
         self._walk(root, role, name, results, exact=exact)
         if visible:
-            results = [w for w in results if _is_visible(w)]
+            results = [w for w in results if is_visible(w)]
         return results
 
     def find_one(

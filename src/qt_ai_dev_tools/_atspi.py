@@ -65,6 +65,18 @@ class AtspiNode:
         ext = self._native.get_extents(Atspi.CoordType.SCREEN)  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
         return Extents(ext.x, ext.y, ext.width, ext.height)  # type: ignore[arg-type]  # rationale: AT-SPI extents fields are untyped
 
+    @property
+    def is_showing(self) -> bool:
+        """Whether the widget is currently rendered on screen (AT-SPI SHOWING state).
+
+        Returns False if the state cannot be determined (stale node, error).
+        """
+        try:
+            state_set = self._native.get_state_set()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs
+            return state_set.contains(Atspi.StateType.SHOWING)  # type: ignore[no-any-return,reportUnknownMemberType]  # rationale: AT-SPI StateSet has no stubs
+        except (RuntimeError, OSError):
+            return False
+
     def get_text(self) -> str:
         """Text content. Falls back to accessible name if no text iface."""
         iface = self._native.get_text_iface()  # type: ignore[union-attr]  # rationale: AT-SPI Accessible has no stubs

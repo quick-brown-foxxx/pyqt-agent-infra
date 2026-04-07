@@ -28,6 +28,8 @@ def _make_node(
     ext_y: int = 20,
     ext_width: int = 100,
     ext_height: int = 50,
+    *,
+    showing: bool = True,
 ) -> MagicMock:
     """Create a mock AT-SPI native object."""
     native = MagicMock()
@@ -45,6 +47,11 @@ def _make_node(
     ext.width = ext_width
     ext.height = ext_height
     native.get_extents.return_value = ext
+
+    # State set mock (for is_showing)
+    state_set = MagicMock()
+    state_set.contains.return_value = showing
+    native.get_state_set.return_value = state_set
 
     return native
 
@@ -469,10 +476,10 @@ class TestVisibilityFilter:
 
     def _make_pilot_with_buttons(
         self,
-        buttons: list[tuple[str, int, int]],
+        buttons: list[tuple[str, int, int, bool]],
     ) -> QtPilot:
-        """Create a pilot with push buttons of given (name, width, height)."""
-        children = [_make_node(name, "push button", ext_width=w, ext_height=h) for name, w, h in buttons]
+        """Create a pilot with push buttons of given (name, width, height, showing)."""
+        children = [_make_node(name, "push button", ext_width=w, ext_height=h, showing=s) for name, w, h, s in buttons]
         frame = _make_node("main", "frame", children=children)
         app_native = _make_node("test-app", "application", children=[frame])
         desktop_native = _make_node("desktop", "desktop", children=[app_native])
@@ -483,9 +490,20 @@ class TestVisibilityFilter:
         """Visible filter should exclude widgets with 0x0 extents."""
         pilot = self._make_pilot_with_buttons(
             [
-                ("OK", 100, 50),
-                ("OK", 0, 0),
-                ("OK", 0, 0),
+                ("OK", 100, 50, True),
+                ("OK", 0, 0, True),
+                ("OK", 0, 0, True),
+            ]
+        )
+        results = pilot.find(role="push button", name="OK", visible=True)
+        assert len(results) == 1
+
+    def test_find_visible_excludes_not_showing(self) -> None:
+        """Visible filter should exclude widgets without SHOWING state."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 100, 50, True),
+                ("OK", 100, 50, False),
             ]
         )
         results = pilot.find(role="push button", name="OK", visible=True)
@@ -495,9 +513,9 @@ class TestVisibilityFilter:
         """Without visible filter, all matching widgets are returned."""
         pilot = self._make_pilot_with_buttons(
             [
-                ("OK", 100, 50),
-                ("OK", 0, 0),
-                ("OK", 0, 0),
+                ("OK", 100, 50, True),
+                ("OK", 0, 0, True),
+                ("OK", 0, 0, True),
             ]
         )
         results = pilot.find(role="push button", name="OK")
@@ -507,9 +525,9 @@ class TestVisibilityFilter:
         """find_one with visible=True succeeds when exactly 1 is visible."""
         pilot = self._make_pilot_with_buttons(
             [
-                ("OK", 100, 50),
-                ("OK", 0, 0),
-                ("OK", 0, 0),
+                ("OK", 100, 50, True),
+                ("OK", 0, 0, True),
+                ("OK", 0, 0, True),
             ]
         )
         widget = pilot.find_one(role="push button", name="OK", visible=True)
@@ -520,8 +538,8 @@ class TestVisibilityFilter:
         """find_one with visible=True raises when 2+ are visible."""
         pilot = self._make_pilot_with_buttons(
             [
-                ("OK", 100, 50),
-                ("OK", 80, 40),
+                ("OK", 100, 50, True),
+                ("OK", 80, 40, True),
             ]
         )
         with pytest.raises(LookupError, match="Multiple widgets found"):
@@ -531,8 +549,8 @@ class TestVisibilityFilter:
         """Visible filter returns empty when all matches have 0x0 extents."""
         pilot = self._make_pilot_with_buttons(
             [
-                ("OK", 0, 0),
-                ("OK", 0, 0),
+                ("OK", 0, 0, True),
+                ("OK", 0, 0, True),
             ]
         )
         results = pilot.find(role="push button", name="OK", visible=True)
@@ -631,8 +649,8 @@ class TestIndexParameter:
 
     def test_find_one_index_with_visible_filter(self) -> None:
         """index=0 with visible=True skips hidden widgets."""
-        hidden = _make_node("", "text", ext_width=0, ext_height=0)
-        visible = _make_node("", "text", ext_width=200, ext_height=40)
+        hidden = _make_node("", "text", ext_width=0, ext_height=0, showing=True)
+        visible = _make_node("", "text", ext_width=200, ext_height=40, showing=True)
         frame = _make_node("main", "frame", children=[hidden, visible])
         app_native = _make_node("test-app", "application", children=[frame])
         desktop_native = _make_node("desktop", "desktop", children=[app_native])

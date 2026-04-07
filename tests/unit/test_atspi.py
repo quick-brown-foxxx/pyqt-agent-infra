@@ -485,6 +485,35 @@ class TestTableInterface:
 # ------------------------------------------------------------------
 
 
+class TestStateSet:
+    """Tests for is_showing property (AT-SPI SHOWING state)."""
+
+    def test_is_showing_true(self) -> None:
+        """Widget with SHOWING state returns True."""
+        native = _make_native()
+        state_set = MagicMock()
+        state_set.contains.return_value = True
+        native.get_state_set.return_value = state_set
+        node = AtspiNode(native)
+        assert node.is_showing is True
+
+    def test_is_showing_false(self) -> None:
+        """Widget without SHOWING state returns False."""
+        native = _make_native()
+        state_set = MagicMock()
+        state_set.contains.return_value = False
+        native.get_state_set.return_value = state_set
+        node = AtspiNode(native)
+        assert node.is_showing is False
+
+    def test_is_showing_error_returns_false(self) -> None:
+        """If get_state_set() fails, returns False."""
+        native = _make_native()
+        native.get_state_set.side_effect = RuntimeError("stale")
+        node = AtspiNode(native)
+        assert node.is_showing is False
+
+
 class TestDesktop:
     @patch("qt_ai_dev_tools._atspi.Atspi")
     def test_wraps_atspi_desktop(self, mock_atspi: MagicMock) -> None:

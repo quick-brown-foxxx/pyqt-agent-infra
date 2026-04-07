@@ -602,7 +602,6 @@ app.add_typer(workspace_app, name="workspace")
 
 @workspace_app.command(name="init")
 def workspace_init(
-    path: typing.Annotated[Path, typer.Option("--path", help="Target directory")] = Path("."),
     box: typing.Annotated[str, typer.Option(help="Vagrant box")] = "bento/ubuntu-24.04",
     provider: typing.Annotated[str, typer.Option(help="Vagrant provider")] = "libvirt",
     memory: typing.Annotated[int, typer.Option(help="VM memory in MB")] = 4096,
@@ -616,12 +615,13 @@ def workspace_init(
         str, typer.Option(help="Libvirt management network subnet (CIDR)")
     ] = "192.168.122.0/24",
 ) -> None:
-    """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
+    """Initialize a workspace in .qt-ai-dev-tools/ with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
 
     if provider == "virtualbox":
         typer.echo("WARNING: VirtualBox provider is NOT TESTED. Only libvirt has been verified.", err=True)
 
+    target = Path(".qt-ai-dev-tools")
     config = WorkspaceConfig(
         box=box,
         provider=provider,
@@ -634,10 +634,14 @@ def workspace_init(
         display=display,
         resolution=resolution,
     )
-    created = render_workspace(path, config)
+    created = render_workspace(target, config)
     for f in created:
         typer.echo(f"  Created: {f}")
-    typer.echo(f"Workspace initialized in {path}")
+    typer.echo("")
+    typer.echo("Workspace initialized in .qt-ai-dev-tools/")
+    typer.echo("→ Review Vagrantfile for your network setup (static IP, DHCP range).")
+    typer.echo("→ Add .qt-ai-dev-tools/ to .gitignore if this is a personal/local setup.")
+    typer.echo("→ Run: qt-ai-dev-tools vm up")
 
 
 # ── VM commands ─────────────────────────────────────────────────────

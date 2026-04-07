@@ -9,12 +9,15 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_WORKSPACE_DIR = ".qt-ai-dev-tools"
+
 
 def find_workspace(workspace: Path | None = None) -> Path:
     """Find workspace directory containing Vagrantfile.
 
-    If workspace is given, use it. Otherwise walk up from cwd looking for
-    a directory containing Vagrantfile.
+    If workspace is given, use it as-is (check for Vagrantfile in it).
+    Otherwise walk up from cwd looking for a ``.qt-ai-dev-tools/``
+    subdirectory containing a Vagrantfile.
     """
     if workspace is not None:
         vf = workspace / "Vagrantfile"
@@ -25,9 +28,10 @@ def find_workspace(workspace: Path | None = None) -> Path:
 
     current = Path.cwd()
     for parent in [current, *current.parents]:
-        if (parent / "Vagrantfile").exists():
-            return parent
-    msg = "No Vagrantfile found in current directory or parents"
+        ws_dir = parent / _WORKSPACE_DIR
+        if (ws_dir / "Vagrantfile").exists():
+            return ws_dir
+    msg = f"No {_WORKSPACE_DIR}/Vagrantfile found in current directory or parents"
     raise FileNotFoundError(msg)
 
 

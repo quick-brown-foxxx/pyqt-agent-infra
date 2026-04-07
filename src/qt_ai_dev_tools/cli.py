@@ -177,18 +177,31 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
 # ── Init / Self-update commands ────────────────────────────────────
 
 
-@app.command(name="init")
-def init_command(
+@app.command(name="install-and-own")
+def install_and_own_command(
     path: typing.Annotated[Path, typer.Argument(help="Target directory")] = Path("./qt-ai-dev-tools"),
     memory: typing.Annotated[int, typer.Option(help="VM memory MB")] = 4096,
     cpus: typing.Annotated[int, typer.Option(help="VM CPUs")] = 4,
+    yes_i_will_maintain_it: typing.Annotated[
+        bool, typer.Option("--yes-I-will-maintain-it", help="Confirm you will own and maintain the copied code")
+    ] = False,
 ) -> None:
-    """Install qt-ai-dev-tools toolkit into a project directory (shadcn-style)."""
-    from qt_ai_dev_tools.installer import init_toolkit
+    """Copy qt-ai-dev-tools source into your project. You own the copy."""
+    if not yes_i_will_maintain_it:
+        typer.echo(
+            "This command copies the full qt-ai-dev-tools source into your project.\n"
+            "You become the maintainer of that copy — no upstream updates.\n"
+            "\n"
+            "Pass --yes-I-will-maintain-it to confirm.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    from qt_ai_dev_tools.installer import install_and_own
 
     target = path.resolve()
     try:
-        created = init_toolkit(target, memory=memory, cpus=cpus)
+        created = install_and_own(target, memory=memory, cpus=cpus)
     except OSError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -196,7 +209,9 @@ def init_command(
     for entry in created:
         typer.echo(f"  {entry}")
     typer.echo(f"Toolkit installed to {target}")
-    typer.echo(f"Run: {target}/cli --help")
+    typer.echo(f"  -> Run: cd {target} && uv sync")
+    typer.echo("  -> Run: qt-ai-dev-tools workspace init")
+    typer.echo("  -> Load the qt-dev-tools-setup skill for full setup guidance.")
 
 
 @app.command(name="self-update")

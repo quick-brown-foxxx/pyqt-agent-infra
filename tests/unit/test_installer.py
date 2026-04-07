@@ -1,4 +1,4 @@
-"""Tests for shadcn-style installer (init_toolkit, self_update)."""
+"""Tests for shadcn-style installer (install_and_own, self_update)."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ import pytest
 pytestmark = pytest.mark.unit
 
 
-class TestInitToolkit:
-    """Tests for init_toolkit() — full install into a target directory."""
+class TestInstallAndOwn:
+    """Tests for install_and_own() — full install into a target directory."""
 
     def test_creates_directory_structure(self, tmp_path: Path) -> None:
-        """init_toolkit should create src/, templates/, skills/, notes/ dirs."""
-        from qt_ai_dev_tools.installer import init_toolkit
+        """install_and_own should create src/, templates/, skills/, notes/ dirs."""
+        from qt_ai_dev_tools.installer import install_and_own
 
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
 
         assert (tmp_path / "src").is_dir()
         assert (tmp_path / "templates").is_dir()
@@ -25,10 +25,10 @@ class TestInitToolkit:
         assert (tmp_path / "notes").is_dir()
 
     def test_copies_package_source(self, tmp_path: Path) -> None:
-        """init_toolkit should copy qt_ai_dev_tools package into src/."""
-        from qt_ai_dev_tools.installer import init_toolkit
+        """install_and_own should copy qt_ai_dev_tools package into src/."""
+        from qt_ai_dev_tools.installer import install_and_own
 
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
 
         pkg_dir = tmp_path / "src" / "qt_ai_dev_tools"
         assert pkg_dir.is_dir()
@@ -37,11 +37,11 @@ class TestInitToolkit:
         assert (pkg_dir / "cli.py").exists()
 
     def test_creates_config_toml(self, tmp_path: Path) -> None:
-        """init_toolkit should create config.toml with version and settings."""
+        """install_and_own should create config.toml with version and settings."""
         from qt_ai_dev_tools.__version__ import __version__
-        from qt_ai_dev_tools.installer import init_toolkit
+        from qt_ai_dev_tools.installer import install_and_own
 
-        init_toolkit(tmp_path, memory=8192, cpus=8)
+        install_and_own(tmp_path, memory=8192, cpus=8)
 
         config_path = tmp_path / "config.toml"
         assert config_path.exists()
@@ -51,22 +51,22 @@ class TestInitToolkit:
         assert "cpus = 8" in content
 
     def test_creates_cli_script(self, tmp_path: Path) -> None:
-        """init_toolkit should create an executable cli script."""
+        """install_and_own should create an executable cli script."""
         import stat
 
-        from qt_ai_dev_tools.installer import init_toolkit
+        from qt_ai_dev_tools.installer import install_and_own
 
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
 
         cli_path = tmp_path / "cli"
         assert cli_path.exists()
         assert cli_path.stat().st_mode & stat.S_IXUSR
 
     def test_returns_created_paths(self, tmp_path: Path) -> None:
-        """init_toolkit should return a list of created/updated path strings."""
-        from qt_ai_dev_tools.installer import init_toolkit
+        """install_and_own should return a list of created/updated path strings."""
+        from qt_ai_dev_tools.installer import install_and_own
 
-        created = init_toolkit(tmp_path)
+        created = install_and_own(tmp_path)
 
         assert isinstance(created, list)
         assert len(created) > 0
@@ -100,10 +100,10 @@ class TestSelfUpdate:
 
     def test_preserves_config_toml(self, tmp_path: Path) -> None:
         """self_update should preserve user-modified config.toml."""
-        from qt_ai_dev_tools.installer import init_toolkit, self_update
+        from qt_ai_dev_tools.installer import install_and_own, self_update
 
         # Initial install
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
 
         # User modifies config.toml
         config_path = tmp_path / "config.toml"
@@ -118,10 +118,10 @@ class TestSelfUpdate:
 
     def test_preserves_notes_directory(self, tmp_path: Path) -> None:
         """self_update should preserve the notes/ directory."""
-        from qt_ai_dev_tools.installer import init_toolkit, self_update
+        from qt_ai_dev_tools.installer import install_and_own, self_update
 
         # Initial install
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
 
         # User adds a note
         notes_dir = tmp_path / "notes"
@@ -146,9 +146,9 @@ class TestSelfUpdate:
 
     def test_returns_updated_paths(self, tmp_path: Path) -> None:
         """self_update should return a list of updated path strings."""
-        from qt_ai_dev_tools.installer import init_toolkit, self_update
+        from qt_ai_dev_tools.installer import install_and_own, self_update
 
-        init_toolkit(tmp_path)
+        install_and_own(tmp_path)
         updated = self_update(tmp_path)
 
         assert isinstance(updated, list)

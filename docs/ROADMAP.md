@@ -36,7 +36,7 @@ The final product is a **composable toolkit**, not a single binary:
 | **VM environment** | Vagrant + Xvfb + AT-SPI setup | Scripts that create and manage the headless Qt environment |
 | **Docker environment** | Lightweight container alternative (upcoming, Phase 5) | Xvfb + AT-SPI in a container — faster startup, fewer resources, UI-only workflows |
 
-Distribution: Primary: `uvx qt-ai-dev-tools init ./qt-ai-dev-tools` — copies full toolkit (source, templates, skills, config) into the project directory. Agent owns the code, can read and extend it. Secondary: `pip install qt-ai-dev-tools` for library/CLI-only usage. Skills: installed via skills tooling (`npx -y skills add ...`) or bundled with the toolkit copy.
+Distribution: `uvx qt-ai-dev-tools install-and-own --yes-I-will-maintain-it` — copies full toolkit (source, templates, skills, config) into the project directory. Agent owns the code, can read and extend it. Skills: installed via skills tooling (`npx -y skills add ...`) or bundled with the toolkit copy.
 
 ---
 
@@ -162,15 +162,28 @@ Successful scenarios to become e2e tests. Deferred to a future cycle.
 
 ---
 
+## Skills Refresh
+
+**Status:** Complete.
+
+Rewrote all AI skills to be self-contained single SKILL.md files covering all current CLI features:
+
+- **Rewrote 2 existing skills:** `qt-dev-tools-setup`, `qt-app-interaction` — updated for current CLI flags, subsystem commands, host/VM parity language, `.qt-ai-dev-tools/` workspace directory, `install-and-own` command.
+- **Created 3 new skills:** `qt-form-and-input` (form filling, complex widgets), `qt-desktop-integration` (clipboard, file dialogs, tray, notifications, audio), `qt-runtime-eval` (bridge eval, script execution, namespace).
+- Deleted all old `references/` directories — skills are fully self-contained now.
+- Added skill references to all CLI `--help` epilogs.
+
+---
+
 ## Phase 7: Installer & Distribution Overhaul
 
-**Status:** Needs brainstorming.
+**Status:** Partially complete. 7.1, 7.4, 7.7, 7.8 done. 7.0 brainstorm and 7.2, 7.3, 7.5 still needed. 7.6 skipped.
 
 ### 7.0 — [brainstorm] Distribution philosophy
 
-Key design questions: how should skills auto-bundle on local installation? Integration with `npx skills`? Symlinks to global skill locations? What's the right default workspace directory name?
+Key design questions: how should skills auto-bundle on local installation? Integration with `npx skills`? Symlinks to global skill locations?
 
-### 7.1 — [implement] `uvx` as sole recommended install, drop `pip` from primary docs
+### 7.1 — [implement] `uvx` as sole recommended install, drop `pip` from primary docs — DONE
 
 ### 7.2 — [implement] Update-available warning
 
@@ -180,25 +193,19 @@ Check PyPI version, print warning at top of CLI output when a newer version exis
 
 Build system stamps version and git commit into the package at publish time.
 
-### 7.4 — [implement] Rename default `init` action
-
-Rename to something explicit (e.g., `install-and-own`) with confirmation flag like `--yes-I-will-maintain-it`. Keep `init` available but make the implications clear.
+### 7.4 — [implement] Rename `init` → `install-and-own` with `--yes-I-will-maintain-it` confirmation — DONE
 
 ### 7.5 — [implement] Auto-bundle skills on local installation
 
 Design and implement automatic skill bundling. May involve symlinks, directory conventions, or integration with external skill managers.
 
-### 7.6 — [implement] Override command name in skills on local installation
+### 7.6 — [implement] Override command name in skills on local installation — SKIPPED
 
-When installed locally, skills should reference the local CLI path, not the global `qt-ai-dev-tools` command.
+Skipped per user decision.
 
-### 7.7 — [implement] Highlight Vagrantfile editing in installation skill
+### 7.7 — [implement] Highlight Vagrantfile editing in setup skill and workspace init output — DONE
 
-The setup skill should prominently mention that the Vagrantfile may need editing for the user's host/network setup.
-
-### 7.8 — [implement] Default workspace directory `.qt-ai-dev-tools/`
-
-Change default workspace directory from project-root files to a dedicated `.qt-ai-dev-tools/` directory.
+### 7.8 — [implement] Default workspace directory `.qt-ai-dev-tools/`, `--path` option removed — DONE
 
 ---
 
@@ -290,10 +297,11 @@ Independent of phases. Can be picked up anytime.
 
 | ID | Size | Task | Status |
 |---|---|---|---|
-| S-1 | small | Docs: mark X11-only, Python+Qt focus, clean up excessive "transparent proxy" mentions | Ready |
-| S-2 | small | `--dry-run` auto-enables `-v` | Ready |
-| S-3 | medium | Print helper instructions after key commands (e.g., `workspace init` → suggest editing Vagrantfile) | Ready |
+| S-1 | small | Docs: mark X11-only, Python+Qt focus, clean up excessive "transparent proxy" mentions | Done |
+| S-2 | small | `--dry-run` auto-enables `-v` | Done |
+| S-3 | medium | Print helper instructions after key commands (e.g., `workspace init` → suggest editing Vagrantfile) | Partial — `workspace init` and `install-and-own` done, other commands not yet |
 | S-4 | medium | CLI version update warning (check PyPI, print at top of output) | Ready |
+| S-5 | small | Add skill references to all CLI `--help` epilogs | Done |
 
 ---
 

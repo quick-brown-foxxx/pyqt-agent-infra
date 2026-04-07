@@ -26,12 +26,12 @@ class TestDefaultConfig:
         assert config.cpus == 4
         assert config.mac_address == ""
         assert config.static_ip == ""
-        assert config.shared_folder == "."
+        assert config.shared_folder == "../"
         assert config.rsync_excludes == [".git/", ".vagrant/", ".venv/"]
         assert config.display == ":99"
         assert config.resolution == "1920x1080x24"
         assert config.extra_packages == []
-        assert config.python_packages == ["PySide6", "pytest", "pytest-qt", "python-dbusmock"]
+        assert config.python_packages == ["basedpyright"]
 
 
 class TestRenderWorkspace:
@@ -54,7 +54,7 @@ class TestRenderWorkspace:
         content = (tmp_path / "provision.sh").read_text()
         assert "DISPLAY=:99" in content
         assert "1920x1080x24" in content
-        assert "PySide6" in content
+        assert "basedpyright" in content
 
     def test_shell_scripts_are_executable(self, tmp_path: Path) -> None:
         render_workspace(tmp_path)

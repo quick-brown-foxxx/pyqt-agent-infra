@@ -67,7 +67,7 @@ Package structure (`src/qt_ai_dev_tools/`), Typer CLI with one-liner commands, J
 
 ### Phase 3: Advanced Capabilities
 
-Agent skills (setup + interaction workflows), compound commands (`fill`, `do`). Bridge eval — runtime code execution inside Qt apps via Unix socket (`evaluate_script` equivalent), with `sys.remote_exec` injection for Python 3.14+. Five Linux subsystem modules: clipboard (xsel/xclip), file dialogs (AT-SPI automation), system tray (D-Bus SNI), notifications (D-Bus monitoring), audio (PipeWire virtual mic, recording, verification). Complex widget helpers (combo box, tabs, table, slider, checkbox, menu). Tree snapshot/diff. Project hygiene: pre-commit hooks, pytest markers, expanded test coverage (unit + e2e + CLI integration). Published v0.4.0 on PyPI.
+Agent skills (setup + interaction workflows), compound commands (`fill`, `do`). Bridge eval — runtime code execution inside Qt apps via Unix socket (`evaluate_script` equivalent), with `sys.remote_exec` injection for Python 3.14+. Five Linux subsystem modules: clipboard (xsel/xclip), file dialogs (AT-SPI automation), system tray (D-Bus SNI), notifications (D-Bus monitoring), audio (PipeWire virtual mic, recording, verification). Complex widget helpers (combo box, tabs, table, slider, checkbox, menu). Tree snapshot/diff. Project hygiene: pre-commit hooks, pytest markers, expanded test coverage (unit + e2e + CLI integration). Published v0.5.0 on PyPI.
 
 ---
 

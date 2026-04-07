@@ -193,6 +193,12 @@ class TestDoCommand:
         assert "Screenshot" in result.stdout
         assert ".png" in result.stdout
 
+    def test_do_click_with_index(self, bridge_app: subprocess.Popen[str]) -> None:
+        """do click should accept --index to disambiguate widgets."""
+        result = _run_cli("do", "click", "push button", "--role", "push button", "--index", "0")
+        assert "No such option" not in result.stderr
+        assert result.returncode == 0
+
     def test_do_unknown_action_fails(self, bridge_app: subprocess.Popen[str]) -> None:
         """An unknown action (not 'click') returns exit code 1."""
         result = _run_cli("do", "drag", "something")

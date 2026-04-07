@@ -135,15 +135,17 @@ def _proxy_to_vm(workspace: Path | None = None) -> None:
 
 
 def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
-    """Proxy screenshot command: run scrot in VM, SCP file back to host.
+    """Proxy screenshot command: run scrot in VM, transfer file back via base64.
 
     Unlike _proxy_to_vm, this needs special handling because the screenshot
     file is created inside the VM and must be transferred to the host.
+    Uses base64 encoding over vagrant ssh to avoid SCP connection issues.
     """
     if _is_in_vm():
         return
 
-    from qt_ai_dev_tools.run import run_command
+    import base64
+
     from qt_ai_dev_tools.vagrant.vm import find_workspace, vm_run
 
     ws = find_workspace(workspace)
@@ -156,21 +158,18 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
             typer.echo(result.stderr, err=True, nl=False)
         raise typer.Exit(code=result.returncode)
 
-    # Generate SSH config if needed
-    ssh_config = ws / ".vagrant-ssh-config"
-    if not ssh_config.exists():
-        config_result = run_command(["vagrant", "ssh-config"], cwd=ws)
-        if config_result.returncode == 0:
-            ssh_config.write_text(config_result.stdout)
-
-    # SCP screenshot from VM to host
-    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
-    scp_result = run_command(["scp", "-F", str(ssh_config), f"default:{remote_path}", output], cwd=ws)
-    if scp_result.returncode != 0:
-        typer.echo(f"Failed to copy screenshot from VM: {scp_result.stderr}", err=True)
+    # Transfer via base64 encoding (avoids SCP connection issues)
+    b64_result = vm_run(f"base64 -w 0 {remote_path}", ws)
+    if b64_result.returncode != 0:
+        typer.echo(f"Failed to read screenshot from VM: {b64_result.stderr}", err=True)
         raise typer.Exit(code=1)
 
-    size = os.path.getsize(output)
+    # Decode and save locally
+    os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
+    raw = base64.b64decode(b64_result.stdout.strip())
+    Path(output).write_bytes(raw)
+
+    size = len(raw)
     typer.echo(f"Screenshot: {output} ({size} bytes)")
     raise typer.Exit(code=0)
 

@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync run test test-unit test-vm test-e2e test-cli test-atspi screenshot destroy help status lint lint-fix workspace-init setup
+.PHONY: up provision ssh sync test test-unit test-full test-e2e test-integration screenshot destroy help status lint-full workspace-init setup
 
 SHELL := /bin/bash
 

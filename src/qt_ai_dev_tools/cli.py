@@ -21,10 +21,11 @@ _CONTEXT: dict[str, list[str]] = {"help_option_names": ["-h", "--help"]}
 
 app = typer.Typer(
     name="qt-ai-dev-tools",
-    help="AI agent tools for Qt/PySide app interaction via AT-SPI.",
+    help="AI agent tools for Qt/PySide app interaction via AT-SPI. [beta]",
     no_args_is_help=True,
     context_settings=_CONTEXT,
-    epilog="Skills: qt-dev-tools-setup, qt-app-interaction, qt-form-and-input, "
+    epilog="Status: beta (subsystem commands are alpha). "
+    "Skills: qt-dev-tools-setup, qt-app-interaction, qt-form-and-input, "
     "qt-desktop-integration, qt-runtime-eval. "
     "Install: npx -y skills add quick-brown-foxxx/qt-ai-dev-tools",
 )
@@ -914,7 +915,7 @@ def bridge_inject_cmd(
 # ── Clipboard commands ────────────────────────────────────────────
 
 clipboard_app = typer.Typer(
-    help="Clipboard operations.",
+    help="Clipboard operations. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-form-and-input",
 )
@@ -926,6 +927,9 @@ def clipboard_write_cmd(
     text: typing.Annotated[str, typer.Argument(help="Text to write to clipboard")],
 ) -> None:
     """Write text to the system clipboard."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("clipboard write")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import clipboard as clipboard_mod
 
@@ -940,6 +944,9 @@ def clipboard_write_cmd(
 @clipboard_app.command(name="read")
 def clipboard_read_cmd() -> None:
     """Read text from the system clipboard."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("clipboard read")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import clipboard as clipboard_mod
 
@@ -954,7 +961,7 @@ def clipboard_read_cmd() -> None:
 # ── File dialog commands ──────────────────────────────────────────
 
 file_dialog_app = typer.Typer(
-    help="File dialog automation.",
+    help="File dialog automation. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-form-and-input",
 )
@@ -967,6 +974,9 @@ def file_dialog_detect_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Detect an open file dialog in the application."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("file-dialog detect")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
 
@@ -992,6 +1002,9 @@ def file_dialog_fill_cmd(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Type a file path into the dialog's filename field."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("file-dialog fill")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
 
@@ -1009,6 +1022,9 @@ def file_dialog_accept_cmd(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Click the accept button (Open/Save/OK) in the file dialog."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("file-dialog accept")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
 
@@ -1026,6 +1042,9 @@ def file_dialog_cancel_cmd(
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
 ) -> None:
     """Click the Cancel button in the file dialog."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("file-dialog cancel")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import file_dialog as fd_mod
 
@@ -1041,7 +1060,7 @@ def file_dialog_cancel_cmd(
 # ── System tray commands ──────────────────────────────────────────
 
 tray_app_cli = typer.Typer(
-    help="System tray interaction.",
+    help="System tray interaction. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-desktop-integration",
 )
@@ -1053,6 +1072,9 @@ def tray_list_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """List system tray items."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("tray list")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import tray as tray_mod
 
@@ -1083,6 +1105,9 @@ def tray_click_cmd(
     ] = "left",
 ) -> None:
     """Click a tray item (left=activate, right=context menu)."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("tray click")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import tray as tray_mod
 
@@ -1106,6 +1131,9 @@ def tray_menu_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Show context menu entries for a tray item."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("tray menu")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import tray as tray_mod
 
@@ -1135,6 +1163,9 @@ def tray_select_cmd(
     item_label: typing.Annotated[str, typer.Argument(help="Menu item label to click")],
 ) -> None:
     """Click a menu item in a tray icon's context menu."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("tray select")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import tray as tray_mod
 
@@ -1149,7 +1180,7 @@ def tray_select_cmd(
 # ── Notification commands ─────────────────────────────────────────
 
 notify_app_cli = typer.Typer(
-    help="Desktop notification interaction.",
+    help="Desktop notification interaction. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-desktop-integration",
 )
@@ -1162,6 +1193,9 @@ def notify_listen_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Listen for desktop notifications."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("notify listen")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import notify as notify_mod
 
@@ -1193,6 +1227,9 @@ def notify_dismiss_cmd(
     notification_id: typing.Annotated[int, typer.Argument(help="Notification ID to dismiss")],
 ) -> None:
     """Dismiss a notification by ID."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("notify dismiss")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import notify as notify_mod
 
@@ -1210,6 +1247,9 @@ def notify_action_cmd(
     action_key: typing.Annotated[str, typer.Argument(help="Action key to invoke")],
 ) -> None:
     """Invoke an action on a notification."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("notify action")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import notify as notify_mod
 
@@ -1224,7 +1264,7 @@ def notify_action_cmd(
 # ── Audio commands ────────────────────────────────────────────────
 
 audio_app_cli = typer.Typer(
-    help="PipeWire audio interaction.",
+    help="PipeWire audio interaction. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-desktop-integration",
 )
@@ -1232,7 +1272,7 @@ app.add_typer(audio_app_cli, name="audio")
 
 # Virtual mic sub-group
 vmic_app = typer.Typer(
-    help="Virtual microphone management.",
+    help="Virtual microphone management. [alpha]",
     context_settings=_CONTEXT,
     epilog="More info in skill: qt-desktop-integration",
 )
@@ -1244,6 +1284,9 @@ def audio_vmic_start_cmd(
     node_name: typing.Annotated[str, typer.Option("--name", "-n", help="Node name")] = "virtual-mic",
 ) -> None:
     """Start a virtual microphone via pw-loopback."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio virtual-mic start")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1258,6 +1301,9 @@ def audio_vmic_start_cmd(
 @vmic_app.command(name="stop")
 def audio_vmic_stop_cmd() -> None:
     """Stop the virtual microphone."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio virtual-mic stop")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1275,6 +1321,9 @@ def audio_vmic_play_cmd(
     node_name: typing.Annotated[str, typer.Option("--name", "-n", help="Target node name")] = "virtual-mic",
 ) -> None:
     """Play audio into the virtual microphone."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio virtual-mic play")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1293,6 +1342,9 @@ def audio_record_cmd(
     loopback: typing.Annotated[bool, typer.Option("--loopback", help="Record from loopback source")] = False,
 ) -> None:
     """Record audio from PipeWire."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio record")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1309,6 +1361,9 @@ def audio_sources_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """List PipeWire audio sources."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio sources")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1336,6 +1391,9 @@ def audio_status_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """List active PipeWire audio streams."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio status")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 
@@ -1365,6 +1423,9 @@ def audio_verify_cmd(
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Verify an audio file is not silence."""
+    from qt_ai_dev_tools._stability import warn_if_alpha
+
+    warn_if_alpha("audio verify")
     _proxy_to_vm()
     from qt_ai_dev_tools.subsystems import audio as audio_mod
 

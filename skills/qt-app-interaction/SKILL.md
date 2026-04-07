@@ -7,7 +7,7 @@ description: >
   or any task requiring direct Qt widget interaction. Covers the core
   inspect-interact-verify workflow. Do NOT use for: clipboard/file dialogs
   (see qt-form-and-input), tray/notifications/audio (see qt-desktop-integration),
-  or runtime code execution (see qt-runtime-eval).
+  or runtime code execution (see qt-runtime-eval). Core commands are beta.
 ---
 
 # Qt App Interaction

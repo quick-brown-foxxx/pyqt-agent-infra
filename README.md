@@ -106,7 +106,7 @@ uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
 
 ## Project status
 
-**Working now:**
+**Working now (beta):**
 - CLI with one-liner commands — `tree`, `click`, `type`, `screenshot`, `fill`, `do`, snapshot save/diff, and more
 - Widget addressing — `--visible`, `--exact`, `--index` flags for precise targeting
 - Multi-app support — `--app` flag to target a specific application
@@ -121,6 +121,8 @@ uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
   - Notifications (D-Bus listen, dismiss, action)
   - Audio (PipeWire virtual mic, recording, verification)
 - Distribution — `uvx qt-ai-dev-tools <any-command>` without installation, `install-and-own` for local copies, five AI skills
+
+Subsystem commands (clipboard, file dialog, tray, notifications, audio) are **alpha** — functional but less battle-tested.
 
 **Next up:**
 - Architecture rewrite — backend abstraction for multiple environments

@@ -6,6 +6,7 @@ description: >
   "open a file", "save a file", "handle file dialog", "copy to clipboard",
   "paste from clipboard", "read clipboard", or any multi-field data entry task.
   Covers form filling recipes, QFileDialog automation, and clipboard read/write.
+  Clipboard and file dialog commands are alpha.
   Do NOT use for basic single-widget clicks or typing -- see qt-app-interaction.
 ---
 

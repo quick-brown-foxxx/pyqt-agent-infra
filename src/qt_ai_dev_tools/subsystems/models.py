@@ -37,6 +37,8 @@ class TrayItem:
     bus_name: str
     object_path: str
     protocol: str
+    title: str = ""
+    icon_name: str = ""
 
 
 @dataclass(slots=True)

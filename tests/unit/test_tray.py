@@ -38,6 +38,9 @@ def _make_run_tool_side_effect(
                     return f'o "{menu_prop}"'
                 msg = "Property not found"
                 raise RuntimeError(msg)
+            if "Title" in args or "IconName" in args:
+                msg = "Property not found"
+                raise RuntimeError(msg)
         if "call" in args:
             if "GetLayout" in args:
                 return menu_output
@@ -96,12 +99,25 @@ class TestParseRegisteredItems:
         from qt_ai_dev_tools.subsystems.tray import _parse_registered_items
 
         output = 'as 1 ":1.340/StatusNotifierItem"'
-        with patch("qt_ai_dev_tools.subsystems.tray._query_sni_property", return_value="tray_app.py") as mock_query:
+
+        def _prop_side_effect(bus: str, path: str, prop: str) -> str | None:
+            if prop == "Id":
+                return "tray_app.py"
+            if prop == "Title":
+                return "Tray Test App"
+            if prop == "IconName":
+                return "tray-icon"
+            return None
+
+        with patch("qt_ai_dev_tools.subsystems.tray._query_sni_property", side_effect=_prop_side_effect) as mock_query:
             items = _parse_registered_items(output)
 
         assert len(items) == 1
         assert items[0].name == "tray_app.py"
-        mock_query.assert_called_once_with(":1.340", "/StatusNotifierItem", "Id")
+        assert items[0].title == "Tray Test App"
+        assert items[0].icon_name == "tray-icon"
+        # Should query Id, Title, and IconName
+        assert mock_query.call_count == 3
 
     def test_connection_id_fallback_on_query_failure(self) -> None:
         """When Id property query fails, keep the numeric name from connection ID."""

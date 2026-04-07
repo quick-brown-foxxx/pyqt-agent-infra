@@ -80,6 +80,22 @@ class TestTrayListAndClick:
         assert resp.result == "True"
 
 
+class TestTrayAppIdentity:
+    """Tray items should expose app name via D-Bus Title/IconName properties."""
+
+    def test_tray_item_has_app_identity(self, tray_app: subprocess.Popen[str], clean_sni_watcher: None) -> None:
+        """Tray items should expose app name, not just StatusNotifierItem-PID."""
+        from qt_ai_dev_tools.subsystems import tray
+
+        items = tray.list_items()
+        assert len(items) > 0
+        item = items[0]
+        has_identity = bool(item.title) or bool(item.icon_name)
+        assert has_identity, (
+            f"Tray item '{item.name}' has no app identity (title={item.title!r}, icon_name={item.icon_name!r})"
+        )
+
+
 class TestTrayContextMenu:
     """Flow 3B: Tray context menu reading."""
 

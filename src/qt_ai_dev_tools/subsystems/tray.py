@@ -268,12 +268,18 @@ def _parse_registered_items(output: str) -> list[TrayItem]:
             if sni_id:
                 name = sni_id
 
+        # Query Title and IconName for app identity
+        title = _query_sni_property(bus_name, obj_path, "Title") or ""
+        icon_name = _query_sni_property(bus_name, obj_path, "IconName") or ""
+
         items.append(
             TrayItem(
                 name=name,
                 bus_name=bus_name,
                 object_path=obj_path,
                 protocol="SNI",
+                title=title,
+                icon_name=icon_name,
             )
         )
     return items
@@ -522,8 +528,14 @@ def _find_item(app_name: str) -> TrayItem:
         LookupError: If no matching item is found.
     """
     items = list_items()
+    search = app_name.lower()
     for item in items:
-        if app_name.lower() in item.name.lower() or app_name.lower() in item.bus_name.lower():
+        if (
+            search in item.name.lower()
+            or search in item.bus_name.lower()
+            or (item.title and search in item.title.lower())
+            or (item.icon_name and search in item.icon_name.lower())
+        ):
             return item
 
     available = [f"{item.name} ({item.bus_name})" for item in items]

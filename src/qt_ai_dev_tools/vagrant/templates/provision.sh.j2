@@ -200,6 +200,12 @@ Environment=DISPLAY={{ display }}
 ExecStart=/bin/bash -c '\
     /usr/libexec/at-spi-bus-launcher --launch-immediately & \
     sleep 0.5; \
+    ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
+      /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
+      grep "string \"" | sed "s/.*string \"//;s/\"//"); \
+    if [ -n "$ATSPI_ADDR" ]; then \
+      xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"; \
+    fi; \
     openbox & \
     sleep 0.5; \
     snixembed --fork & \

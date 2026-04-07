@@ -199,11 +199,18 @@ cat > /home/vagrant/.local/bin/desktop-session.sh << 'EOF'
 set -eu
 
 /usr/libexec/at-spi-bus-launcher --launch-immediately &
-sleep 0.5
 
-ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
-  /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
-  grep 'string "' | sed 's/.*string "//;s/"//') || true
+# Wait for the AT-SPI bus to become available (up to 5 attempts)
+ATSPI_ADDR=""
+for _attempt in 1 2 3 4 5; do
+  sleep 0.5
+  ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
+    /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
+    grep 'string "' | sed 's/.*string "//;s/"//') || true
+  if [ -n "$ATSPI_ADDR" ]; then
+    break
+  fi
+done
 
 if [ -n "$ATSPI_ADDR" ]; then
   xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"
@@ -243,6 +250,7 @@ RestartSec=2
 WantedBy=default.target
 EOF
 
+chown -R vagrant:vagrant /home/vagrant/.local
 chown -R vagrant:vagrant /home/vagrant/.config
 
 # Enable lingering so user services start at boot (not just on login)

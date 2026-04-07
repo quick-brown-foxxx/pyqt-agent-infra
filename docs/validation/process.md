@@ -87,6 +87,17 @@ uv run qt-ai-dev-tools find --role "slider" --app "<AppName>" --json
 uv run qt-ai-dev-tools vm run "pkill <app>"
 ```
 
+## Round 3 — April 2026
+
+- **Apps retested:** All 4 — SpeedCrunch, KeePassXC, qBittorrent, VLC
+- **Clean VM reprovision** before testing
+- **0 regressions** found
+- **1 new issue:** ISSUE-025 (closed menu items bypass visibility filter — minor)
+- **2 provisioning bugs found and fixed:**
+  - ISSUE-026: `.local` directory owned by root on fresh VM (Critical — blocked all CLI usage)
+  - ISSUE-027: AT-SPI xprop race condition on fresh boot (Major — bus discovery could fail)
+- **Key observation:** Visibility filter works well but menu items with relative coordinates are a known gap. SpeedCrunch unaffected; KeePassXC shows 68 phantom menu items, VLC shows 76.
+
 ## Common Patterns
 
 - **Menu items:** Open parent menu first, then click submenu item. Closed items have (0,0) coords.

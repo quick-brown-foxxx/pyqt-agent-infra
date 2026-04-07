@@ -239,9 +239,21 @@ class TestClickInvisibleWidget:
 
     def test_click_closed_menu_item_rejects_zero_coords(self, complex_app: subprocess.Popen[str]) -> None:
         """Clicking a menu item without opening its parent menu should fail."""
-        # Do NOT open the File menu first
-        result = _run_cli("click", "--role", "menu item", "--name", "New", "--exact")
-        assert result.returncode != 0, "Clicking a closed popup menu item should fail, not silently click at (0,0)"
+        # Ensure any menu left open by a prior test is closed
+        _run_cli("key", "Escape", app=None)
+        _run_cli("key", "Escape", app=None)
+        time.sleep(0.3)
+
+        # Use "Undo" from the Edit menu — it is never opened by any prior
+        # test in this module, so AT-SPI still reports it at origin (0,0)
+        # with zero-size extents (invisible).  "New" cannot be used because
+        # TestMenuNavigation.test_select_file_new opens the File menu,
+        # causing AT-SPI to cache real coordinates even after the menu closes.
+        result = _run_cli("click", "--role", "menu item", "--name", "Undo", "--exact")
+        assert result.returncode != 0, (
+            "Clicking a closed popup menu item should fail, not silently click at (0,0). "
+            f"stdout={result.stdout!r}, stderr={result.stderr!r}"
+        )
 
 
 class TestScreenshot:
@@ -249,6 +261,14 @@ class TestScreenshot:
 
     def test_consecutive_screenshots_differ_after_state_change(self, complex_app: subprocess.Popen[str]) -> None:
         """Two screenshots with a display change between them must differ."""
+        # Ensure any menu left open by a prior test is closed
+        _run_cli("key", "Escape", app=None)
+        time.sleep(0.2)
+
+        # Start from a known tab (Inputs) so the switch to Data is visible
+        _run_cli("click", "--role", "page tab", "--name", "Inputs")
+        time.sleep(0.5)
+
         shot_path = "/tmp/test_screenshot_overwrite.png"
 
         r1 = _run_cli("screenshot", "-o", shot_path, app=None)

@@ -195,9 +195,19 @@ class TestDoCommand:
 
     def test_do_click_with_index(self, bridge_app: subprocess.Popen[str]) -> None:
         """do click should accept --index to disambiguate widgets."""
-        result = _run_cli("do", "click", "push button", "--role", "push button", "--index", "0")
+        # First positional arg after "click" is the widget NAME, not the role.
+        # Use the Russian "Добавить" (Add) button which exists in main.py.
+        result = _run_cli(
+            "do",
+            "click",
+            "\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c",
+            "--role",
+            "push button",
+            "--index",
+            "0",
+        )
         assert "No such option" not in result.stderr
-        assert result.returncode == 0
+        assert result.returncode == 0, f"do click --index failed: {result.stderr}"
 
     def test_do_unknown_action_fails(self, bridge_app: subprocess.Popen[str]) -> None:
         """An unknown action (not 'click') returns exit code 1."""

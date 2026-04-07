@@ -14,10 +14,21 @@ logger = logging.getLogger(__name__)
 
 
 def _is_visible(widget: AtspiNode) -> bool:
-    """Check if a widget has non-zero extents (likely visible)."""
+    """Check if a widget is likely visible on screen.
+
+    Rejects widgets with zero-size extents AND widgets positioned at
+    the screen origin (0, 0) — Qt/AT-SPI reports (0, 0) with non-zero
+    size for items inside closed popup menus (e.g. menu items when their
+    parent menu is not open).  Clicking such widgets sends xdotool to the
+    top-left corner of the screen, which is never correct.
+    """
     try:
         ext = widget.get_extents()
-        return ext.width > 0 and ext.height > 0
+        if ext.width <= 0 or ext.height <= 0:
+            return False
+        # Reject origin (0, 0) — closed popup menu items report real
+        # width/height but position (0, 0) which is a Qt/AT-SPI artifact.
+        return not (ext.x == 0 and ext.y == 0)
     except (RuntimeError, OSError):
         return False
 

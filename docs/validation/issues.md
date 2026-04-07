@@ -104,6 +104,30 @@ Tested against 4 apps: SpeedCrunch (Qt 5.15), KeePassXC (Qt 5.15), qBittorrent (
 
 ### Summary
 
+**7 of 10 issues fixed.** 3 deferred (ISSUE-018, ISSUE-021, ISSUE-024).
+
+### Fixed in Round 2
+
+| Issue | Severity | Description | Commit |
+|-------|----------|-------------|--------|
+| ISSUE-015 | Critical | Screenshot stale files — `scrot --overwrite` | `d93003e` |
+| ISSUE-016 | Critical | desktop-session.service bash quoting — extract to script | `1fe642a` |
+| ISSUE-017 | Major | AT-SPI Value interface not in CLI — wire to `_widget_dict` | `4cc6c57` |
+| ISSUE-019 | Minor | find/state visibility inconsistency — align defaults | `17e2449` |
+| ISSUE-020 | Minor | `do` command missing `--index` — add param | `f17d4d4` |
+| ISSUE-022 | Minor | Click on closed popup items — origin (0,0) guard | `f7edb7d` + `73a6bae` |
+| ISSUE-023 | UX/Polish | Tray items by PID — query D-Bus Title/IconName | `8e42b46` |
+
+### Deferred in Round 2
+
+| Issue | Severity | Reason |
+|-------|----------|--------|
+| ISSUE-018 | Major | Scroll-into-view: large scope (4h+), needs AT-SPI ScrollTo research |
+| ISSUE-021 | Minor | `do --screenshot` proxy: clean workaround exists (separate commands) |
+| ISSUE-024 | UX/Polish | Table/tree role docs: documentation-only, no urgency |
+
+### All Issues
+
 | Severity | Count | Issues |
 |----------|-------|--------|
 | Critical | 2 | ISSUE-015, ISSUE-016 |

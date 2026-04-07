@@ -105,6 +105,7 @@ def _widget_dict(widget: AtspiNode) -> dict[str, object]:
         "name": widget.name,
         "text": widget.get_text(),
         "extents": {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height},
+        "visible": ext.width > 0 and ext.height > 0,
     }
 
 

@@ -186,8 +186,46 @@ systemctl enable --now xvfb
 # ── Desktop session service (user) ──────────────────────────────────────────
 # Runs dbus session + openbox + at-spi as a single unit for the vagrant user.
 # This way every SSH command that sources .bashrc gets a working AT-SPI tree.
+#
+# The startup logic lives in a standalone script to avoid systemd ExecStart
+# quoting issues with bash one-liners containing grep/sed.
 
+mkdir -p /home/vagrant/.local/bin
 mkdir -p /home/vagrant/.config/systemd/user
+
+cat > /home/vagrant/.local/bin/desktop-session.sh << 'EOF'
+#!/bin/bash
+# Desktop session startup: openbox + AT-SPI + tray + audio
+set -euo pipefail
+
+/usr/libexec/at-spi-bus-launcher --launch-immediately &
+sleep 0.5
+
+ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
+  /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
+  grep 'string "' | sed 's/.*string "//;s/"//')
+
+if [ -n "$ATSPI_ADDR" ]; then
+  xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"
+fi
+
+openbox &
+sleep 0.5
+snixembed --fork &
+sleep 0.5
+stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE &
+sleep 0.5
+dunst &
+sleep 0.5
+pipewire &
+sleep 0.5
+wireplumber &
+sleep 0.5
+pipewire-pulse &
+
+wait
+EOF
+chmod +x /home/vagrant/.local/bin/desktop-session.sh
 
 cat > /home/vagrant/.config/systemd/user/desktop-session.service << 'EOF'
 [Unit]
@@ -197,29 +235,7 @@ After=default.target
 [Service]
 Type=simple
 Environment=DISPLAY={{ display }}
-ExecStart=/bin/bash -c '\
-    /usr/libexec/at-spi-bus-launcher --launch-immediately & \
-    sleep 0.5; \
-    ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
-      /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
-      grep "string \"" | sed "s/.*string \"//;s/\"//"); \
-    if [ -n "$ATSPI_ADDR" ]; then \
-      xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"; \
-    fi; \
-    openbox & \
-    sleep 0.5; \
-    snixembed --fork & \
-    sleep 0.5; \
-    stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE & \
-    sleep 0.5; \
-    dunst & \
-    sleep 0.5; \
-    pipewire & \
-    sleep 0.5; \
-    wireplumber & \
-    sleep 0.5; \
-    pipewire-pulse & \
-    wait'
+ExecStart=/home/vagrant/.local/bin/desktop-session.sh
 Restart=on-failure
 RestartSec=2
 

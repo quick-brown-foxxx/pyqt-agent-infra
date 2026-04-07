@@ -74,7 +74,8 @@ Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **scrot** for screenshots. Output is ~14-22KB PNG.
 - **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
 - **Jinja2 templates** — Vagrantfile and provision.sh are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
-- **Transparent VM proxy** — UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set inside the VM). On the host, they proxy through SSH to the VM. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
+- **Host/VM command parity** — UI commands (tree, click, type, screenshot, etc.) work identically from the host or inside the VM. On the host, they execute via SSH automatically. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.). Detection is via `QT_AI_DEV_TOOLS_VM=1` env var set inside the VM.
+- **X11-only** — The toolkit targets X11 applications via Xvfb in the VM. Wayland is not supported. The host's display server doesn't matter — everything runs in the VM's virtual X11 display.
 - **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
 - **Bridge** — runtime code execution inside Qt apps via Unix socket. `bridge.start()` in the app starts a server on `/tmp/qt-ai-dev-tools-bridge-<pid>.sock`. CLI `eval` command sends code, gets results as JSON. Pre-populated namespace includes `app`, `widgets`, `find()`, `findall()`, and common Qt classes. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE=1` env var. **Note:** bridge cannot respond while a modal dialog (QFileDialog, QMessageBox) is open — use AT-SPI/xdotool for dialog interaction.
 - **Clipboard** — uses `xsel` (preferred, exits immediately) with `xclip` fallback. `xclip` write hangs because it stays alive to serve the X selection — `xsel` avoids this.
@@ -109,7 +110,7 @@ make destroy       # tear down VM
 
 ### CLI usage
 
-UI commands auto-detect host vs VM and proxy transparently. Run them directly from the host -- no `vm run` wrapping needed.
+UI commands work the same from host or VM — no SSH wrapping needed.
 
 ```bash
 # UI commands (work the same from host or VM -- auto-proxy):

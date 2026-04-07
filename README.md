@@ -1,6 +1,6 @@
 # qt-ai-dev-tools
 
-Chrome Dev Tools but for Linux Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
+Chrome Dev Tools but for Linux Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux (X11).
 
 ## The problem
 
@@ -56,7 +56,9 @@ The agent doesn't modify or instrument the target app. It uses the same accessib
   Target Qt/PySide App (unmodified)
 ```
 
-CLI allows to execute any commands in VM, simplifying ssh connection.
+Most CLI commands work identically from the host or inside the VM — no SSH wrapping needed. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
+
+**Note:** This toolkit targets X11 applications. Wayland is not supported. All interaction happens inside the VM where Xvfb provides the X11 display server, so the host's display server doesn't matter.
 
 ## Host requirements
 
@@ -92,17 +94,15 @@ Once set up, the agent uses the appropriate skill for each task. `qt-app-interac
 
 ### Manual installation
 
-**Option A — uvx run without installation** (recommended):
+**Recommended — use via uvx** (no installation needed):
 ```bash
-uvx qt-ai-dev-tools workspace init ./qt-ai-dev-tools
+uvx qt-ai-dev-tools workspace init
 ```
 
-**Option B — shadcn-style local copy** (advanced use cases, agent owns the code):
+**Advanced — local copy** (you own and maintain the code):
 ```bash
-uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
 ```
-
-**Option C — follow the skill guide** directly: read `skills/qt-dev-tools-setup/SKILL.md` for step-by-step instructions.
 
 ## Project status
 
@@ -120,7 +120,7 @@ uvx qt-ai-dev-tools init ./qt-ai-dev-tools
   - System tray (D-Bus SNI list, click, menu, select)
   - Notifications (D-Bus listen, dismiss, action)
   - Audio (PipeWire virtual mic, recording, verification)
-- Distribution — `uvx qt-ai-dev-tools <any-command>` without install, `uvx qt-ai-dev-tools init` (shadcn-style), five AI skills
+- Distribution — `uvx qt-ai-dev-tools <any-command>` without installation, `install-and-own` for local copies, five AI skills
 
 **Next up:**
 - Architecture rewrite — backend abstraction for multiple environments

@@ -18,7 +18,7 @@ def _is_visible(widget: AtspiNode) -> bool:
     try:
         ext = widget.get_extents()
         return ext.width > 0 and ext.height > 0
-    except Exception:
+    except (RuntimeError, OSError):
         return False
 
 

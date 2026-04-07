@@ -129,7 +129,7 @@ def _proxy_to_vm(workspace: Path | None = None) -> None:
     result = vm_run(cmd, workspace)
     if result.stdout:
         typer.echo(result.stdout, nl=False)
-    if result.returncode != 0 and result.stderr:
+    if result.stderr:
         typer.echo(result.stderr, err=True, nl=False)
     raise typer.Exit(code=result.returncode)
 

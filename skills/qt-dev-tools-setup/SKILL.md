@@ -61,25 +61,22 @@ Expected: help text listing available commands (tree, click, type, screenshot, v
 
 ## Step 2: Initialize workspace
 
-Generate Vagrantfile and provision.sh from templates:
+Generate Vagrantfile and provision.sh:
 
 ```bash
-uv run qt-ai-dev-tools workspace init --path ..
+qt-ai-dev-tools workspace init
 ```
 
-The `--path` flag points to where Vagrantfile and provision.sh will be created -- typically the project root. Since you are inside `qt-ai-dev-tools/`, `..` refers to the project root.
+This creates `.qt-ai-dev-tools/Vagrantfile` and `.qt-ai-dev-tools/provision.sh`.
 
-Options:
-- `--memory N` -- VM RAM in MB (default: 4096)
-- `--cpus N` -- VM CPU count (default: 4)
-- `--provider libvirt|virtualbox` -- VM provider (default: libvirt; only libvirt is tested)
-- `--static-ip IP` -- static IP to bypass DHCP (avoids libvirt DHCP bug)
+**WARNING: Review the Vagrantfile before proceeding.** You may need to adjust:
+- `--static-ip` if DHCP is unreliable on your network (common with libvirt)
+- `--memory` and `--cpus` for your machine's resources
+- Network configuration for your libvirt setup
 
-This creates two files in the target directory:
-- `Vagrantfile` -- Ubuntu 24.04 VM with Xvfb, openbox, AT-SPI
-- `provision.sh` -- installs PySide6, pytest, AT-SPI dependencies
+Re-run `workspace init` with options to change settings: `qt-ai-dev-tools workspace init --static-ip 192.168.121.100 --memory 8192`.
 
-> **Tip:** If you encounter DHCP issues later (see Troubleshooting), re-run with `--static-ip 192.168.121.100` to bypass DHCP entirely.
+If this is a personal/local setup (not shared across the team), add `.qt-ai-dev-tools/` to `.gitignore`.
 
 ## Step 3: Start the VM
 

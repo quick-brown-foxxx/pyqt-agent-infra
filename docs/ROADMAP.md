@@ -136,25 +136,29 @@ When to use VM vs container vs host. Feature matrix.
 
 ## Phase 6: Real-World Validation
 
-**Status:** Not started. Independent — can run whenever the tool is functional.
+**Status:** Complete (6.1-6.3). 6.4 deferred.
 
-Test against real-world Qt apps to find bugs, gaps, and UX friction. Scenario-driven, not unit tests.
+Validated qt-ai-dev-tools against two real Qt5 apps (SpeedCrunch, KeePassXC) in the VM. Found 14 issues across 10 use cases per app. Fixed 9 issues (all Critical and Major). Tool now works against real Qt5 apps with stacked widgets, menus, forms, and dialogs.
 
-### 6.1 — [explore] Select target apps and define use cases
+**Results:** 14 issues found, 9 fixed, 4 deferred (Minor/UX-Polish). See `docs/validation/issues.md` for deferred issues and `docs/validation/process.md` for app setup reference.
 
-Pick 3-5 real Qt apps (e.g., qBittorrent, KeePassXC, Calibre, Dolphin file manager). Define concrete use cases per app (navigate settings, fill forms, trigger actions, read state).
+### 6.1 — [explore] Select target apps and define use cases — DONE
 
-### 6.2 — [test] Execute use cases and document findings
+Selected SpeedCrunch (simple baseline) and KeePassXC (complex stress test). Defined 5 SpeedCrunch and 10 KeePassXC use cases covering tree inspection, button clicks, form filling, menu navigation, dialogs, clipboard, search, lock/unlock, system tray, and bridge.
 
-Run each scenario. Document: what works, what fails, what's painful, what's missing.
+### 6.2 — [test] Execute use cases and document findings — DONE
 
-### 6.3 — [implement] Fix bugs and gaps
+Ran all scenarios. Key findings: (1) AT_SPI_BUS X property required for Qt5, (2) hidden stacked panels create massive widget duplication in AT-SPI, (3) substring name matching causes ambiguity in real apps, (4) coordinate-based xdotool is the reliable fallback for complex apps.
 
-Address issues found in 6.2.
+### 6.3 — [implement] Fix bugs and gaps — DONE
 
-### 6.4 — [test] Convert to automated tests or backlog
+Fixed: AT_SPI_BUS provisioning (ISSUE-014), visibility filter + index addressing (ISSUE-009/010/004), exact name matching (ISSUE-002), stale widget crash (ISSUE-003), multi-app hint (ISSUE-001), off-screen coordinate guard (ISSUE-012), screenshot SCP transfer (ISSUE-006).
 
-Successful scenarios become e2e tests. Others become backlog scenarios for future automation.
+Deferred: `key`/`type` app targeting (ISSUE-005/013), popup coordinate annotations (ISSUE-007), zero-extent label warning (ISSUE-008), file-dialog multi-app search (ISSUE-011).
+
+### 6.4 — [test] Convert to automated tests or backlog — DEFERRED
+
+Successful scenarios to become e2e tests. Deferred to a future cycle.
 
 ---
 

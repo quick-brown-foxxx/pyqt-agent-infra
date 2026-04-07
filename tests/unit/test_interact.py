@@ -223,3 +223,10 @@ class TestClickAtBoundsCheck:
             click_at(100, 200, pause=0.0)  # Should not raise
             # Should have called: getdisplaygeometry, mousemove, getmouselocation, windowfocus, click
             assert mock_run.call_count == 5
+
+    def test_raises_on_zero_zero_coordinates(self) -> None:
+        """Should raise ValueError when coordinates are (0, 0) — invisible widget."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _GEO_RESULT
+            with pytest.raises(ValueError, match="coordinates \\(0, 0\\)"):
+                click_at(0, 0)

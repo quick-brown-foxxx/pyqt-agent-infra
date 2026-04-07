@@ -3,12 +3,28 @@ name: qt-dev-tools-setup
 description: >
   Set up qt-ai-dev-tools for AI-driven Qt/PySide app interaction.
   Use when asked to "set up qt-ai-dev-tools", "initialize workspace",
-  "configure VM for Qt testing", or when starting a new project that
-  needs headless Qt UI testing. Covers installation, workspace init,
-  VM boot, and environment verification.
+  "configure VM for Qt testing", "boot the VM", "install qt-ai-dev-tools",
+  or when starting a new project that needs headless Qt UI testing.
+  Covers installation, workspace init, VM boot, environment verification,
+  and self-update. Do NOT use for interacting with apps — see
+  qt-app-interaction skill instead.
 ---
 
 # Set up qt-ai-dev-tools
+
+## When to use
+
+- Setting up qt-ai-dev-tools for the first time (install, workspace init, VM boot)
+- Verifying or repairing the VM environment (services, AT-SPI, display)
+- Updating an existing qt-ai-dev-tools installation
+
+## When NOT to use
+
+- Interacting with a running Qt app (inspecting widgets, clicking, typing) -- use `qt-app-interaction`
+- Executing code inside a running Qt app -- use `qt-runtime-eval`
+- Working with clipboard, file dialogs, tray, notifications, or audio -- use `qt-form-and-input` or `qt-desktop-integration`
+
+---
 
 Follow these steps in order. Each step must succeed before proceeding.
 
@@ -16,12 +32,12 @@ Follow these steps in order. Each step must succeed before proceeding.
 
 Install using one of these methods:
 
-**Option A — shadcn-style local copy** (recommended, agent owns the code):
+**Option A -- shadcn-style local copy** (recommended, agent owns the code):
 ```bash
 uvx qt-ai-dev-tools init ./qt-ai-dev-tools
 ```
 
-**Option B — pip install** (system-wide CLI/library):
+**Option B -- pip install** (system-wide CLI/library):
 ```bash
 pip install qt-ai-dev-tools
 ```
@@ -60,6 +76,8 @@ This creates two files in the target directory:
 - `Vagrantfile` -- Ubuntu 24.04 VM with Xvfb, openbox, AT-SPI
 - `provision.sh` -- installs PySide6, pytest, AT-SPI dependencies
 
+> **Tip:** If you encounter DHCP issues later (see Troubleshooting), re-run with `--static-ip 192.168.121.100` to bypass DHCP entirely.
+
 ## Step 3: Start the VM
 
 ```bash
@@ -68,7 +86,7 @@ uv run qt-ai-dev-tools vm up
 
 First boot: ~10 minutes (box download + provisioning). Subsequent boots: ~30 seconds.
 
-If the VM hangs at "Waiting for machine to get an IP address...", see `references/vm-troubleshooting.md`.
+Use `--silent` to suppress streaming output, or `-vv` to watch provisioning progress instead of waiting in silence.
 
 ## Step 4: Verify environment
 
@@ -81,7 +99,6 @@ uv run qt-ai-dev-tools vm status
 ```
 
 Expected: Xvfb, openbox, and AT-SPI services listed as running.
-Failure: see `references/vm-troubleshooting.md`.
 
 **Check 2 -- AT-SPI bus:**
 
@@ -90,7 +107,6 @@ uv run qt-ai-dev-tools apps
 ```
 
 Expected: command succeeds without errors. No apps listed is fine -- it means no Qt app is running yet.
-Failure: AT-SPI bus is not accessible. See `references/vm-troubleshooting.md`.
 
 **Check 3 -- Display:**
 
@@ -99,7 +115,6 @@ uv run qt-ai-dev-tools screenshot -o /tmp/test.png
 ```
 
 Expected: PNG file created showing the openbox desktop.
-Failure: blank or missing file means Xvfb is not running. See `references/vm-troubleshooting.md`.
 
 ## Step 5: Launch target app
 
@@ -147,6 +162,16 @@ uv run qt-ai-dev-tools screenshot -o /tmp/verify.png
 
 Setup is complete when both `tree` and `screenshot` show the running app.
 
+## Self-update
+
+Update an existing shadcn-style installation (preserves config and notes):
+
+```bash
+uv run qt-ai-dev-tools self-update ./qt-ai-dev-tools
+```
+
+The argument is the path to the existing toolkit directory. This updates source files while keeping your local modifications to config.
+
 ## Debugging
 
 When something goes wrong, use verbose mode to see exactly what commands are being executed:
@@ -158,13 +183,14 @@ uv run qt-ai-dev-tools -v vm up
 # Show commands + their full stdout/stderr output:
 uv run qt-ai-dev-tools -vv vm status
 
+# Suppress streaming output (capture only, print on error):
+uv run qt-ai-dev-tools --silent vm up
+
 # Preview what would run without executing (useful for checking proxy behavior):
 uv run qt-ai-dev-tools --dry-run tree
 ```
 
 Logs are always written to `~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.log`, even without `-v`. Check this file for post-mortem debugging.
-
-**Tip:** Use `-vv` during `vm up` on first boot to watch provisioning progress instead of waiting in silence for 10 minutes.
 
 ## File sync
 
@@ -173,12 +199,85 @@ Keep host files in sync with the VM:
 - **Manual:** `uv run qt-ai-dev-tools vm sync` -- run before each test cycle
 - **Automatic:** `uv run qt-ai-dev-tools vm sync-auto` -- watches for changes in background
 
-## References
+## Troubleshooting
 
-Detailed guides available in `references/`. Load these when you need deeper information.
+### DHCP timeout (most common)
 
-- **[references/vm-troubleshooting.md](references/vm-troubleshooting.md)** -- VM and environment troubleshooting: DHCP timeout, VM won't start, PySide6 import errors, AT-SPI not seeing apps, blank screenshots, xdotool coordinate issues, slow file sync.
+**Symptom:** `vm up` hangs at "Waiting for machine to get an IP address..."
 
-## Next step
+**Cause:** vagrant-libvirt creates the `vagrant-libvirt` network with DHCP range starting at `.1`, which collides with the host bridge IP.
 
-Setup complete. Use the `qt-app-interaction` skill for the inspect->interact->verify workflow.
+**Fix:** Recreate the network with a corrected DHCP range, then retry:
+
+```bash
+virsh -c qemu:///system net-destroy vagrant-libvirt 2>/dev/null
+virsh -c qemu:///system net-undefine vagrant-libvirt 2>/dev/null
+
+cat > /tmp/vagrant-libvirt-net.xml << 'EOF'
+<network>
+  <name>vagrant-libvirt</name>
+  <forward mode="nat"/>
+  <bridge name="virbr1" stp="on" delay="0"/>
+  <ip address="192.168.121.1" netmask="255.255.255.0">
+    <dhcp>
+      <range start="192.168.121.2" end="192.168.121.254"/>
+    </dhcp>
+  </ip>
+</network>
+EOF
+
+virsh -c qemu:///system net-define /tmp/vagrant-libvirt-net.xml
+virsh -c qemu:///system net-start vagrant-libvirt
+virsh -c qemu:///system net-autostart vagrant-libvirt
+
+uv run qt-ai-dev-tools vm destroy
+uv run qt-ai-dev-tools vm up
+```
+
+Alternative: re-run `workspace init --static-ip 192.168.121.100` to bypass DHCP entirely.
+
+### AT-SPI not seeing the app
+
+**Symptom:** `tree` shows nothing or errors.
+
+**Fixes by cause:**
+- **App not running:** Launch it and wait: `vm run "python3 /vagrant/app.py &"` then `wait --app app.py`
+- **Xvfb down:** Check `vm run "pgrep Xvfb"`. Restart: `vm run "sudo systemctl start xvfb"`
+- **D-Bus inactive:** Check `vm run "pgrep at-spi"`. Restart: `vm run "systemctl --user restart desktop-session"`
+- **Wrong DISPLAY:** App must run on `:99`. The VM sets this automatically; custom scripts may need `DISPLAY=:99`
+
+### PySide6 import error
+
+**Symptom:** `ImportError: libEGL.so.1: cannot open shared object file`
+
+**Cause:** Missing system libraries in the VM.
+
+**Fix:**
+```bash
+uv run qt-ai-dev-tools vm run "sudo apt-get install -y libegl1 libxkbcommon0"
+```
+
+### Blank screenshots
+
+**Symptom:** Screenshot shows nothing or only the desktop background.
+
+**Fix:** Verify both services are running:
+```bash
+uv run qt-ai-dev-tools vm run "pgrep Xvfb"
+uv run qt-ai-dev-tools vm run "pgrep openbox"
+```
+
+If either is missing, restart:
+```bash
+uv run qt-ai-dev-tools vm run "sudo systemctl start xvfb"
+uv run qt-ai-dev-tools vm run "systemctl --user restart desktop-session"
+```
+
+## Next steps
+
+Setup complete. Use the related skills for specific tasks:
+
+- **`qt-app-interaction`** -- inspect widgets, click, type, verify results (the core workflow loop)
+- **`qt-runtime-eval`** -- execute code inside running Qt apps via the bridge
+- **`qt-form-and-input`** -- clipboard and file dialog automation
+- **`qt-desktop-integration`** -- system tray, notifications, and audio

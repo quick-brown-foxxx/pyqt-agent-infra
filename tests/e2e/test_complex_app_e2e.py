@@ -6,6 +6,8 @@ tree snapshots against the real app via AT-SPI and bridge.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import subprocess
 import time
@@ -219,3 +221,70 @@ class TestSnapshot:
         # Diff should detect changes
         diff = diff_snapshots(snap_before, snap_after)
         assert diff.has_changes, "Expected snapshot diff to detect status label text change"
+
+
+def _run_cli(*args: str, timeout: int = 15, app: str | None = "complex_app.py") -> subprocess.CompletedProcess[str]:
+    """Run a qt-ai-dev-tools CLI command.
+
+    By default injects ``--app complex_app.py`` so the command targets the test's
+    Qt app.  Pass ``app=None`` for commands that don't accept ``--app``.
+    """
+    app_args: tuple[str, ...] = ("--app", app) if app is not None else ()
+    cmd = ["python3", "-m", "qt_ai_dev_tools", *args, *app_args]
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+
+
+class TestClickInvisibleWidget:
+    """Tests for clicking widgets in closed popup menus."""
+
+    def test_click_closed_menu_item_rejects_zero_coords(self, complex_app: subprocess.Popen[str]) -> None:
+        """Clicking a menu item without opening its parent menu should fail."""
+        # Do NOT open the File menu first
+        result = _run_cli("click", "--role", "menu item", "--name", "New", "--exact")
+        assert result.returncode != 0, "Clicking a closed popup menu item should fail, not silently click at (0,0)"
+
+
+class TestScreenshot:
+    """Screenshot capture tests."""
+
+    def test_consecutive_screenshots_differ_after_state_change(self, complex_app: subprocess.Popen[str]) -> None:
+        """Two screenshots with a display change between them must differ."""
+        shot_path = "/tmp/test_screenshot_overwrite.png"
+
+        r1 = _run_cli("screenshot", "-o", shot_path, app=None)
+        assert r1.returncode == 0
+        with open(shot_path, "rb") as f:
+            hash1 = hashlib.md5(f.read()).hexdigest()  # noqa: S324
+
+        _run_cli("click", "--role", "page tab", "--name", "Data")
+        time.sleep(0.5)
+
+        r2 = _run_cli("screenshot", "-o", shot_path, app=None)
+        assert r2.returncode == 0
+        with open(shot_path, "rb") as f:
+            hash2 = hashlib.md5(f.read()).hexdigest()  # noqa: S324
+
+        assert hash1 != hash2, "Screenshots should differ after tab switch"
+
+
+class TestSliderValue:
+    """Slider value interface tests."""
+
+    def test_state_json_includes_slider_value(self, complex_app: subprocess.Popen[str]) -> None:
+        """state --json on a slider should include value/min/max."""
+        _run_cli("click", "--role", "page tab", "--name", "Inputs")
+        time.sleep(0.3)
+
+        _bridge_eval_strict(complex_app.pid, "widgets['volume_slider'].setValue(75)")
+        time.sleep(0.3)
+
+        result = _run_cli("state", "--role", "slider", "--json")
+        assert result.returncode == 0
+
+        data = json.loads(result.stdout)
+        assert "value" in data, "state --json should include 'value' for sliders"
+        assert data["value"] == 75.0
+        assert "min_value" in data
+        assert "max_value" in data
+        assert data["min_value"] == 0.0
+        assert data["max_value"] == 100.0

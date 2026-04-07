@@ -47,10 +47,7 @@ class TestShowingState:
         assert len(visible_buttons) >= 1, "Expected at least one visible push button"
 
         for btn in visible_buttons:
-            assert btn.is_showing, (
-                f"Button '{btn.name}' was returned by find(visible=True) "
-                "but is_showing is False"
-            )
+            assert btn.is_showing, f"Button '{btn.name}' was returned by find(visible=True) but is_showing is False"
 
     def test_find_visible_returns_only_showing_widgets(self, complex_app: subprocess.Popen[str]) -> None:
         """pilot.find(visible=True) only returns widgets with is_showing=True."""
@@ -68,8 +65,7 @@ class TestShowingState:
 
         # visible should be a subset of all
         assert len(all_widgets) >= len(visible_widgets), (
-            f"All widgets ({len(all_widgets)}) should be >= "
-            f"visible widgets ({len(visible_widgets)})"
+            f"All widgets ({len(all_widgets)}) should be >= visible widgets ({len(visible_widgets)})"
         )
 
         # Every visible widget must have is_showing
@@ -91,8 +87,7 @@ class TestShowingState:
         visible_labels = pilot.find(role="label", visible=True)
 
         assert len(all_labels) >= len(visible_labels), (
-            f"Unfiltered labels ({len(all_labels)}) should be >= "
-            f"visible labels ({len(visible_labels)})"
+            f"Unfiltered labels ({len(all_labels)}) should be >= visible labels ({len(visible_labels)})"
         )
 
     def test_closed_menu_items_not_showing(self, complex_app: subprocess.Popen[str]) -> None:
@@ -122,8 +117,7 @@ class TestShowingState:
                 continue  # some AT-SPI versions may not expose closed menu items
             for item in items:
                 assert not item.is_showing, (
-                    f"Submenu item '{item.name}' should not be showing "
-                    "with its parent menu closed"
+                    f"Submenu item '{item.name}' should not be showing with its parent menu closed"
                 )
 
         # Also verify via visible filter: these submenu items should NOT appear

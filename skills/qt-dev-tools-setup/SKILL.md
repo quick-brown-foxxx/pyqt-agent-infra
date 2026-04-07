@@ -30,23 +30,26 @@ Follow these steps in order. Each step must succeed before proceeding.
 
 ## Step 1: Install the toolkit
 
-Install using one of these methods:
-
-**Option A -- shadcn-style local copy** (recommended, agent owns the code):
+**Option A -- use via uvx** (recommended, no installation needed):
 ```bash
-uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+uvx qt-ai-dev-tools workspace init
 ```
+This runs directly without installing anything. All `qt-ai-dev-tools` commands work via `uvx qt-ai-dev-tools <command>`.
 
-**Option B -- pip install** (system-wide CLI/library):
+**Option B -- local copy** (advanced, you own the code):
 ```bash
-pip install qt-ai-dev-tools
+uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
+cd qt-ai-dev-tools
+uv sync
 ```
+This copies the full toolkit source into your project. You own and maintain it.
 
 Verify the CLI works:
 
 ```bash
-cd qt-ai-dev-tools  # if Option A
-uv sync
+# Option A:
+uvx qt-ai-dev-tools --help
+# Option B:
 uv run qt-ai-dev-tools --help
 ```
 
@@ -54,7 +57,7 @@ Expected: help text listing available commands (tree, click, type, screenshot, v
 
 **Prerequisites:** Linux host, `uv` installed, Vagrant with libvirt provider (vagrant-libvirt plugin + QEMU/KVM).
 
-> **Note:** All commands below assume you are inside the `qt-ai-dev-tools/` directory and use `uv run` to execute. If you set up a shell alias (`alias qt-ai-dev-tools='uv run qt-ai-dev-tools'`), you can omit the `uv run` prefix.
+> **Note:** Commands below use `qt-ai-dev-tools` as the command prefix. If using Option A (uvx), prefix with `uvx`: `uvx qt-ai-dev-tools <command>`. If using Option B (local copy), prefix with `uv run`: `uv run qt-ai-dev-tools <command>`.
 
 ## Step 2: Initialize workspace
 
@@ -128,7 +131,7 @@ uv run qt-ai-dev-tools wait --app main.py --timeout 15
 
 Vagrant mounts the project root as `/vagrant` inside the VM. Your app files are at `/vagrant/` plus their path relative to the project root.
 
-Key concept: `vm run` is for arbitrary commands inside the VM. All qt-ai-dev-tools UI commands (tree, click, type, screenshot, etc.) auto-proxy to the VM -- no wrapping needed.
+Key concept: `vm run` is for arbitrary commands inside the VM. All qt-ai-dev-tools UI commands (tree, click, type, screenshot, etc.) work from host or VM -- no wrapping needed.
 
 If the app exits immediately, run it in the foreground to see errors:
 
@@ -186,7 +189,7 @@ uv run qt-ai-dev-tools -vv vm status
 # Suppress streaming output (capture only, print on error):
 uv run qt-ai-dev-tools --silent vm up
 
-# Preview what would run without executing (useful for checking proxy behavior):
+# Preview what would run without executing:
 uv run qt-ai-dev-tools --dry-run tree
 ```
 

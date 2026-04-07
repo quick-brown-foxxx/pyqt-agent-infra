@@ -29,6 +29,22 @@ def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
         pause: Seconds to sleep after click for UI to settle.
     """
     env = _xdotool_env()
+    # Check display bounds to prevent silent false-success clicks (ISSUE-012)
+    geo_result = run_command(
+        ["xdotool", "getdisplaygeometry"],
+        env=env,
+        check=False,
+    )
+    if geo_result.returncode == 0 and geo_result.stdout.strip():
+        parts = geo_result.stdout.strip().split()
+        if len(parts) == 2:
+            display_w, display_h = int(parts[0]), int(parts[1])
+            if x < 0 or y < 0 or x > display_w or y > display_h:
+                msg = (
+                    f"Coordinates ({x}, {y}) outside display bounds "
+                    f"({display_w}x{display_h}). Widget may need scrolling into view."
+                )
+                raise ValueError(msg)
     run_command(
         ["xdotool", "mousemove", "--screen", "0", str(x), str(y)],
         env=env,

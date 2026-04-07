@@ -21,6 +21,7 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
     from qt_ai_dev_tools.interact import (
         _xdotool_env,
         click,
+        click_at,
         focus,
         press_key,
         type_text,
@@ -30,6 +31,7 @@ _COMPLETED_OK = subprocess.CompletedProcess(args=[], returncode=0, stdout="", st
 _MOUSELOCATION_RESULT = subprocess.CompletedProcess(
     args=[], returncode=0, stdout="X=125\nY=215\nSCREEN=0\nWINDOW=12345\n", stderr=""
 )
+_GEO_RESULT = subprocess.CompletedProcess(args=[], returncode=0, stdout="1920 1080\n", stderr="")
 
 pytestmark = pytest.mark.unit
 
@@ -65,6 +67,8 @@ class TestClick:
         node = AtspiNode(native)
 
         def _side_effect(args: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+            if "getdisplaygeometry" in args:
+                return _GEO_RESULT
             if "getmouselocation" in args:
                 return _MOUSELOCATION_RESULT
             return _COMPLETED_OK
@@ -75,17 +79,19 @@ class TestClick:
 
             # Center should be (125, 215)
             calls = mock_run.call_args_list
-            assert len(calls) == 4
-            # 1. mousemove
-            assert calls[0][0][0][:2] == ["xdotool", "mousemove"]
-            assert "125" in calls[0][0][0]
-            assert "215" in calls[0][0][0]
-            # 2. getmouselocation
-            assert calls[1][0][0] == ["xdotool", "getmouselocation", "--shell"]
-            # 3. windowfocus
-            assert calls[2][0][0] == ["xdotool", "windowfocus", "12345"]
-            # 4. click
-            assert calls[3][0][0] == ["xdotool", "click", "1"]
+            assert len(calls) == 5
+            # 1. getdisplaygeometry (bounds check)
+            assert calls[0][0][0] == ["xdotool", "getdisplaygeometry"]
+            # 2. mousemove
+            assert calls[1][0][0][:2] == ["xdotool", "mousemove"]
+            assert "125" in calls[1][0][0]
+            assert "215" in calls[1][0][0]
+            # 3. getmouselocation
+            assert calls[2][0][0] == ["xdotool", "getmouselocation", "--shell"]
+            # 4. windowfocus
+            assert calls[3][0][0] == ["xdotool", "windowfocus", "12345"]
+            # 5. click
+            assert calls[4][0][0] == ["xdotool", "click", "1"]
 
 
 class TestTypeText:
@@ -162,6 +168,8 @@ class TestFocus:
         )
 
         def _side_effect(args: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+            if "getdisplaygeometry" in args:
+                return _GEO_RESULT
             if "getmouselocation" in args:
                 return focus_mouselocation
             return _COMPLETED_OK
@@ -170,13 +178,48 @@ class TestFocus:
             mock_run.side_effect = _side_effect
             focus(node, pause=0.0)
 
-            # Should have called xdotool mousemove + getmouselocation + windowfocus + click
+            # Should have called getdisplaygeometry + mousemove + getmouselocation + windowfocus + click
             # Center of (10, 20, 100, 50) = (60, 45)
             calls = mock_run.call_args_list
-            assert len(calls) == 4
-            assert calls[0][0][0][:2] == ["xdotool", "mousemove"]
-            assert "60" in calls[0][0][0]
-            assert "45" in calls[0][0][0]
-            assert calls[1][0][0] == ["xdotool", "getmouselocation", "--shell"]
-            assert calls[2][0][0] == ["xdotool", "windowfocus", "99999"]
-            assert calls[3][0][0] == ["xdotool", "click", "1"]
+            assert len(calls) == 5
+            assert calls[0][0][0] == ["xdotool", "getdisplaygeometry"]
+            assert calls[1][0][0][:2] == ["xdotool", "mousemove"]
+            assert "60" in calls[1][0][0]
+            assert "45" in calls[1][0][0]
+            assert calls[2][0][0] == ["xdotool", "getmouselocation", "--shell"]
+            assert calls[3][0][0] == ["xdotool", "windowfocus", "99999"]
+            assert calls[4][0][0] == ["xdotool", "click", "1"]
+
+
+class TestClickAtBoundsCheck:
+    """Test that click_at raises on out-of-bounds coordinates."""
+
+    def test_raises_on_coordinates_outside_display(self) -> None:
+        """Should raise ValueError when coordinates exceed display bounds."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _GEO_RESULT
+            with pytest.raises(ValueError, match="outside display bounds"):
+                click_at(5000, 2000)
+
+    def test_raises_on_negative_coordinates(self) -> None:
+        """Should raise ValueError for negative coordinates."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = _GEO_RESULT
+            with pytest.raises(ValueError, match="outside display bounds"):
+                click_at(-10, 100)
+
+    def test_succeeds_within_bounds(self) -> None:
+        """Should proceed normally for coordinates within display."""
+
+        def _side_effect(args: list[str], **_kw: object) -> subprocess.CompletedProcess[str]:
+            if "getdisplaygeometry" in args:
+                return _GEO_RESULT
+            if "getmouselocation" in args:
+                return _MOUSELOCATION_RESULT
+            return _COMPLETED_OK
+
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.side_effect = _side_effect
+            click_at(100, 200, pause=0.0)  # Should not raise
+            # Should have called: getdisplaygeometry, mousemove, getmouselocation, windowfocus, click
+            assert mock_run.call_count == 5

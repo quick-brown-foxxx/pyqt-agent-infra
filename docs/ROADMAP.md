@@ -136,29 +136,19 @@ When to use VM vs container vs host. Feature matrix.
 
 ## Phase 6: Real-World Validation
 
-**Status:** Complete (6.1-6.3). 6.4 deferred.
+**Status:** Complete (two rounds).
 
-Validated qt-ai-dev-tools against two real Qt5 apps (SpeedCrunch, KeePassXC) in the VM. Found 14 issues across 10 use cases per app. Fixed 9 issues (all Critical and Major). Tool now works against real Qt5 apps with stacked widgets, menus, forms, and dialogs.
+### Round 1 (6.1-6.3)
 
-**Results:** 14 issues found, 9 fixed, 4 deferred (Minor/UX-Polish). See `docs/validation/issues.md` for deferred issues and `docs/validation/process.md` for app setup reference.
+Validated against SpeedCrunch (simple) and KeePassXC (complex). Found 14 issues, fixed 9 (all Critical/Major). Key learnings: AT_SPI_BUS required for Qt5, visibility filter essential for stacked widgets, exact match needed for real apps.
 
-### 6.1 — [explore] Select target apps and define use cases — DONE
+### Round 2 (6.5-6.7)
 
-Selected SpeedCrunch (simple baseline) and KeePassXC (complex stress test). Defined 5 SpeedCrunch and 10 KeePassXC use cases covering tree inspection, button clicks, form filling, menu navigation, dialogs, clipboard, search, lock/unlock, system tray, and bridge.
+Expanded to 4 apps: SpeedCrunch, KeePassXC (regression), qBittorrent (Qt 6.4, new), VLC (new). Found 10 new issues, fixed 7 (both Critical, both Major, 3 Minor). Qt6 confirmed working identically. Key fixes: screenshot overwrite, desktop-session service, slider values, click guards, tray identity, visibility consistency, `do --index`.
 
-### 6.2 — [test] Execute use cases and document findings — DONE
+**Remaining deferred:** 7 issues (ISSUE-005/007/008/011/018/021/024). See `docs/validation/issues.md`.
 
-Ran all scenarios. Key findings: (1) AT_SPI_BUS X property required for Qt5, (2) hidden stacked panels create massive widget duplication in AT-SPI, (3) substring name matching causes ambiguity in real apps, (4) coordinate-based xdotool is the reliable fallback for complex apps.
-
-### 6.3 — [implement] Fix bugs and gaps — DONE
-
-Fixed: AT_SPI_BUS provisioning (ISSUE-014), visibility filter + index addressing (ISSUE-009/010/004), exact name matching (ISSUE-002), stale widget crash (ISSUE-003), multi-app hint (ISSUE-001), off-screen coordinate guard (ISSUE-012), screenshot SCP transfer (ISSUE-006).
-
-Deferred: `key`/`type` app targeting (ISSUE-005/013), popup coordinate annotations (ISSUE-007), zero-extent label warning (ISSUE-008), file-dialog multi-app search (ISSUE-011).
-
-### 6.4 — [test] Convert to automated tests or backlog — DEFERRED
-
-Successful scenarios to become e2e tests. Deferred to a future cycle.
+**App setup reference:** `docs/validation/process.md` — install/launch/kill for all 4 apps with AT-SPI behavior notes.
 
 ---
 

@@ -2,85 +2,95 @@
 
 Quick reference for installing and testing real Qt apps in the VM.
 
-## AT-SPI Bus Setup (Required for Qt5)
-
-Qt5 apps need the `AT_SPI_BUS` X root window property. Qt6 (PySide6) does not. Set once per Xvfb session:
+## Setup
 
 ```bash
-ATSPI_ADDR=$(dbus-send --session --dest=org.a11y.Bus --print-reply \
-  /org/a11y/bus org.a11y.Bus.GetAddress 2>/dev/null | \
-  grep 'string "' | sed 's/.*string "//;s/"//')
-xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"
+# Install all test apps
+uv run qt-ai-dev-tools vm run "sudo apt-get update && sudo apt-get install -y speedcrunch keepassxc qbittorrent vlc"
+
+# AT-SPI bus is set automatically by desktop-session.service.
+# Verify: uv run qt-ai-dev-tools vm run "xprop -root AT_SPI_BUS"
 ```
 
-**Note:** This is now handled automatically by the VM provisioning script (ISSUE-014 fix).
+## Apps
 
-## SpeedCrunch
+### SpeedCrunch (Qt 5.15 — simple calculator)
 
 ```bash
-# Install
-sudo apt-get update && sudo apt-get install -y speedcrunch
-
-# Launch
-nohup speedcrunch &>/dev/null &
-
-# AT-SPI app name: "SpeedCrunch" (Qt 5.15.13)
-
-# Kill
+nohup speedcrunch &>/dev/null &   # AT-SPI name: "SpeedCrunch"
 pkill speedcrunch
 ```
 
-## KeePassXC
+- 109 widgets. Two unnamed text widgets: index 0 = history, index 1 = input.
+- Dynamic label "Current result: N" updates on calculation.
+- Keypad toggle via View > Keypad adds 36 buttons.
+
+### KeePassXC (Qt 5.15 — complex password manager)
 
 ```bash
-# Install
-sudo apt-get update && sudo apt-get install -y keepassxc
-
-# Launch
-nohup keepassxc &>/dev/null &
-
-# AT-SPI app name: "KeePassXC" (Qt 5.15.13, version 2.7.6)
-
-# Kill
+nohup keepassxc &>/dev/null &     # AT-SPI name: "KeePassXC"
 pkill keepassxc
 ```
 
-## qBittorrent
+- 237 widgets. Visibility filter reduces buttons from 295 to 13 (95%).
+- Stacked widgets cause 3x duplication — filter essential.
+- Tray: enable in settings. Icon name: `StatusNotifierItem-<PID>-1`.
+- Entry saving: Enter/Return key (no Save button).
+- Settings panel extends beyond display bounds (y>1080).
+- Config: `/home/vagrant/.config/keepassxc/keepassxc.ini`.
+
+### qBittorrent (Qt 6.4 — torrent client)
 
 ```bash
-# Install
-sudo apt-get update && sudo apt-get install -y qbittorrent
-
-# Launch
-nohup qbittorrent &>/dev/null &
-
-# AT-SPI app name: "qBittorrent" (Qt 6.4.2)
-# NOTE: First launch shows a "Legal notice" dialog — click "I Agree" to dismiss.
-
-# Kill
+nohup qbittorrent &>/dev/null &   # AT-SPI name: "qBittorrent"
 pkill qbittorrent
 ```
 
-## VLC
+- **First launch:** "Legal notice" dialog — click "I Agree".
+- 188 widgets. Transfer list is `[tree]` role, NOT `[table]`.
+- Dynamic tab names: "Transfers (0)" includes count.
+- Detail panel "tabs" are `[push button]`, not `[page tab]`.
+- Status bar has interactive push buttons (speed, DHT).
+
+### VLC (Qt 5.15 — media player)
 
 ```bash
-# Install
-sudo apt-get update && sudo apt-get install -y vlc
-
-# Launch
-nohup vlc &>/dev/null &
-
-# AT-SPI app name: "vlc" (Qt 5.15.13)
-# NOTE: First launch shows a "Privacy and Network Access Policy" dialog — dismiss it.
-
-# Kill
+nohup vlc &>/dev/null &           # AT-SPI name: "vlc"
 pkill vlc
 ```
 
-## Environment Notes
+- **First launch:** Privacy dialog — dismiss it.
+- 674 widgets — `--depth` and `--app` essential.
+- Playback buttons have **no accessible names** — use `--index`.
+- Sliders (seek, volume) — values readable via `state --json` (`value`/`min_value`/`max_value`).
+- Tray icon: `StatusNotifierItem-<PID>-2`. Menu has playback controls.
+- Video area: `[layered pane]` > `[filler]` — no special role.
+- Closed dialogs persist in tree at (0,0 0x0).
 
-- No extra env vars needed beyond what `vm run` provides (`DISPLAY=:99`, `QT_ACCESSIBILITY=1`, `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`, `DBUS_SESSION_BUS_ADDRESS`)
-- Both apps are Qt5 (5.15.13) -- typical for packaged Ubuntu 24.04 apps
-- AT-SPI registration takes ~2-3 seconds after launch
-- Use `qt-ai-dev-tools apps` to verify app visibility
-- Use `qt-ai-dev-tools tree --app <name>` to inspect widget hierarchy
+## Testing Workflow
+
+```bash
+# Launch app, wait for AT-SPI registration (~3s)
+uv run qt-ai-dev-tools vm run "nohup <app> &>/dev/null &"
+sleep 4
+
+# Verify
+uv run qt-ai-dev-tools apps
+uv run qt-ai-dev-tools tree --app "<AppName>" --depth 4
+uv run qt-ai-dev-tools screenshot -o /tmp/shot.png
+
+# Test interaction
+uv run qt-ai-dev-tools click --role "push button" --name "<Name>" --app "<AppName>"
+uv run qt-ai-dev-tools find --role "slider" --app "<AppName>" --json
+
+# Kill
+uv run qt-ai-dev-tools vm run "pkill <app>"
+```
+
+## Common Patterns
+
+- **Menu items:** Open parent menu first, then click submenu item. Closed items have (0,0) coords.
+- **Disambiguation:** Use `--exact` for exact name match, `--index N` for Nth match.
+- **Hidden widgets:** `--no-visible` includes hidden widgets; default is visible-only.
+- **Tray:** Requires snixembed running. Items findable by app name or D-Bus Title.
+- **Bridge:** Python apps only. C++ apps give clear error.

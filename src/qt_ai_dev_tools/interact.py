@@ -83,6 +83,13 @@ def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
 def click(widget: AtspiNode, pause: float = 0.2) -> None:
     """Click the center of a widget using xdotool."""
     ext = widget.get_extents()
+    if ext.x == 0 and ext.y == 0:
+        msg = (
+            f'Widget [{widget.role_name}] "{widget.name}" is at origin (0, 0), '
+            "which typically means it is inside a closed popup menu or not yet rendered. "
+            "Open the parent menu first."
+        )
+        raise ValueError(msg)
     cx, cy = ext.center
     click_at(cx, cy, button=1, pause=pause)
 

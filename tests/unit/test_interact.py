@@ -93,6 +93,22 @@ class TestClick:
             # 5. click
             assert calls[4][0][0] == ["xdotool", "click", "1"]
 
+    def test_click_raises_on_origin_zero_zero(self) -> None:
+        """Should raise ValueError when widget origin is (0, 0) — closed popup item."""
+        native = MagicMock()
+        ext = MagicMock()
+        ext.x = 0
+        ext.y = 0
+        ext.width = 336
+        ext.height = 25
+        native.get_extents.return_value = ext
+        native.get_role_name.return_value = "menu item"
+        native.name = "Copy"
+        node = AtspiNode(native)
+
+        with pytest.raises(ValueError, match=r"at origin \(0, 0\)"):
+            click(node, pause=0.0)
+
 
 class TestTypeText:
     """Test xdotool text typing."""

@@ -13,6 +13,15 @@ from qt_ai_dev_tools.screenshot import take_screenshot
 logger = logging.getLogger(__name__)
 
 
+def _is_visible(widget: AtspiNode) -> bool:
+    """Check if a widget has non-zero extents (likely visible)."""
+    try:
+        ext = widget.get_extents()
+        return ext.width > 0 and ext.height > 0
+    except Exception:
+        return False
+
+
 class QtPilot:
     """Connect to a running Qt app via AT-SPI and interact with it.
 
@@ -51,14 +60,27 @@ class QtPilot:
         role: str | None = None,
         name: str | None = None,
         root: AtspiNode | None = None,
+        *,
+        visible: bool = False,
+        exact: bool = False,
     ) -> list[AtspiNode]:
-        """Find all widgets matching role and/or name (substring match)."""
+        """Find all widgets matching role and/or name.
+
+        Args:
+            role: Widget role to match (exact).
+            name: Widget name to match (substring by default, exact if exact=True).
+            root: Root node to search from (defaults to app).
+            visible: If True, only return widgets with non-zero extents.
+            exact: If True, match name exactly instead of substring.
+        """
         root = root or self.app
         if root is None:
             msg = "No app connected"
             raise RuntimeError(msg)
         results: list[AtspiNode] = []
-        self._walk(root, role, name, results)
+        self._walk(root, role, name, results, exact=exact)
+        if visible:
+            results = [w for w in results if _is_visible(w)]
         return results
 
     def find_one(
@@ -66,9 +88,27 @@ class QtPilot:
         role: str | None = None,
         name: str | None = None,
         root: AtspiNode | None = None,
+        *,
+        visible: bool = False,
+        exact: bool = False,
+        index: int | None = None,
     ) -> AtspiNode:
-        """Find exactly one widget. Raises if 0 or >1 found."""
-        found = self.find(role, name, root)
+        """Find exactly one widget. Raises if 0 or >1 found.
+
+        Args:
+            role: Widget role to match (exact).
+            name: Widget name to match (substring by default, exact if exact=True).
+            root: Root node to search from (defaults to app).
+            visible: If True, only consider widgets with non-zero extents.
+            exact: If True, match name exactly instead of substring.
+            index: If set, return the Nth match (0-based) instead of requiring exactly one.
+        """
+        found = self.find(role, name, root, visible=visible, exact=exact)
+        if index is not None:
+            if index < 0 or index >= len(found):
+                msg = f"Index {index} out of range: {len(found)} widget(s) found for role={role}, name={name}"
+                raise LookupError(msg)
+            return found[index]
         if len(found) == 0:
             msg = f"No widget found: role={role}, name={name}"
             raise LookupError(msg)
@@ -145,12 +185,16 @@ class QtPilot:
         name: str | None = None,
         value: str = "",
         clear_first: bool = True,
+        *,
+        visible: bool = False,
+        exact: bool = False,
+        index: int | None = None,
     ) -> None:
         """Focus a text widget, optionally clear it, and type a value.
 
         This is a compound action: focus -> clear -> type.
         """
-        widget = self.find_one(role=role, name=name)
+        widget = self.find_one(role=role, name=name, visible=visible, exact=exact, index=index)
         self.focus(widget)
         if clear_first:
             interact.press_key("ctrl+a")
@@ -366,6 +410,8 @@ class QtPilot:
         role: str | None,
         name: str | None,
         results: list[AtspiNode],
+        *,
+        exact: bool = False,
     ) -> None:
         for i in range(node.child_count):
             c = node.child_at(i)
@@ -374,11 +420,15 @@ class QtPilot:
             match = True
             if role and c.role_name != role:
                 match = False
-            if name and name not in c.name:
-                match = False
+            if name:
+                if exact:
+                    if c.name != name:
+                        match = False
+                elif name not in c.name:
+                    match = False
             if match:
                 results.append(c)
-            self._walk(c, role, name, results)
+            self._walk(c, role, name, results, exact=exact)
 
     def _dump(
         self,

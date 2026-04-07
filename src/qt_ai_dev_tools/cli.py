@@ -227,12 +227,14 @@ def tree(
     role: typing.Annotated[str | None, typer.Option("--role", help="Filter by widget role")] = None,
     max_depth: typing.Annotated[int, typer.Option("--depth", help="Maximum tree depth")] = 8,
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = False,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
 ) -> None:
     """Print the widget tree of a running Qt app."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
     if role:
-        widgets = pilot.find(role=role)
+        widgets = pilot.find(role=role, visible=visible, exact=exact)
         if output_json:
             typer.echo(json.dumps([_widget_dict(w) for w in widgets], indent=2, ensure_ascii=False))
         else:
@@ -251,6 +253,9 @@ def find(
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = False,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Find widgets by role and/or name."""
     _proxy_to_vm()
@@ -258,7 +263,7 @@ def find(
         typer.echo("Error: specify at least --role or --name", err=True)
         raise typer.Exit(code=1)
     pilot = _get_pilot(app_name)
-    widgets = pilot.find(role=role, name=name)
+    widgets = pilot.find(role=role, name=name, visible=visible, exact=exact)
     if not widgets:
         typer.echo("No widgets found.", err=True)
         return
@@ -274,17 +279,21 @@ def click_cmd(
     role: typing.Annotated[str, typer.Option("--role", help="Widget role")],
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Click a widget by role and optional name."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
-        widget = pilot.find_one(role=role, name=name)
+        widget = pilot.find_one(role=role, name=name, visible=visible, exact=exact, index=index)
     except LookupError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+    info = _widget_line(widget)  # Cache BEFORE click (ISSUE-003)
     pilot.click(widget)
-    typer.echo(f"Clicked {_widget_line(widget)}")
+    typer.echo(f"Clicked {info}")
 
 
 @app.command(name="type")
@@ -316,17 +325,21 @@ def focus(
     role: typing.Annotated[str, typer.Option("--role", help="Widget role")],
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Focus a widget by role and optional name."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
-        widget = pilot.find_one(role=role, name=name)
+        widget = pilot.find_one(role=role, name=name, visible=visible, exact=exact, index=index)
     except LookupError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+    info = _widget_line(widget)  # Cache BEFORE focus (ISSUE-003)
     pilot.focus(widget)
-    typer.echo(f"Focused {_widget_line(widget)}")
+    typer.echo(f"Focused {info}")
 
 
 @app.command()
@@ -335,12 +348,15 @@ def state(
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Read state of a widget (name, text, extents)."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
-        widget = pilot.find_one(role=role, name=name)
+        widget = pilot.find_one(role=role, name=name, visible=visible, exact=exact, index=index)
     except LookupError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -358,12 +374,15 @@ def text(
     role: typing.Annotated[str, typer.Option("--role", help="Widget role")],
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Get text content of a widget."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
     try:
-        widget = pilot.find_one(role=role, name=name)
+        widget = pilot.find_one(role=role, name=name, visible=visible, exact=exact, index=index)
     except LookupError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -433,12 +452,23 @@ def fill(
     name: typing.Annotated[str | None, typer.Option("--name", "-n", help="Widget name")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name")] = None,
     no_clear: typing.Annotated[bool, typer.Option("--no-clear", help="Don't clear field first")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:
     """Focus a text widget, clear it, and type a value (compound action)."""
     _proxy_to_vm()
     try:
         pilot = _get_pilot(app_name)
-        pilot.fill(role=role, name=name, value=value, clear_first=not no_clear)
+        pilot.fill(
+            role=role,
+            name=name,
+            value=value,
+            clear_first=not no_clear,
+            visible=visible,
+            exact=exact,
+            index=index,
+        )
         name_suffix = f" ({name})" if name else ""
         typer.echo(f"Filled '{role}'{name_suffix} with: {value}")
     except (RuntimeError, LookupError) as exc:
@@ -456,6 +486,8 @@ def do_action(
         str | None, typer.Option("--verify", help="Verify condition after action (e.g. 'label:status contains Saved')")
     ] = None,
     screenshot_after: typing.Annotated[bool, typer.Option("--screenshot", help="Take screenshot after action")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
+    exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
 ) -> None:
     """Perform a compound action (click + optional verify/screenshot).
 
@@ -469,9 +501,10 @@ def do_action(
         pilot = _get_pilot(app_name)
 
         if action == "click":
-            widget = pilot.find_one(role=role, name=target)
+            widget = pilot.find_one(role=role, name=target, visible=visible, exact=exact)
+            info = f"'{role}' ({target})"  # Cache BEFORE click (ISSUE-003)
             pilot.click(widget)
-            typer.echo(f"Clicked '{role}' ({target})")
+            typer.echo(f"Clicked {info}")
         else:
             typer.echo(f"Unknown action: {action}", err=True)
             raise typer.Exit(code=1)

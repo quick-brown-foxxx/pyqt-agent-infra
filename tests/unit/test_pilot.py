@@ -20,7 +20,15 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
 pytestmark = pytest.mark.unit
 
 
-def _make_node(name: str, role_name: str, children: list[MagicMock] | None = None) -> MagicMock:
+def _make_node(
+    name: str,
+    role_name: str,
+    children: list[MagicMock] | None = None,
+    ext_x: int = 10,
+    ext_y: int = 20,
+    ext_width: int = 100,
+    ext_height: int = 50,
+) -> MagicMock:
     """Create a mock AT-SPI native object."""
     native = MagicMock()
     native.get_name.return_value = name
@@ -32,10 +40,10 @@ def _make_node(name: str, role_name: str, children: list[MagicMock] | None = Non
 
     # Extents mock
     ext = MagicMock()
-    ext.x = 10
-    ext.y = 20
-    ext.width = 100
-    ext.height = 50
+    ext.x = ext_x
+    ext.y = ext_y
+    ext.width = ext_width
+    ext.height = ext_height
     native.get_extents.return_value = ext
 
     return native
@@ -451,3 +459,184 @@ class TestSelectMenuItem:
             pytest.raises(LookupError, match="not found"),
         ):
             pilot.select_menu_item("File", "Nonexistent")
+
+
+# ── Tests for visible filter ────────────────────────────────────
+
+
+class TestVisibilityFilter:
+    """Test the visible parameter on find/find_one."""
+
+    def _make_pilot_with_buttons(
+        self,
+        buttons: list[tuple[str, int, int]],
+    ) -> QtPilot:
+        """Create a pilot with push buttons of given (name, width, height)."""
+        children = [_make_node(name, "push button", ext_width=w, ext_height=h) for name, w, h in buttons]
+        frame = _make_node("main", "frame", children=children)
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            return QtPilot(app_name="test-app", retries=1, delay=0.0)
+
+    def test_find_visible_excludes_zero_extent(self) -> None:
+        """Visible filter should exclude widgets with 0x0 extents."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 100, 50),
+                ("OK", 0, 0),
+                ("OK", 0, 0),
+            ]
+        )
+        results = pilot.find(role="push button", name="OK", visible=True)
+        assert len(results) == 1
+
+    def test_find_without_visible_returns_all(self) -> None:
+        """Without visible filter, all matching widgets are returned."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 100, 50),
+                ("OK", 0, 0),
+                ("OK", 0, 0),
+            ]
+        )
+        results = pilot.find(role="push button", name="OK")
+        assert len(results) == 3
+
+    def test_find_one_visible_returns_single_visible(self) -> None:
+        """find_one with visible=True succeeds when exactly 1 is visible."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 100, 50),
+                ("OK", 0, 0),
+                ("OK", 0, 0),
+            ]
+        )
+        widget = pilot.find_one(role="push button", name="OK", visible=True)
+        ext = widget.get_extents()
+        assert ext.width == 100
+
+    def test_find_one_visible_raises_when_multiple_visible(self) -> None:
+        """find_one with visible=True raises when 2+ are visible."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 100, 50),
+                ("OK", 80, 40),
+            ]
+        )
+        with pytest.raises(LookupError, match="Multiple widgets found"):
+            pilot.find_one(role="push button", name="OK", visible=True)
+
+    def test_find_visible_returns_empty_when_all_hidden(self) -> None:
+        """Visible filter returns empty when all matches have 0x0 extents."""
+        pilot = self._make_pilot_with_buttons(
+            [
+                ("OK", 0, 0),
+                ("OK", 0, 0),
+            ]
+        )
+        results = pilot.find(role="push button", name="OK", visible=True)
+        assert results == []
+
+
+# ── Tests for exact name match ──────────────────────────────────
+
+
+class TestExactNameMatch:
+    """Test the exact parameter on find/find_one."""
+
+    def _make_pilot_with_named_buttons(self, names: list[str]) -> QtPilot:
+        """Create a pilot with push buttons of given names."""
+        children = [_make_node(n, "push button") for n in names]
+        frame = _make_node("main", "frame", children=children)
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            return QtPilot(app_name="test-app", retries=1, delay=0.0)
+
+    def test_find_exact_matches_only(self) -> None:
+        """Exact match should return only the widget with the exact name."""
+        pilot = self._make_pilot_with_named_buttons(["=", "x="])
+        results = pilot.find(name="=", exact=True)
+        assert len(results) == 1
+        assert results[0].name == "="
+
+    def test_find_substring_matches_both(self) -> None:
+        """Substring match (default) returns both '=' and 'x='."""
+        pilot = self._make_pilot_with_named_buttons(["=", "x="])
+        results = pilot.find(name="=")
+        assert len(results) == 2
+
+    def test_find_exact_save_vs_save_as(self) -> None:
+        """Exact match distinguishes 'Save' from 'Save As'."""
+        pilot = self._make_pilot_with_named_buttons(["Save", "Save As"])
+        results = pilot.find(name="Save", exact=True)
+        assert len(results) == 1
+        assert results[0].name == "Save"
+
+    def test_find_one_exact_succeeds(self) -> None:
+        """find_one with exact=True returns the exact match."""
+        pilot = self._make_pilot_with_named_buttons(["=", "x="])
+        widget = pilot.find_one(name="=", exact=True)
+        assert widget.name == "="
+
+    def test_find_exact_no_match(self) -> None:
+        """Exact match returns empty when no widget has that exact name."""
+        pilot = self._make_pilot_with_named_buttons(["=", "x="])
+        results = pilot.find(name="equals", exact=True)
+        assert results == []
+
+
+# ── Tests for index parameter ───────────────────────────────────
+
+
+class TestIndexParameter:
+    """Test the index parameter on find_one."""
+
+    def test_find_one_index_zero_returns_first(self) -> None:
+        """index=0 returns the first match."""
+        txt1 = _make_node("", "text", ext_height=300)
+        txt2 = _make_node("", "text", ext_height=30)
+        frame = _make_node("main", "frame", children=[txt1, txt2])
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            pilot = QtPilot(app_name="test-app", retries=1, delay=0.0)
+        widget = pilot.find_one(role="text", index=0)
+        assert widget.get_extents().height == 300
+
+    def test_find_one_index_one_returns_second(self) -> None:
+        """index=1 returns the second match."""
+        txt1 = _make_node("", "text", ext_height=300)
+        txt2 = _make_node("", "text", ext_height=30)
+        frame = _make_node("main", "frame", children=[txt1, txt2])
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            pilot = QtPilot(app_name="test-app", retries=1, delay=0.0)
+        widget = pilot.find_one(role="text", index=1)
+        assert widget.get_extents().height == 30
+
+    def test_find_one_index_out_of_range_raises(self) -> None:
+        """index=5 with only 2 matches raises LookupError."""
+        txt1 = _make_node("", "text")
+        txt2 = _make_node("", "text")
+        frame = _make_node("main", "frame", children=[txt1, txt2])
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            pilot = QtPilot(app_name="test-app", retries=1, delay=0.0)
+        with pytest.raises(LookupError, match="out of range"):
+            pilot.find_one(role="text", index=5)
+
+    def test_find_one_index_with_visible_filter(self) -> None:
+        """index=0 with visible=True skips hidden widgets."""
+        hidden = _make_node("", "text", ext_width=0, ext_height=0)
+        visible = _make_node("", "text", ext_width=200, ext_height=40)
+        frame = _make_node("main", "frame", children=[hidden, visible])
+        app_native = _make_node("test-app", "application", children=[frame])
+        desktop_native = _make_node("desktop", "desktop", children=[app_native])
+        with patch.object(AtspiNode, "desktop", return_value=AtspiNode(desktop_native)):
+            pilot = QtPilot(app_name="test-app", retries=1, delay=0.0)
+        widget = pilot.find_one(role="text", visible=True, index=0)
+        assert widget.get_extents().width == 200

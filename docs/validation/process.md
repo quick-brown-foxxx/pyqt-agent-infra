@@ -45,6 +45,38 @@ nohup keepassxc &>/dev/null &
 pkill keepassxc
 ```
 
+## qBittorrent
+
+```bash
+# Install
+sudo apt-get update && sudo apt-get install -y qbittorrent
+
+# Launch
+nohup qbittorrent &>/dev/null &
+
+# AT-SPI app name: "qBittorrent" (Qt 6.4.2)
+# NOTE: First launch shows a "Legal notice" dialog — click "I Agree" to dismiss.
+
+# Kill
+pkill qbittorrent
+```
+
+## VLC
+
+```bash
+# Install
+sudo apt-get update && sudo apt-get install -y vlc
+
+# Launch
+nohup vlc &>/dev/null &
+
+# AT-SPI app name: "vlc" (Qt 5.15.13)
+# NOTE: First launch shows a "Privacy and Network Access Policy" dialog — dismiss it.
+
+# Kill
+pkill vlc
+```
+
 ## Environment Notes
 
 - No extra env vars needed beyond what `vm run` provides (`DISPLAY=:99`, `QT_ACCESSIBILITY=1`, `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`, `DBUS_SESSION_BUS_ADDRESS`)

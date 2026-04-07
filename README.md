@@ -31,7 +31,7 @@ qt-ai-dev-tools bridges that gap. Your AI agent can:
 **VM environment** — isolated and reproducible:
 - **Vagrant VM** — Ubuntu 24.04 with Xvfb, openbox, AT-SPI, and D-Bus pre-configured. No host contamination. Templated with Jinja2, multi-provider support
 
-The agent don't need to modify or instrument the target app. It uses the same accessibility tree that screen readers use, from the outside.
+The agent doesn't modify or instrument the target app. It uses the same accessibility tree that screen readers use, from the outside.
 
 ## How it works
 
@@ -61,7 +61,7 @@ CLI allows to execute any commands in VM, simplifying ssh connection.
 ## Host requirements
 
 - **Linux** (Fedora, Ubuntu, Arch, etc.)
-- **Vagrant** with the **libvirt** provider (`vagrant-libvirt` plugin + QEMU/KVM), **virtualbox** is supported but not tested
+- **Vagrant** with the **libvirt** provider (`vagrant-libvirt` plugin + QEMU/KVM)
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
 
 ## Getting started
@@ -81,7 +81,7 @@ This gives your agent five skills:
 
 ### 2. Ask your agent to set up the toolkit
 
-Run `/qt-dev-tools-setup` skill as command or ask agent to load and execute it:
+The agent will use the `qt-dev-tools-setup` skill to:
 - Copy the toolkit into your project
 - Initialize a Vagrant workspace
 - Boot the VM and verify the environment
@@ -92,14 +92,14 @@ Once set up, the agent uses the appropriate skill for each task. `qt-app-interac
 
 ### Manual installation
 
-**Option A — uvx run without installation** (recommended):
-```bash
-uvx qt-ai-dev-tools workspace init ./qt-ai-dev-tools
-```
-
-**Option B — shadcn-style local copy** (advanced use cases, agent owns the code):
+**Option A — shadcn-style local copy** (recommended, agent owns the code):
 ```bash
 uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+```
+
+**Option B — pip install** (system-wide CLI/library):
+```bash
+pip install qt-ai-dev-tools
 ```
 
 **Option C — follow the skill guide** directly: read `skills/qt-dev-tools-setup/SKILL.md` for step-by-step instructions.

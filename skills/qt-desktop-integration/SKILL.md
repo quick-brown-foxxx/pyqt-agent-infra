@@ -202,4 +202,4 @@ qt-ai-dev-tools audio virtual-mic stop
 - **qt-dev-tools-setup** -- install qt-ai-dev-tools, configure the VM, verify the environment.
 - **qt-app-interaction** -- inspect widgets, click buttons, type text, verify state via AT-SPI.
 - **qt-form-and-input** -- fill forms, handle combo boxes, navigate tabs, work with text fields.
-- **qt-bridge** -- execute Python code inside running Qt apps via the bridge socket.
+- **qt-runtime-eval** -- execute Python code inside running Qt apps via the bridge.

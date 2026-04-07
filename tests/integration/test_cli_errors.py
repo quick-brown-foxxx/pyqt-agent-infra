@@ -2,7 +2,7 @@
 
 Verify that CLI commands produce useful error messages and correct exit codes
 when inputs are invalid or widgets don't exist. These tests need AT-SPI
-running (DISPLAY set) but do NOT need the sample app.
+running (DISPLAY set) and the sample app (provided by session-scoped fixture).
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
         cmd,
         capture_output=True,
         text=True,
-        timeout=15,
+        timeout=30,
     )
 
 
@@ -42,7 +42,7 @@ class TestClickErrors:
 
     def test_click_no_matching_widget(self) -> None:
         """Click with a name that matches nothing returns non-zero exit."""
-        result = run_cli("click", "--role", "push button", "--name", "nonexistent_btn_xyz")
+        result = run_cli("click", "--app", "main.py", "--role", "push button", "--name", "nonexistent_btn_xyz")
         assert result.returncode != 0
         # Should have a useful error message
         assert "Error" in result.stderr or "error" in result.stderr.lower()
@@ -58,7 +58,7 @@ class TestFindEdgeCases:
 
     def test_find_no_matching_widget_returns_zero(self) -> None:
         """Find with no matches returns exit 0 -- finding nothing is not an error."""
-        result = run_cli("find", "--role", "push button", "--name", "nonexistent_widget_xyz")
+        result = run_cli("find", "--app", "main.py", "--role", "push button", "--name", "nonexistent_widget_xyz")
         assert result.returncode == 0
 
 
@@ -76,6 +76,6 @@ class TestFillErrors:
 
     def test_fill_no_matching_widget(self) -> None:
         """Fill into a widget that doesn't exist returns non-zero exit."""
-        result = run_cli("fill", "some text", "--role", "text", "--name", "nonexistent_input_xyz")
+        result = run_cli("fill", "some text", "--app", "main.py", "--role", "text", "--name", "nonexistent_input_xyz")
         assert result.returncode != 0
         assert "Error" in result.stderr or "error" in result.stderr.lower()

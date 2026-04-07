@@ -234,6 +234,19 @@ def tree(
     """Print the widget tree of a running Qt app."""
     _proxy_to_vm()
     pilot = _get_pilot(app_name)
+
+    # Hint about other apps when no --app given
+    if app_name is None and pilot.app is not None:
+        from qt_ai_dev_tools._atspi import AtspiNode as _AtspiNode
+
+        desktop = _AtspiNode.desktop()
+        all_apps = [c.name for c in desktop.children if c.name]
+        if len(all_apps) > 1:
+            current = pilot.app.name
+            others = [a for a in all_apps if a != current]
+            typer.echo(f"# Showing: {current} (also on bus: {', '.join(others)})", err=True)
+            typer.echo("# Use --app to select a different app", err=True)
+
     if role:
         widgets = pilot.find(role=role, visible=visible, exact=exact)
         if output_json:

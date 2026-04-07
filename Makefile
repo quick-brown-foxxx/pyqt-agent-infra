@@ -12,7 +12,7 @@ help: ## show this message
 # ── Workspace ───────────────────────────────────────────────────────────────
 
 workspace-init: ## generate Vagrantfile, provision.sh, scripts from templates
-	uv run qt-ai-dev-tools workspace init --path .
+	uv run qt-ai-dev-tools workspace init
 
 # ── VM lifecycle ────────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@
 
 1. **Composable over monolithic.** 80% of use cases should be one-liners (`qt-ai-dev-tools tree`, `qt-ai-dev-tools click "Save"`). The remaining 20% use the Python library directly. No "super-tool" that tries to do everything.
 2. **Agent-scriptable.** The agent can write small Python scripts using `qt_ai_dev_tools` as a library when the CLI isn't enough. Primitives are always exposed.
-3. **Drop-in portable.** Works in any PySide6/PyQt6 project. `uvx qt-ai-dev-tools init` copies the full toolkit into the project — source, templates, skills, config. Agent owns the code, can read and extend it. No global install required, only `uv`.
+3. **Drop-in portable.** Works in any PySide6/PyQt6 project. `uvx qt-ai-dev-tools install-and-own` copies the full toolkit into the project — source, templates, skills, config. Agent owns the code, can read and extend it. No global install required, only `uv`.
 4. **VM-first.** Vagrant VM is the primary environment — it gives full OS isolation and access to Linux subsystems (D-Bus, audio, system tray). Container/host support comes later as a lighter-weight option for UI-only workflows.
 5. **Feedback-rich.** Every action returns enough context for the agent to know what happened — widget state after click, screenshot after interaction, error messages with available alternatives.
 
@@ -63,7 +63,7 @@ Key learnings: AT-SPI + xdotool + scrot = full Chrome DevTools equivalent for Qt
 
 ### Phase 2: MVP
 
-Package structure (`src/qt_ai_dev_tools/`), Typer CLI with one-liner commands, JSON output mode, typed AT-SPI wrapper (`_atspi.py`) confining all `# type: ignore` to one module, strict basedpyright project-wide. Vagrant templates (Jinja2) with multi-provider support, `workspace init` command, VM lifecycle commands (`up`/`status`/`ssh`/`sync`/`destroy`/`run`), transparent VM proxy (auto-detect host vs VM), auto-sync via `rsync-auto`, static IP option. Distribution: `pip install qt-ai-dev-tools` + `uvx qt-ai-dev-tools init` (shadcn-style local copy), self-update mechanism, AI skills bundled.
+Package structure (`src/qt_ai_dev_tools/`), Typer CLI with one-liner commands, JSON output mode, typed AT-SPI wrapper (`_atspi.py`) confining all `# type: ignore` to one module, strict basedpyright project-wide. Vagrant templates (Jinja2) with multi-provider support, `workspace init` command, VM lifecycle commands (`up`/`status`/`ssh`/`sync`/`destroy`/`run`), host/VM command parity, auto-sync via `rsync-auto`, static IP option. Distribution: `uvx qt-ai-dev-tools` + `install-and-own` (shadcn-style local copy), self-update mechanism, AI skills bundled.
 
 ### Phase 3: Advanced Capabilities
 

@@ -1,6 +1,6 @@
-"""E2E tests for bridge CLI via transparent VM proxy.
+"""E2E tests for bridge CLI via host-to-VM execution.
 
-These run ON THE HOST and verify that bridge commands auto-proxy to the VM.
+These run ON THE HOST and verify that bridge commands execute in the VM.
 Requires: VM running, app with bridge started inside VM.
 
 Run via: make test-e2e-proxy (or pytest tests/e2e/test_bridge_proxy.py)
@@ -44,7 +44,7 @@ def _vm_run(command: str, timeout: int = 30) -> subprocess.CompletedProcess[str]
 
 
 def _host_cli(*args: str, timeout: int = 30) -> subprocess.CompletedProcess[str]:
-    """Run qt-ai-dev-tools on the host (will auto-proxy to VM)."""
+    """Run qt-ai-dev-tools on the host (executes in VM via SSH)."""
     return subprocess.run(
         ["uv", "run", "qt-ai-dev-tools", *args],
         capture_output=True,

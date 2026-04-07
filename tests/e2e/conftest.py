@@ -396,8 +396,11 @@ def stt_app() -> Generator[subprocess.Popen[str], None, None]:
 @pytest.fixture(scope="module")
 def complex_app() -> Generator[subprocess.Popen[str], None, None]:
     """Start the kitchen-sink complex test app."""
+    _clean_stale_sockets()
     app_path = _APPS_DIR / "complex_app.py"
     proc = _start_app(app_path, bridge=True)
     _wait_for_app_window(proc, "complex_app.py")
+    _raise_app_window("Complex Test App")
     yield proc
     _kill_app(proc)
+    _clean_stale_sockets()

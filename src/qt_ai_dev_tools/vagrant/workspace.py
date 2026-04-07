@@ -38,7 +38,7 @@ class WorkspaceConfig:
     display: str = ":99"
     resolution: str = "1920x1080x24"
     extra_packages: list[str] = field(default_factory=list)
-    python_packages: list[str] = field(default_factory=list)
+    python_packages: list[str] = field(default_factory=lambda: ["basedpyright"])
 
 
 def default_config() -> WorkspaceConfig:

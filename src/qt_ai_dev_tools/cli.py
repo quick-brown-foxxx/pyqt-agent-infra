@@ -24,6 +24,9 @@ app = typer.Typer(
     help="AI agent tools for Qt/PySide app interaction via AT-SPI.",
     no_args_is_help=True,
     context_settings=_CONTEXT,
+    epilog="Skills: qt-dev-tools-setup, qt-app-interaction, qt-form-and-input, "
+    "qt-desktop-integration, qt-runtime-eval. "
+    "Install: npx -y skills add quick-brown-foxxx/qt-ai-dev-tools",
 )
 
 
@@ -62,6 +65,10 @@ def main_callback(
     # File logging is always on
     log_dir = Path("~/.local/state/qt-ai-dev-tools/logs").expanduser()
     setup_file_logging(log_dir=log_dir, app_name="qt-ai-dev-tools")
+
+    # --dry-run without -v would silently show nothing; auto-enable verbose
+    if dry_run and verbose == 0:
+        verbose = 1
 
     # Stderr logging only when -v/-vv is given
     if verbose >= 2:
@@ -596,7 +603,7 @@ def _verify_condition(pilot: QtPilot, condition: str) -> None:
 
 # ── Workspace commands ──────────────────────────────────────────────
 
-workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.", context_settings=_CONTEXT)
+workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.", context_settings=_CONTEXT, epilog="More info in skill: qt-dev-tools-setup")
 app.add_typer(workspace_app, name="workspace")
 
 
@@ -646,7 +653,7 @@ def workspace_init(
 
 # ── VM commands ─────────────────────────────────────────────────────
 
-vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.", context_settings=_CONTEXT)
+vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.", context_settings=_CONTEXT, epilog="More info in skill: qt-dev-tools-setup")
 app.add_typer(vm_app, name="vm")
 
 
@@ -849,7 +856,7 @@ def eval_cmd(
             raise typer.Exit(code=1)
 
 
-bridge_app = typer.Typer(help="Manage bridge lifecycle.", context_settings=_CONTEXT)
+bridge_app = typer.Typer(help="Manage bridge lifecycle.", context_settings=_CONTEXT, epilog="More info in skill: qt-runtime-eval")
 app.add_typer(bridge_app, name="bridge")
 
 
@@ -892,7 +899,7 @@ def bridge_inject_cmd(
 
 # ── Clipboard commands ────────────────────────────────────────────
 
-clipboard_app = typer.Typer(help="Clipboard operations.", context_settings=_CONTEXT)
+clipboard_app = typer.Typer(help="Clipboard operations.", context_settings=_CONTEXT, epilog="More info in skill: qt-form-and-input")
 app.add_typer(clipboard_app, name="clipboard")
 
 
@@ -928,7 +935,7 @@ def clipboard_read_cmd() -> None:
 
 # ── File dialog commands ──────────────────────────────────────────
 
-file_dialog_app = typer.Typer(help="File dialog automation.", context_settings=_CONTEXT)
+file_dialog_app = typer.Typer(help="File dialog automation.", context_settings=_CONTEXT, epilog="More info in skill: qt-form-and-input")
 app.add_typer(file_dialog_app, name="file-dialog")
 
 
@@ -1011,7 +1018,7 @@ def file_dialog_cancel_cmd(
 
 # ── System tray commands ──────────────────────────────────────────
 
-tray_app_cli = typer.Typer(help="System tray interaction.", context_settings=_CONTEXT)
+tray_app_cli = typer.Typer(help="System tray interaction.", context_settings=_CONTEXT, epilog="More info in skill: qt-desktop-integration")
 app.add_typer(tray_app_cli, name="tray")
 
 
@@ -1115,7 +1122,7 @@ def tray_select_cmd(
 
 # ── Notification commands ─────────────────────────────────────────
 
-notify_app_cli = typer.Typer(help="Desktop notification interaction.", context_settings=_CONTEXT)
+notify_app_cli = typer.Typer(help="Desktop notification interaction.", context_settings=_CONTEXT, epilog="More info in skill: qt-desktop-integration")
 app.add_typer(notify_app_cli, name="notify")
 
 
@@ -1186,7 +1193,7 @@ def notify_action_cmd(
 
 # ── Audio commands ────────────────────────────────────────────────
 
-audio_app_cli = typer.Typer(help="PipeWire audio interaction.", context_settings=_CONTEXT)
+audio_app_cli = typer.Typer(help="PipeWire audio interaction.", context_settings=_CONTEXT, epilog="More info in skill: qt-desktop-integration")
 app.add_typer(audio_app_cli, name="audio")
 
 # Virtual mic sub-group

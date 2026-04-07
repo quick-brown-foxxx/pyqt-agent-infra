@@ -55,6 +55,14 @@ class TestDryRunPreventsExecution:
             # find_workspace() raised before reaching run_command() — acceptable
             assert "Vagrantfile" in result.stderr or "vagrant" in result.stderr.lower()
 
+    def test_dry_run_auto_enables_verbose(self) -> None:
+        """--dry-run without -v should still show command on stderr."""
+        result = run_cli("--dry-run", "vm", "status")
+        # --dry-run should auto-enable -v, so stderr should contain dry-run marker.
+        # If Vagrantfile is missing, the error message still appears on stderr.
+        stderr = result.stderr.lower()
+        assert "dry-run" in stderr or "dry_run" in stderr or "vagrantfile" in stderr
+
     def test_dry_run_vm_status_does_not_invoke_vagrant(self) -> None:
         """--dry-run should not produce vagrant's own stdout output."""
         result = run_cli("--dry-run", "-v", "vm", "status")

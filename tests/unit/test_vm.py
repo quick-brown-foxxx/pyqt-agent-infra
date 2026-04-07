@@ -32,35 +32,38 @@ class TestFindWorkspace:
             find_workspace(tmp_path)
 
     def test_walks_up_to_find_vagrantfile(self, tmp_path: Path) -> None:
-        (tmp_path / "Vagrantfile").touch()
+        ws_dir = tmp_path / ".qt-ai-dev-tools"
+        ws_dir.mkdir()
+        (ws_dir / "Vagrantfile").touch()
         nested = tmp_path / "sub" / "deep"
         nested.mkdir(parents=True)
         with patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested):
             result = find_workspace()
-        assert result == tmp_path
+        assert result == ws_dir
 
     def test_no_vagrantfile_anywhere_raises(self, tmp_path: Path) -> None:
         nested = tmp_path / "empty" / "dir"
         nested.mkdir(parents=True)
         with (
             patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=nested),
-            pytest.raises(FileNotFoundError, match="No Vagrantfile found in current directory or parents"),
+            pytest.raises(FileNotFoundError, match=r"No \.qt-ai-dev-tools/Vagrantfile found"),
         ):
             find_workspace()
 
     def test_finds_vagrantfile_in_parent_not_grandparent(self, tmp_path: Path) -> None:
-        """Vagrantfile in parent/ should be found from parent/child/ (not grandparent)."""
+        """Vagrantfile in parent/.qt-ai-dev-tools/ should be found from parent/child/."""
         parent = tmp_path / "parent"
         parent.mkdir()
-        (parent / "Vagrantfile").touch()
+        ws_dir = parent / ".qt-ai-dev-tools"
+        ws_dir.mkdir()
+        (ws_dir / "Vagrantfile").touch()
         child = parent / "child"
         child.mkdir()
 
-        # Should NOT find a Vagrantfile in tmp_path (grandparent) —
-        # only the one in parent/
+        # Should find .qt-ai-dev-tools/Vagrantfile in parent/, not grandparent
         with patch("qt_ai_dev_tools.vagrant.vm.Path.cwd", return_value=child):
             result = find_workspace()
-        assert result == parent
+        assert result == ws_dir
 
 
 class TestVmRunEnvConstruction:

@@ -1,6 +1,6 @@
 # qt-ai-dev-tools
 
-Chrome Dev Tools but for Linux Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux.
+Chrome Dev Tools but for Linux Qt desktop apps — give your AI agent eyes and hands to inspect, click, type, and screenshot any Qt/PySide application on Linux (X11).
 
 ## The problem
 
@@ -10,18 +10,28 @@ AI coding agents can build Qt apps, but they can't see or interact with them. Th
 
 qt-ai-dev-tools bridges that gap. Your AI agent can:
 
-- **See the full widget tree** — every button, label, text field, menu, and dialog, with roles, names, and coordinates, via the AT-SPI accessibility protocol
-- **Interact with the app** — click buttons, type into fields, press keys, fill forms, navigate menus — all through real X11 input events
-- **Take screenshots** — visual verification after any interaction (~14-22 KB PNG, cheap to send to an LLM)
-- **Execute code inside the app** — run arbitrary Python inside the target process via a Unix socket bridge, accessing widgets, properties, and Qt internals directly
-- **Access the clipboard** — read and write the system clipboard for copy/paste workflows
-- **Automate file dialogs** — detect, fill, accept, and cancel native Qt file dialogs via AT-SPI
-- **Control the system tray** — list tray icons, click them, read context menus, select items via D-Bus SNI
-- **Monitor notifications** — listen for desktop notifications, dismiss them, invoke actions via D-Bus
-- **Work with audio** — create PipeWire virtual microphones, play audio into apps, record output, verify non-silence
-- **Run in an isolated VM** — Vagrant VM with Xvfb, window manager, and AT-SPI pre-configured. No host contamination, reproducible environment
+**Core interaction** — see and control the app:
+- **Full widget tree** — every button, label, text field, menu, and dialog, with roles, names, and coordinates, via AT-SPI. Filter with `--visible`, `--exact`, `--index`, and `--app` flags for precise targeting
+- **Click, type, press keys** — real X11 input events via xdotool. Compound commands like `fill` (focus + clear + type) and `do` (click + verify/screenshot) for common workflows
+- **Screenshots** — visual verification after any interaction (~14-22 KB PNG, cheap to send to an LLM). Snapshot save/diff for comparison
 
-The agent never modifies or instruments the target app. It uses the same accessibility tree that screen readers use, from the outside.
+**Forms and data** — handle user input:
+- **Fill forms** — focus fields, clear existing text, type new values in one command
+- **Automate file dialogs** — detect, fill, accept, and cancel native Qt file dialogs via AT-SPI
+- **Clipboard** — read and write the system clipboard for copy/paste workflows
+
+**Desktop integration** — interact beyond the app window:
+- **System tray** — list tray icons, click them, read context menus, select items via D-Bus SNI
+- **Notifications** — listen for desktop notifications, dismiss them, invoke actions via D-Bus
+- **Audio** — create PipeWire virtual microphones, play audio into apps, record output, verify non-silence
+
+**Runtime eval** — reach inside the process:
+- **Execute code inside the app** — run arbitrary Python via a Unix socket bridge, accessing widgets, properties, and Qt internals directly
+
+**VM environment** — isolated and reproducible:
+- **Vagrant VM** — Ubuntu 24.04 with Xvfb, openbox, AT-SPI, and D-Bus pre-configured. No host contamination. Templated with Jinja2, multi-provider support
+
+The agent doesn't modify or instrument the target app. It uses the same accessibility tree that screen readers use, from the outside.
 
 ## How it works
 
@@ -46,15 +56,15 @@ The agent never modifies or instruments the target app. It uses the same accessi
   Target Qt/PySide App (unmodified)
 ```
 
-CLI allows to execute any commands in VM, simplifying ssh connection.
+Most CLI commands work identically from the host or inside the VM — no SSH wrapping needed. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
+
+**Note:** This toolkit targets X11 applications. Wayland is not supported. All interaction happens inside the VM where Xvfb provides the X11 display server, so the host's display server doesn't matter.
 
 ## Host requirements
 
 - **Linux** (Fedora, Ubuntu, Arch, etc.)
-- **Vagrant** with the **libvirt** provider (`vagrant-libvirt` plugin + QEMU/KVM)
+- **Vagrant** with the **libvirt** provider (`vagrant-libvirt` plugin + QEMU/KVM), **virtualbox** is supported but not tested
 - **Python 3.12+** and **[uv](https://docs.astral.sh/uv/)**
-
-VirtualBox is partially supported in templates but only libvirt has been tested.
 
 ## Getting started
 
@@ -64,50 +74,57 @@ VirtualBox is partially supported in templates but only libvirt has been tested.
 npx -y skills add quick-brown-foxxx/qt-ai-dev-tools
 ```
 
-This gives your agent the `qt-dev-tools-setup` and `qt-app-interaction` skills — structured guidance for setting up the environment and interacting with Qt apps.
+This gives your agent five skills:
+- `qt-dev-tools-setup` — install and configure the environment
+- `qt-app-interaction` — inspect, click, type, verify (core workflow)
+- `qt-form-and-input` — fill forms, handle file dialogs, clipboard
+- `qt-desktop-integration` — system tray, notifications, audio
+- `qt-runtime-eval` — execute Python inside running apps
 
 ### 2. Ask your agent to set up the toolkit
 
-The agent will use the `qt-dev-tools-setup` skill to:
+Run `/qt-dev-tools-setup` skill as command or ask agent to load and execute it:
 - Copy the toolkit into your project
 - Initialize a Vagrant workspace
 - Boot the VM and verify the environment
 
 ### 3. Start interacting
 
-Once set up, the agent uses the `qt-app-interaction` skill for the core workflow: **inspect** the widget tree → **interact** with widgets → **verify** results. The skill includes recipes for common tasks (form filling, menu navigation, dialog handling) and troubleshooting.
+Once set up, the agent uses the appropriate skill for each task. `qt-app-interaction` covers the core workflow: **inspect** the widget tree → **interact** with widgets → **verify** results. `qt-form-and-input` handles form filling, file dialogs, and clipboard. `qt-desktop-integration` covers system tray, notifications, and audio. `qt-runtime-eval` enables executing Python inside running apps for deeper inspection.
 
 ### Manual installation
 
-**Option A — shadcn-style local copy** (recommended, agent owns the code):
+**Recommended — use via uvx** (no installation needed):
 ```bash
-uvx qt-ai-dev-tools init ./qt-ai-dev-tools
+uvx qt-ai-dev-tools workspace init
 ```
 
-**Option B — pip install** (system-wide CLI/library):
+**Advanced — local copy** (you own and maintain the code):
 ```bash
-pip install qt-ai-dev-tools
+uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
 ```
-
-**Option C — follow the skill guide** directly: read `skills/qt-dev-tools-setup/SKILL.md` for step-by-step instructions.
 
 ## Project status
 
 **Working now:**
-- CLI with one-liner commands — `tree`, `click`, `type`, `screenshot`, `fill`, `do`, etc.
+- CLI with one-liner commands — `tree`, `click`, `type`, `screenshot`, `fill`, `do`, snapshot save/diff, and more
+- Widget addressing — `--visible`, `--exact`, `--index` flags for precise targeting
+- Multi-app support — `--app` flag to target a specific application
 - Python library (`QtPilot`) with strict typing (basedpyright strict, typed AT-SPI wrapper)
 - Vagrant VM environment — Xvfb + openbox + AT-SPI, templated with Jinja2, multi-provider support
-- Workspace init & VM lifecycle management from the CLI
 - Compound commands — `fill` (focus + clear + type), `do` (click + verify/screenshot)
-- Bridge — execute arbitrary Python inside running Qt apps via Unix socket (chrome-dev-tools MCP `evaluate_script` equivalent)
-- Linux subsystems — clipboard (xsel/xclip), file dialogs (AT-SPI), system tray (D-Bus SNI), notifications (D-Bus), audio (PipeWire virtual mic, recording, verification)
-- Distribution — `pip install qt-ai-dev-tools` or `uvx qt-ai-dev-tools init` (shadcn-style local copy)
-- AI skills — teach agents the inspect→interact→verify workflow
+- Bridge — execute arbitrary Python inside running Qt apps via Unix socket
+- Five Linux subsystem modules:
+  - Clipboard (xsel/xclip read/write)
+  - File dialogs (AT-SPI detect, fill, accept, cancel)
+  - System tray (D-Bus SNI list, click, menu, select)
+  - Notifications (D-Bus listen, dismiss, action)
+  - Audio (PipeWire virtual mic, recording, verification)
+- Distribution — `uvx qt-ai-dev-tools <any-command>` without installation, `install-and-own` for local copies, five AI skills
 
 **Next up:**
-- Architecture rewrite — backend abstraction for multiple environments (VM, container, host)
-- Docker environment — lighter-weight alternative to VM (~95% feature coverage)
-- Real-world validation against production Qt apps
+- Architecture rewrite — backend abstraction for multiple environments
+- Docker environment — lighter-weight alternative to VM
 
 See [ROADMAP.md](docs/ROADMAP.md) for the full plan and phase details.
 

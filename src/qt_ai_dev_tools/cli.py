@@ -24,6 +24,9 @@ app = typer.Typer(
     help="AI agent tools for Qt/PySide app interaction via AT-SPI.",
     no_args_is_help=True,
     context_settings=_CONTEXT,
+    epilog="Skills: qt-dev-tools-setup, qt-app-interaction, qt-form-and-input, "
+    "qt-desktop-integration, qt-runtime-eval. "
+    "Install: npx -y skills add quick-brown-foxxx/qt-ai-dev-tools",
 )
 
 
@@ -62,6 +65,10 @@ def main_callback(
     # File logging is always on
     log_dir = Path("~/.local/state/qt-ai-dev-tools/logs").expanduser()
     setup_file_logging(log_dir=log_dir, app_name="qt-ai-dev-tools")
+
+    # --dry-run without -v would silently show nothing; auto-enable verbose
+    if dry_run and verbose == 0:
+        verbose = 1
 
     # Stderr logging only when -v/-vv is given
     if verbose >= 2:
@@ -182,18 +189,31 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
 # ── Init / Self-update commands ────────────────────────────────────
 
 
-@app.command(name="init")
-def init_command(
+@app.command(name="install-and-own")
+def install_and_own_command(
     path: typing.Annotated[Path, typer.Argument(help="Target directory")] = Path("./qt-ai-dev-tools"),
     memory: typing.Annotated[int, typer.Option(help="VM memory MB")] = 4096,
     cpus: typing.Annotated[int, typer.Option(help="VM CPUs")] = 4,
+    yes_i_will_maintain_it: typing.Annotated[
+        bool, typer.Option("--yes-I-will-maintain-it", help="Confirm you will own and maintain the copied code")
+    ] = False,
 ) -> None:
-    """Install qt-ai-dev-tools toolkit into a project directory (shadcn-style)."""
-    from qt_ai_dev_tools.installer import init_toolkit
+    """Copy qt-ai-dev-tools source into your project. You own the copy."""
+    if not yes_i_will_maintain_it:
+        typer.echo(
+            "This command copies the full qt-ai-dev-tools source into your project.\n"
+            "You become the maintainer of that copy — no upstream updates.\n"
+            "\n"
+            "Pass --yes-I-will-maintain-it to confirm.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    from qt_ai_dev_tools.installer import install_and_own
 
     target = path.resolve()
     try:
-        created = init_toolkit(target, memory=memory, cpus=cpus)
+        created = install_and_own(target, memory=memory, cpus=cpus)
     except OSError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -201,7 +221,9 @@ def init_command(
     for entry in created:
         typer.echo(f"  {entry}")
     typer.echo(f"Toolkit installed to {target}")
-    typer.echo(f"Run: {target}/cli --help")
+    typer.echo(f"  -> Run: cd {target} && uv sync")
+    typer.echo("  -> Run: qt-ai-dev-tools workspace init")
+    typer.echo("  -> Load the qt-dev-tools-setup skill for full setup guidance.")
 
 
 @app.command(name="self-update")
@@ -597,13 +619,16 @@ def _verify_condition(pilot: QtPilot, condition: str) -> None:
 
 # ── Workspace commands ──────────────────────────────────────────────
 
-workspace_app = typer.Typer(help="Manage qt-ai-dev-tools workspaces.", context_settings=_CONTEXT)
+workspace_app = typer.Typer(
+    help="Manage qt-ai-dev-tools workspaces.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-dev-tools-setup",
+)
 app.add_typer(workspace_app, name="workspace")
 
 
 @workspace_app.command(name="init")
 def workspace_init(
-    path: typing.Annotated[Path, typer.Option("--path", help="Target directory")] = Path("."),
     box: typing.Annotated[str, typer.Option(help="Vagrant box")] = "bento/ubuntu-24.04",
     provider: typing.Annotated[str, typer.Option(help="Vagrant provider")] = "libvirt",
     memory: typing.Annotated[int, typer.Option(help="VM memory in MB")] = 4096,
@@ -617,12 +642,13 @@ def workspace_init(
         str, typer.Option(help="Libvirt management network subnet (CIDR)")
     ] = "192.168.122.0/24",
 ) -> None:
-    """Initialize a workspace with Vagrantfile, provision.sh, and scripts."""
+    """Initialize a workspace in .qt-ai-dev-tools/ with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
 
     if provider == "virtualbox":
         typer.echo("WARNING: VirtualBox provider is NOT TESTED. Only libvirt has been verified.", err=True)
 
+    target = Path(".qt-ai-dev-tools")
     config = WorkspaceConfig(
         box=box,
         provider=provider,
@@ -635,15 +661,23 @@ def workspace_init(
         display=display,
         resolution=resolution,
     )
-    created = render_workspace(path, config)
+    created = render_workspace(target, config)
     for f in created:
         typer.echo(f"  Created: {f}")
-    typer.echo(f"Workspace initialized in {path}")
+    typer.echo("")
+    typer.echo("Workspace initialized in .qt-ai-dev-tools/")
+    typer.echo("→ Review Vagrantfile for your network setup (static IP, DHCP range).")
+    typer.echo("→ Add .qt-ai-dev-tools/ to .gitignore if this is a personal/local setup.")
+    typer.echo("→ Run: qt-ai-dev-tools vm up")
 
 
 # ── VM commands ─────────────────────────────────────────────────────
 
-vm_app = typer.Typer(help="Manage Vagrant VM lifecycle.", context_settings=_CONTEXT)
+vm_app = typer.Typer(
+    help="Manage Vagrant VM lifecycle.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-dev-tools-setup",
+)
 app.add_typer(vm_app, name="vm")
 
 
@@ -794,6 +828,8 @@ def eval_cmd(
 
     Or inject into a running Python 3.14+ app:
       qt-ai-dev-tools bridge inject --pid <PID>
+
+    More info in skill: qt-runtime-eval
     """
     _proxy_to_vm()
 
@@ -846,7 +882,11 @@ def eval_cmd(
             raise typer.Exit(code=1)
 
 
-bridge_app = typer.Typer(help="Manage bridge lifecycle.", context_settings=_CONTEXT)
+bridge_app = typer.Typer(
+    help="Manage bridge lifecycle.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-runtime-eval",
+)
 app.add_typer(bridge_app, name="bridge")
 
 
@@ -889,7 +929,11 @@ def bridge_inject_cmd(
 
 # ── Clipboard commands ────────────────────────────────────────────
 
-clipboard_app = typer.Typer(help="Clipboard operations.", context_settings=_CONTEXT)
+clipboard_app = typer.Typer(
+    help="Clipboard operations.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-form-and-input",
+)
 app.add_typer(clipboard_app, name="clipboard")
 
 
@@ -925,7 +969,11 @@ def clipboard_read_cmd() -> None:
 
 # ── File dialog commands ──────────────────────────────────────────
 
-file_dialog_app = typer.Typer(help="File dialog automation.", context_settings=_CONTEXT)
+file_dialog_app = typer.Typer(
+    help="File dialog automation.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-form-and-input",
+)
 app.add_typer(file_dialog_app, name="file-dialog")
 
 
@@ -1008,7 +1056,11 @@ def file_dialog_cancel_cmd(
 
 # ── System tray commands ──────────────────────────────────────────
 
-tray_app_cli = typer.Typer(help="System tray interaction.", context_settings=_CONTEXT)
+tray_app_cli = typer.Typer(
+    help="System tray interaction.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-desktop-integration",
+)
 app.add_typer(tray_app_cli, name="tray")
 
 
@@ -1112,7 +1164,11 @@ def tray_select_cmd(
 
 # ── Notification commands ─────────────────────────────────────────
 
-notify_app_cli = typer.Typer(help="Desktop notification interaction.", context_settings=_CONTEXT)
+notify_app_cli = typer.Typer(
+    help="Desktop notification interaction.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-desktop-integration",
+)
 app.add_typer(notify_app_cli, name="notify")
 
 
@@ -1183,11 +1239,19 @@ def notify_action_cmd(
 
 # ── Audio commands ────────────────────────────────────────────────
 
-audio_app_cli = typer.Typer(help="PipeWire audio interaction.", context_settings=_CONTEXT)
+audio_app_cli = typer.Typer(
+    help="PipeWire audio interaction.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-desktop-integration",
+)
 app.add_typer(audio_app_cli, name="audio")
 
 # Virtual mic sub-group
-vmic_app = typer.Typer(help="Virtual microphone management.", context_settings=_CONTEXT)
+vmic_app = typer.Typer(
+    help="Virtual microphone management.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-desktop-integration",
+)
 audio_app_cli.add_typer(vmic_app, name="virtual-mic")
 
 
@@ -1343,7 +1407,11 @@ def audio_verify_cmd(
 
 # ── Snapshot commands ────────────────────────────────────────────
 
-snapshot_app = typer.Typer(help="Widget tree snapshot and diff.", context_settings=_CONTEXT)
+snapshot_app = typer.Typer(
+    help="Widget tree snapshot and diff.",
+    context_settings=_CONTEXT,
+    epilog="More info in skill: qt-app-interaction",
+)
 app.add_typer(snapshot_app, name="snapshot")
 
 

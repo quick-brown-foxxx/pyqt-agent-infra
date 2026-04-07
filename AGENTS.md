@@ -49,7 +49,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
     - `workspace.py` — `WorkspaceConfig` + `render_workspace()` template rendering
     - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
     - `templates/` — Jinja2 templates for Vagrantfile, provision.sh
-  - `installer.py` — Shadcn-style installer: `uvx qt-ai-dev-tools init` copies toolkit into project
+  - `installer.py` — Shadcn-style installer: `uvx qt-ai-dev-tools install-and-own` copies toolkit into project
   - `__version__.py` — Package version (single source of truth)
 - `app/main.py` — sample PySide6 todo app (test subject)
 - `tests/` — pytest-qt + AT-SPI + CLI integration tests
@@ -61,7 +61,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), installable via `pip install qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools init`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects. The next milestone is Phase 8 (container & host support).
+Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), runnable via `uvx qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools install-and-own`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects. The next milestone is Phase 8 (container & host support).
 
 ## Key technical facts
 
@@ -74,7 +74,8 @@ Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 - **scrot** for screenshots. Output is ~14-22KB PNG.
 - **VM-first approach.** Vagrant is the primary environment — full OS isolation with D-Bus, audio, system tray access. Container/host support is Phase 8.
 - **Jinja2 templates** — Vagrantfile and provision.sh are generated from templates via `qt-ai-dev-tools workspace init`. Templates live in `src/qt_ai_dev_tools/vagrant/templates/`.
-- **Transparent VM proxy** — UI commands (tree, click, type, screenshot, etc.) auto-detect host vs VM via the `QT_AI_DEV_TOOLS_VM=1` env var (set inside the VM). On the host, they proxy through SSH to the VM. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.).
+- **Host/VM command parity** — UI commands (tree, click, type, screenshot, etc.) work identically from the host or inside the VM. On the host, they execute via SSH automatically. No `vm run` wrapping needed for qt-ai-dev-tools commands. Use `vm run` only for arbitrary commands (pytest, systemctl, etc.). Detection is via `QT_AI_DEV_TOOLS_VM=1` env var set inside the VM.
+- **X11-only** — The toolkit targets X11 applications via Xvfb in the VM. Wayland is not supported. The host's display server doesn't matter — everything runs in the VM's virtual X11 display.
 - **Tested provider: libvirt only.** VirtualBox support exists in templates but is NOT TESTED. Only libvirt (QEMU/KVM via vagrant-libvirt) has been verified.
 - **Bridge** — runtime code execution inside Qt apps via Unix socket. `bridge.start()` in the app starts a server on `/tmp/qt-ai-dev-tools-bridge-<pid>.sock`. CLI `eval` command sends code, gets results as JSON. Pre-populated namespace includes `app`, `widgets`, `find()`, `findall()`, and common Qt classes. Dev-mode gated via `QT_AI_DEV_TOOLS_BRIDGE=1` env var. **Note:** bridge cannot respond while a modal dialog (QFileDialog, QMessageBox) is open — use AT-SPI/xdotool for dialog interaction.
 - **Clipboard** — uses `xsel` (preferred, exits immediately) with `xclip` fallback. `xclip` write hangs because it stays alive to serve the X selection — `xsel` avoids this.
@@ -87,6 +88,9 @@ Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
 - `qt-dev-tools-setup` — install toolkit, configure VM, verify environment
 - `qt-app-interaction` — inspect widgets, interact, verify results (the core workflow loop)
+- `qt-form-and-input` — fill forms, handle file dialogs, clipboard operations
+- `qt-desktop-integration` — system tray, notifications, audio subsystems
+- `qt-runtime-eval` — bridge eval: execute code inside running Qt apps
 
 ## Running things
 
@@ -109,10 +113,10 @@ make destroy       # tear down VM
 
 ### CLI usage
 
-UI commands auto-detect host vs VM and proxy transparently. Run them directly from the host -- no `vm run` wrapping needed.
+UI commands work the same from host or VM — no SSH wrapping needed.
 
 ```bash
-# UI commands (work the same from host or VM -- auto-proxy):
+# UI commands (work the same from host or VM):
 qt-ai-dev-tools tree                          # full widget tree
 qt-ai-dev-tools tree --role "push button"     # filtered by role
 qt-ai-dev-tools find --role "label" --json    # find + JSON output
@@ -123,13 +127,13 @@ qt-ai-dev-tools screenshot -o /tmp/shot.png
 qt-ai-dev-tools apps                          # list AT-SPI apps
 qt-ai-dev-tools wait --app "main.py"          # wait for app
 
-# Compound commands (also auto-proxy):
+# Compound commands (also work from host or VM):
 qt-ai-dev-tools fill "hello" --role text --name input   # focus + clear + type
 qt-ai-dev-tools do click "Save" --role "push button" --verify "label:status contains Saved"
 qt-ai-dev-tools do click "Add" --screenshot              # click + screenshot
 
-# Workspace management (runs on host):
-qt-ai-dev-tools workspace init --path .                    # default config
+# Workspace management (runs on host, creates .qt-ai-dev-tools/):
+qt-ai-dev-tools workspace init                             # default config
 qt-ai-dev-tools workspace init --memory 8192 --cpus 8      # custom VM resources
 
 # VM lifecycle (runs on host):
@@ -151,7 +155,7 @@ qt-ai-dev-tools eval --pid 1234 "code"                  # target specific app
 qt-ai-dev-tools bridge status                            # list active bridges
 qt-ai-dev-tools bridge inject --pid 1234                 # inject into 3.14+ app
 
-# Subsystem commands (also auto-proxy):
+# Subsystem commands (also work from host or VM):
 qt-ai-dev-tools clipboard read                           # read system clipboard
 qt-ai-dev-tools clipboard write "hello"                  # write to clipboard
 qt-ai-dev-tools file-dialog detect                       # detect open file dialog

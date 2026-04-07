@@ -100,7 +100,7 @@ def _write_config_toml(target: Path, *, memory: int, cpus: int) -> Path:
     return config_path
 
 
-def init_toolkit(target: Path, *, memory: int = 4096, cpus: int = 4) -> list[str]:
+def install_and_own(target: Path, *, memory: int = 4096, cpus: int = 4) -> list[str]:
     """Install qt-ai-dev-tools toolkit into a project directory (shadcn-style).
 
     Creates the directory structure, copies source, templates, skills,
@@ -171,8 +171,8 @@ def self_update(target: Path) -> list[str]:
             shutil.rmtree(notes_backup)
         shutil.copytree(notes_dir, notes_backup)
 
-    # Re-run init with defaults (config will be overwritten, then restored)
-    updated = init_toolkit(target)
+    # Re-run install with defaults (config will be overwritten, then restored)
+    updated = install_and_own(target)
 
     # Restore preserved data
     if config_backup is not None:

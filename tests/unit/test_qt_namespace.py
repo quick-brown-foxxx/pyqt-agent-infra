@@ -39,12 +39,12 @@ class TestBuildQtNamespace:
         # Without PySide6, we should NOT have Qt class names
         # (unless PySide6 happens to be installed in the test env)
         try:
-            import PySide6  # noqa: F401
+            from PySide6.QtWidgets import QWidget  # noqa: F401
 
-            # PySide6 available: namespace will have Qt entries
+            # PySide6 QtWidgets available: namespace will have Qt entries
             assert "QWidget" in ns
         except ImportError:
-            # PySide6 not available: namespace should be minimal
+            # PySide6 (or QtWidgets deps like libGL) not available: minimal
             assert "QWidget" not in ns
 
     def test_namespace_values_are_objects(self) -> None:

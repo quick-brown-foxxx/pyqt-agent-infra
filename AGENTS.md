@@ -113,7 +113,7 @@ make destroy       # tear down VM
 UI commands work the same from host or VM — no SSH wrapping needed.
 
 ```bash
-# UI commands (work the same from host or VM -- auto-proxy):
+# UI commands (work the same from host or VM):
 qt-ai-dev-tools tree                          # full widget tree
 qt-ai-dev-tools tree --role "push button"     # filtered by role
 qt-ai-dev-tools find --role "label" --json    # find + JSON output
@@ -124,7 +124,7 @@ qt-ai-dev-tools screenshot -o /tmp/shot.png
 qt-ai-dev-tools apps                          # list AT-SPI apps
 qt-ai-dev-tools wait --app "main.py"          # wait for app
 
-# Compound commands (also auto-proxy):
+# Compound commands (also work from host or VM):
 qt-ai-dev-tools fill "hello" --role text --name input   # focus + clear + type
 qt-ai-dev-tools do click "Save" --role "push button" --verify "label:status contains Saved"
 qt-ai-dev-tools do click "Add" --screenshot              # click + screenshot
@@ -152,7 +152,7 @@ qt-ai-dev-tools eval --pid 1234 "code"                  # target specific app
 qt-ai-dev-tools bridge status                            # list active bridges
 qt-ai-dev-tools bridge inject --pid 1234                 # inject into 3.14+ app
 
-# Subsystem commands (also auto-proxy):
+# Subsystem commands (also work from host or VM):
 qt-ai-dev-tools clipboard read                           # read system clipboard
 qt-ai-dev-tools clipboard write "hello"                  # write to clipboard
 qt-ai-dev-tools file-dialog detect                       # detect open file dialog

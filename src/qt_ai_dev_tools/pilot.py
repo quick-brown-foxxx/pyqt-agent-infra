@@ -451,7 +451,7 @@ class QtPilot:
         try:
             ext = node.get_extents()
             pos = f" @({ext.x},{ext.y} {ext.width}x{ext.height})"
-        except Exception:
+        except (RuntimeError, OSError):
             pos = ""
         lines.append(f'{"  " * indent}[{role}] "{widget_name}"{pos}')
         for i in range(node.child_count):

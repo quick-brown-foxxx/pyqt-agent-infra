@@ -240,9 +240,11 @@ class TestClickAtBoundsCheck:
             # Should have called: getdisplaygeometry, mousemove, getmouselocation, windowfocus, click
             assert mock_run.call_count == 5
 
-    def test_raises_on_zero_zero_coordinates(self) -> None:
-        """Should raise ValueError when coordinates are (0, 0) — invisible widget."""
+    def test_click_at_zero_zero_delegates_to_click(self) -> None:
+        """click_at(0, 0) should proceed — origin check is in click(), not click_at()."""
         with patch.object(_interact_mod, "run_command") as mock_run:
             mock_run.return_value = _GEO_RESULT
-            with pytest.raises(ValueError, match="coordinates \\(0, 0\\)"):
-                click_at(0, 0)
+            click_at(0, 0, pause=0.0)
+            # Should reach mousemove (no ValueError raised)
+            commands = [c[0][0][0] for c in mock_run.call_args_list]
+            assert "xdotool" in commands[0]

@@ -262,7 +262,7 @@ def tree(
     role: typing.Annotated[str | None, typer.Option("--role", help="Filter by widget role")] = None,
     max_depth: typing.Annotated[int, typer.Option("--depth", help="Maximum tree depth")] = 8,
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
-    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = False,
+    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
     exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
 ) -> None:
     """Print the widget tree of a running Qt app."""

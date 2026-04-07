@@ -45,12 +45,6 @@ def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
                     f"({display_w}x{display_h}). Widget may need scrolling into view."
                 )
                 raise ValueError(msg)
-    if x == 0 and y == 0:
-        msg = (
-            "Widget is at coordinates (0, 0), which typically means it is inside a "
-            "closed popup menu or not yet rendered. Open the parent menu first."
-        )
-        raise ValueError(msg)
     run_command(
         ["xdotool", "mousemove", "--screen", "0", str(x), str(y)],
         env=env,

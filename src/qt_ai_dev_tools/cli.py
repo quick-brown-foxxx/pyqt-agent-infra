@@ -271,7 +271,9 @@ def find(
     name: typing.Annotated[str | None, typer.Option("--name", help="Widget name substring")] = None,
     app_name: typing.Annotated[str | None, typer.Option("--app", help="App name substring")] = None,
     output_json: typing.Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
-    visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = False,
+    visible: typing.Annotated[
+        bool, typer.Option("--visible/--no-visible", help="Filter to visible widgets only.")
+    ] = True,
     exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
     index: typing.Annotated[int | None, typer.Option("--index", help="Select Nth match (0-based)")] = None,
 ) -> None:

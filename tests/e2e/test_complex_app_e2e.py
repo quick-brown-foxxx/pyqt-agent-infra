@@ -288,3 +288,25 @@ class TestSliderValue:
         assert "max_value" in data
         assert data["min_value"] == 0.0
         assert data["max_value"] == 100.0
+
+
+class TestVisibilityConsistency:
+    """Tests for consistent visibility defaults across commands."""
+
+    def test_find_defaults_to_visible_only(self, complex_app: subprocess.Popen[str]) -> None:
+        """find should default to --visible (same as state and click)."""
+        _run_cli("click", "--role", "page tab", "--name", "Inputs")
+        time.sleep(0.3)
+
+        # find with default visibility should NOT show the data table
+        # (it's on the hidden Data tab)
+        result = _run_cli("find", "--role", "table", "--json")
+        assert result.returncode == 0
+
+        if result.stdout.strip():
+            data = json.loads(result.stdout)
+            if isinstance(data, list):
+                for w in data:
+                    assert w.get("visible", True), (
+                        f"find should default to visible-only, but returned invisible widget: {w}"
+                    )

@@ -100,13 +100,18 @@ def _widget_line(widget: AtspiNode) -> str:
 def _widget_dict(widget: AtspiNode) -> dict[str, object]:
     """Convert a widget to a JSON-serializable dict."""
     ext = widget.get_extents()
-    return {
+    d: dict[str, object] = {
         "role": widget.role_name,
         "name": widget.name,
         "text": widget.get_text(),
         "extents": {"x": ext.x, "y": ext.y, "width": ext.width, "height": ext.height},
         "visible": ext.width > 0 and ext.height > 0,
     }
+    if widget.has_value_iface:
+        d["value"] = widget.get_value()
+        d["min_value"] = widget.get_minimum_value()
+        d["max_value"] = widget.get_maximum_value()
+    return d
 
 
 def _is_in_vm() -> bool:
@@ -380,6 +385,11 @@ def state(
         typer.echo(f'[{widget.role_name}] "{widget.name}"')
         typer.echo(f"  text: {widget.get_text()}")
         typer.echo(f"  extents: ({ext.x},{ext.y} {ext.width}x{ext.height})")
+        if widget.has_value_iface:
+            val = widget.get_value()
+            min_val = widget.get_minimum_value()
+            max_val = widget.get_maximum_value()
+            typer.echo(f"  Value: {val} (range: {min_val} - {max_val})")
 
 
 @app.command()
@@ -501,6 +511,10 @@ def do_action(
     screenshot_after: typing.Annotated[bool, typer.Option("--screenshot", help="Take screenshot after action")] = False,
     visible: typing.Annotated[bool, typer.Option("--visible/--no-visible", help="Only match visible widgets")] = True,
     exact: typing.Annotated[bool, typer.Option("--exact", help="Match name exactly instead of substring")] = False,
+    index: typing.Annotated[
+        int | None,
+        typer.Option("--index", help="Select Nth matching widget (0-based)."),
+    ] = None,
 ) -> None:
     """Perform a compound action (click + optional verify/screenshot).
 
@@ -514,7 +528,7 @@ def do_action(
         pilot = _get_pilot(app_name)
 
         if action == "click":
-            widget = pilot.find_one(role=role, name=target, visible=visible, exact=exact)
+            widget = pilot.find_one(role=role, name=target, visible=visible, exact=exact, index=index)
             info = f"'{role}' ({target})"  # Cache BEFORE click (ISSUE-003)
             pilot.click(widget)
             typer.echo(f"Clicked {info}")

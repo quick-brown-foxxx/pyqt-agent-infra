@@ -23,30 +23,16 @@ Phase 6: SpeedCrunch, KeePassXC. Round 2: + qBittorrent (Qt 6.4), VLC. Round 3: 
 | ISSUE-020 | Minor | `do` command missing `--index` |
 | ISSUE-022 | Minor | Click succeeds on invisible popup menu items |
 | ISSUE-023 | UX | Tray items identified by PID, not app name |
+| ISSUE-025 | Minor | Closed menu items bypass visibility filter |
+| ISSUE-005 | Minor | `key`/`type` commands lack `--app` targeting |
+| ISSUE-021 | Minor | `do click --screenshot` saves in VM, not host |
+| NEW-001 | UX | tree --visible defaults to False, inconsistent with find |
 | ISSUE-026 | Critical | Fresh VM: `.local` dir owned by root — blocks CLI |
 | ISSUE-027 | Major | AT-SPI xprop race condition on fresh boot |
 
 ---
 
 ## Deferred Issues
-
-### ISSUE-025: Closed menu items bypass visibility filter
-
-- **Severity:** Minor
-- **Found:** Round 3 (SpeedCrunch not affected, KeePassXC + VLC affected)
-- **Status:** Open / Deferred
-- **Description:** Submenu items report relative coordinates with non-zero extents, making them appear "visible" when menus are closed. KeePassXC shows 68 menu items, VLC shows 76, when only top-level items are truly visible.
-- **Workaround:** Use `--exact` name match or `--role "menu"` for top-level menus only.
-- **Fix:** Distinguish absolute vs relative coordinates, or check if parent menu is visible.
-- **Complexity:** Medium
-
-### ISSUE-005 / ISSUE-013: `key`/`type` commands lack `--app` targeting
-
-- **Severity:** Minor
-- **Confirmed:** Round 3
-- **Workaround:** Click target app first (sets focus), then type/key.
-- **Fix:** Add `--app` option. Use `xdotool windowfocus` before sending input.
-- **Complexity:** Medium (1-4 hours)
 
 ### ISSUE-007: Popup menu items have 0,0 coordinates in tree output
 
@@ -81,14 +67,6 @@ Phase 6: SpeedCrunch, KeePassXC. Round 2: + qBittorrent (Qt 6.4), VLC. Round 3: 
 - **Fix:** AT-SPI `ScrollTo` interface or scroll wheel simulation. Needs research.
 - **Complexity:** Large (4+ hours)
 
-### ISSUE-021: `do click --screenshot` saves in VM, not on host
-
-- **Severity:** Minor
-- **Confirmed:** Round 3
-- **Workaround:** Use separate `click` + `screenshot -o <path>` commands.
-- **Fix:** Wire `do --screenshot` through the proxy transfer path.
-- **Complexity:** Medium (1-2 hours)
-
 ### ISSUE-024: Tables may appear as `[tree]` role in AT-SPI
 
 - **Severity:** UX/Polish — documentation gap
@@ -109,3 +87,4 @@ Useful findings from validation, not bugs:
 4. **Tray requires snixembed.** Without it, SNI items invisible. Now documented in process.md.
 5. **Bridge is Python-only.** C++ apps (KeePassXC, qBittorrent, VLC) — bridge not applicable. Clear error message shown.
 6. **Substring matching causes friction.** "File" matches "Add Torrent File...", "Media" matches "Media Information". `--exact` flag exists but isn't default. Consider making exact the default in a future release.
+7. **STATE_SHOWING** (`Atspi.StateType.SHOWING`) is reliable for visibility detection across Qt5 and Qt6.

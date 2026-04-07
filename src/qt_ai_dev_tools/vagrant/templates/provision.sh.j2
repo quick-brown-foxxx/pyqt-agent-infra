@@ -212,12 +212,14 @@ for _attempt in 1 2 3 4 5; do
   fi
 done
 
+openbox &
+sleep 0.5
+
+# Set AT_SPI_BUS on root window AFTER openbox starts — openbox takes ownership
+# of the root window and may clear properties set before it launches.
 if [ -n "$ATSPI_ADDR" ]; then
   xprop -root -f AT_SPI_BUS 8s -set AT_SPI_BUS "$ATSPI_ADDR"
 fi
-
-openbox &
-sleep 0.5
 snixembed &
 sleep 0.5
 stalonetray --kludges=force_icons_size -i 24 --grow-gravity=NE &

@@ -146,11 +146,18 @@ Validated against SpeedCrunch (simple) and KeePassXC (complex). Found 14 issues,
 
 Expanded to 4 apps: SpeedCrunch, KeePassXC (regression), qBittorrent (Qt 6.4, new), VLC (new). Found 10 new issues, fixed 7 (both Critical, both Major, 3 Minor). Qt6 confirmed working identically. Key fixes: screenshot overwrite, desktop-session service, slider values, click guards, tray identity, visibility consistency, `do --index`.
 
-### Round 3 (6.8-6.9)
+### Round 3 (6.8-6.10)
 
-Re-validated all 4 apps after codebase improvements. Clean VM reprovision. Zero regressions. Found 1 new minor issue (closed menu items bypass visibility filter). Found and fixed 2 provisioning bugs (`.local` ownership, AT-SPI xprop race). Total deferred: 8 issues (ISSUE-005/007/008/011/018/021/024/025).
+Re-validated all 4 apps after codebase improvements. Clean VM reprovision. Zero regressions. Found and fixed:
+- ISSUE-025: Visibility filter now uses AT-SPI STATE_SHOWING (replaces coordinate heuristic)
+- ISSUE-005: `type`/`key` commands now accept `--app` flag
+- ISSUE-021: `do --screenshot` properly transfers file from VM to host
+- NEW-001: `tree --visible` default aligned with `find`/`click`/`do`
+- Two provisioning bugs fixed (.local ownership, AT-SPI xprop race)
 
-**Remaining deferred:** 8 issues (ISSUE-005/007/008/011/018/021/024/025). See `docs/validation/issues.md`.
+Added 40+ new tests (unit + e2e) covering screenshot, logging, subprocess helpers, CLI commands, and visibility filter. Total deferred: 5 issues (ISSUE-007/008/011/018/024).
+
+**Remaining deferred:** 5 issues (ISSUE-007/008/011/018/024). See `docs/validation/issues.md`.
 
 **App setup reference:** `docs/validation/process.md` — install/launch/kill for all 4 apps with AT-SPI behavior notes.
 

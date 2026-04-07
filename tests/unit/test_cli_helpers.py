@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from qt_ai_dev_tools.models import Extents
 
 # Mock gi and Atspi before importing CLI helpers, since gi is a system package.
+# Patches must persist (not context-managed) because _widget_dict does a lazy
+# import of qt_ai_dev_tools.pilot which triggers _atspi.py → gi at call time.
 _mock_gi = MagicMock()
 _mock_gi.require_version = MagicMock()
 _mock_gi.repository.Atspi = MagicMock()
+sys.modules.setdefault("gi", _mock_gi)
+sys.modules.setdefault("gi.repository", _mock_gi.repository)
 
-with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.repository}):
-    from qt_ai_dev_tools.cli import _widget_dict, _widget_line
+from qt_ai_dev_tools.cli import _widget_dict, _widget_line  # noqa: E402
 
 pytestmark = pytest.mark.unit
 
@@ -74,6 +77,12 @@ class TestWidgetDict:
 
         result = _widget_dict(widget)
 
+        assert result["visible"] is False
+
+    def test_widget_dict_not_showing_is_not_visible(self) -> None:
+        """Widget with showing=False should have visible=False even with valid extents."""
+        widget = _make_widget("Button", "push button", Extents(10, 20, 100, 50), showing=False)
+        result = _widget_dict(widget)
         assert result["visible"] is False
 
     def test_extents_dict(self) -> None:

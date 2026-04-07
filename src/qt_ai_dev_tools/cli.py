@@ -624,14 +624,14 @@ def do_action(
             typer.echo(f"Screenshot: {path}")
 
         if verify:
-            _verify_condition(pilot, verify)
+            _verify_condition(pilot, verify, visible=visible)
 
     except (RuntimeError, LookupError) as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
 
-def _verify_condition(pilot: QtPilot, condition: str) -> None:
+def _verify_condition(pilot: QtPilot, condition: str, *, visible: bool = True) -> None:
     """Parse and check a verify condition string.
 
     Format: "role:name contains text" or "role contains text"
@@ -655,7 +655,7 @@ def _verify_condition(pilot: QtPilot, condition: str) -> None:
         widgets = pilot.find(
             role=verify_role.strip(),
             name=verify_name.strip() if verify_name else None,
-            visible=True,
+            visible=visible,
         )
         if not widgets:
             typer.echo(f"Verify FAILED: no widget matching '{selector}'", err=True)

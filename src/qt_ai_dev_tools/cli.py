@@ -565,6 +565,9 @@ def do_action(
         int | None,
         typer.Option("--index", help="Select Nth matching widget (0-based)."),
     ] = None,
+    output: typing.Annotated[
+        str, typer.Option("-o", "--output", help="Screenshot output path")
+    ] = "/tmp/screenshot.png",  # noqa: S108
 ) -> None:
     """Perform a compound action (click + optional verify/screenshot).
 
@@ -573,6 +576,36 @@ def do_action(
         qt-ai-dev-tools do click "Save" --verify "label:status contains Saved"
         qt-ai-dev-tools do click "Add" --screenshot
     """
+    # On host with --screenshot: proxy action separately, then transfer screenshot
+    if not _is_in_vm() and screenshot_after:
+        from qt_ai_dev_tools.vagrant.vm import vm_run
+
+        # Build the do command WITHOUT --screenshot
+        parts = ["qt-ai-dev-tools", "do", action, shlex.quote(target)]
+        parts.extend(["--role", shlex.quote(role)])
+        if app_name:
+            parts.extend(["--app", shlex.quote(app_name)])
+        if verify:
+            parts.extend(["--verify", shlex.quote(verify)])
+        if not visible:
+            parts.append("--no-visible")
+        if exact:
+            parts.append("--exact")
+        if index is not None:
+            parts.extend(["--index", str(index)])
+
+        result = vm_run(" ".join(parts))
+        if result.stdout:
+            typer.echo(result.stdout, nl=False)
+        if result.stderr:
+            typer.echo(result.stderr, err=True, nl=False)
+        if result.returncode != 0:
+            raise typer.Exit(code=result.returncode)
+
+        # Transfer screenshot via proper proxy mechanism
+        _proxy_screenshot(output)
+        return
+
     _proxy_to_vm()
     try:
         pilot = _get_pilot(app_name)
@@ -587,7 +620,7 @@ def do_action(
             raise typer.Exit(code=1)
 
         if screenshot_after:
-            path = pilot.screenshot()
+            path = pilot.screenshot(output)
             typer.echo(f"Screenshot: {path}")
 
         if verify:
@@ -622,6 +655,7 @@ def _verify_condition(pilot: QtPilot, condition: str) -> None:
         widgets = pilot.find(
             role=verify_role.strip(),
             name=verify_name.strip() if verify_name else None,
+            visible=True,
         )
         if not widgets:
             typer.echo(f"Verify FAILED: no widget matching '{selector}'", err=True)

@@ -32,13 +32,13 @@ class WorkspaceConfig:
     management_network_name: str = "default"
     management_network_address: str = "192.168.122.0/24"
     static_ip: str = ""
-    shared_folder: str = "."
+    shared_folder: str = "../"
     rsync_excludes: list[str] = field(default_factory=lambda: [".git/", ".vagrant/", ".venv/"])
     # provision.sh
     display: str = ":99"
     resolution: str = "1920x1080x24"
     extra_packages: list[str] = field(default_factory=list)
-    python_packages: list[str] = field(default_factory=lambda: ["PySide6", "pytest", "pytest-qt", "python-dbusmock"])
+    python_packages: list[str] = field(default_factory=list)
 
 
 def default_config() -> WorkspaceConfig:

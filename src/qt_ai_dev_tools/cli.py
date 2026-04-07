@@ -349,11 +349,20 @@ def click_cmd(
 @app.command(name="type")
 def type_cmd(
     text: typing.Annotated[str, typer.Argument(help="Text to type")],
+    app_name: typing.Annotated[
+        str | None, typer.Option("--app", help="App name — activates window before typing")
+    ] = None,
 ) -> None:
     """Type text into the currently focused widget."""
     _proxy_to_vm()
-    from qt_ai_dev_tools.interact import type_text
+    from qt_ai_dev_tools.interact import activate_app_window, type_text
 
+    if app_name:
+        try:
+            activate_app_window(app_name)
+        except RuntimeError as exc:
+            typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
     type_text(text)
     typer.echo(f"Typed: {text}")
 
@@ -361,11 +370,20 @@ def type_cmd(
 @app.command()
 def key(
     key_name: typing.Annotated[str, typer.Argument(help="Key to press (e.g. Return, Tab, ctrl+a)")],
+    app_name: typing.Annotated[
+        str | None, typer.Option("--app", help="App name — activates window before key press")
+    ] = None,
 ) -> None:
     """Press a key via xdotool."""
     _proxy_to_vm()
-    from qt_ai_dev_tools.interact import press_key
+    from qt_ai_dev_tools.interact import activate_app_window, press_key
 
+    if app_name:
+        try:
+            activate_app_window(app_name)
+        except RuntimeError as exc:
+            typer.echo(f"Error: {exc}", err=True)
+            raise typer.Exit(code=1) from exc
     press_key(key_name)
     typer.echo(f"Pressed: {key_name}")
 

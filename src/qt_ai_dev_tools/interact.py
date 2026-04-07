@@ -16,6 +16,37 @@ def _xdotool_env() -> dict[str, str]:
     return env
 
 
+def activate_app_window(app_name: str) -> None:
+    """Activate (focus) a window by application name using xdotool.
+
+    Searches for a window matching the app name and brings it to focus.
+    This ensures subsequent type/key commands go to the right app.
+
+    Args:
+        app_name: Window name substring to search for.
+
+    Raises:
+        RuntimeError: If no window matching the name is found.
+    """
+    env = _xdotool_env()
+    result = run_command(
+        ["xdotool", "search", "--name", app_name],
+        env=env,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        msg = f"No window found matching '{app_name}'"
+        raise RuntimeError(msg)
+    # Use the first matching window
+    window_id = result.stdout.strip().splitlines()[0]
+    run_command(
+        ["xdotool", "windowactivate", window_id],
+        env=env,
+        check=True,
+    )
+    time.sleep(0.1)
+
+
 def click_at(x: int, y: int, button: int = 1, pause: float = 0.2) -> None:
     """Click at absolute screen coordinates using xdotool.
 

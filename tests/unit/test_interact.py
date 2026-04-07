@@ -20,6 +20,7 @@ with patch.dict(sys.modules, {"gi": _mock_gi, "gi.repository": _mock_gi.reposito
     from qt_ai_dev_tools._atspi import AtspiNode
     from qt_ai_dev_tools.interact import (
         _xdotool_env,
+        activate_app_window,
         click,
         click_at,
         focus,
@@ -248,3 +249,40 @@ class TestClickAtBoundsCheck:
             # Should reach mousemove (no ValueError raised)
             commands = [c[0][0][0] for c in mock_run.call_args_list]
             assert "xdotool" in commands[0]
+
+
+class TestActivateAppWindow:
+    """Test window activation by app name via xdotool."""
+
+    def test_activates_window_by_name(self) -> None:
+        """Searches for window and activates it."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.side_effect = [
+                subprocess.CompletedProcess(args=[], returncode=0, stdout="12345678\n", stderr=""),
+                subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+            ]
+            activate_app_window("SpeedCrunch")
+            assert mock_run.call_count == 2
+            # First call: search
+            assert "search" in mock_run.call_args_list[0][0][0]
+            # Second call: windowactivate
+            assert "windowactivate" in mock_run.call_args_list[1][0][0]
+
+    def test_raises_if_no_window_found(self) -> None:
+        """Raises RuntimeError when no window matches."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="")
+            with pytest.raises(RuntimeError, match="No window found"):
+                activate_app_window("NonexistentApp")
+
+    def test_uses_first_window_when_multiple_match(self) -> None:
+        """Uses the first window ID when multiple windows match."""
+        with patch.object(_interact_mod, "run_command") as mock_run:
+            mock_run.side_effect = [
+                subprocess.CompletedProcess(args=[], returncode=0, stdout="111\n222\n333\n", stderr=""),
+                subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+            ]
+            activate_app_window("MyApp")
+            # windowactivate should use "111" (first match)
+            activate_call = mock_run.call_args_list[1][0][0]
+            assert "111" in activate_call

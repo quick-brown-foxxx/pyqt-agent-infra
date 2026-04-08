@@ -112,9 +112,20 @@ def _write_cli_script(target: Path) -> Path:
 
 
 def _write_pyproject_toml(target: Path) -> Path:
-    """Generate pyproject.toml for uv tool install compatibility."""
+    """Generate pyproject.toml for uv tool install compatibility.
+
+    Copies the project's real pyproject.toml when available (git checkout).
+    Falls back to a minimal template when installed from PyPI (wheel).
+    """
     pyproject_path = target / "pyproject.toml"
-    pyproject_path.write_text(_PYPROJECT_TOML_TEMPLATE.format(version=__version__))
+    # Try to copy the real pyproject.toml from the project root
+    project_root = _PACKAGE_ROOT.parent.parent
+    source_pyproject = project_root / "pyproject.toml"
+    if source_pyproject.is_file():
+        pyproject_path.write_text(source_pyproject.read_text(encoding="utf-8"), encoding="utf-8")
+    else:
+        # Fallback: minimal template for PyPI installs
+        pyproject_path.write_text(_PYPROJECT_TOML_TEMPLATE.format(version=__version__))
     return pyproject_path
 
 

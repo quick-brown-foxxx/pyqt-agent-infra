@@ -45,3 +45,6 @@ wrktrs/
 .vagrant-ssh-config
 Vagrantfile
 provision.sh
+
+# Install-and-own local copy
+.qt-ai-dev-tools/

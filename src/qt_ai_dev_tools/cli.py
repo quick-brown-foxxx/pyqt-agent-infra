@@ -145,6 +145,14 @@ def _proxy_to_vm(workspace: Path | None = None) -> None:
     if _is_in_vm():
         return
 
+    from qt_ai_dev_tools._vm_tool import ToolVersionMismatchError, ensure_tool_ready
+
+    try:
+        ensure_tool_ready(Path.cwd(), workspace)
+    except ToolVersionMismatchError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
     from qt_ai_dev_tools.vagrant.vm import vm_run
 
     cmd = "qt-ai-dev-tools " + " ".join(shlex.quote(a) for a in sys.argv[1:])
@@ -165,6 +173,14 @@ def _proxy_screenshot(output: str, workspace: Path | None = None) -> None:
     """
     if _is_in_vm():
         return
+
+    from qt_ai_dev_tools._vm_tool import ToolVersionMismatchError, ensure_tool_ready
+
+    try:
+        ensure_tool_ready(Path.cwd(), workspace)
+    except ToolVersionMismatchError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
 
     import base64
 

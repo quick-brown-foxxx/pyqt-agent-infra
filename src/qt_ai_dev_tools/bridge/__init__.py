@@ -16,6 +16,8 @@ import logging
 import os
 from pathlib import Path as _Path
 
+from qt_ai_dev_tools._env import BRIDGE, get_bool
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +27,7 @@ def start(*, force: bool = False) -> None:
     Call this after QApplication is created. The bridge runs on a daemon
     thread and accepts eval requests via Unix socket.
     """
-    if not force and os.environ.get("QT_AI_DEV_TOOLS_BRIDGE") != "1":
+    if not force and not get_bool(BRIDGE):
         return
 
     import atexit

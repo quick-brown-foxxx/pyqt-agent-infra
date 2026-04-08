@@ -701,6 +701,9 @@ def workspace_init(
     management_network_address: typing.Annotated[
         str, typer.Option(help="Libvirt management network subnet (CIDR)")
     ] = "192.168.122.0/24",
+    vm_name: typing.Annotated[
+        str, typer.Option("--vm-name", help="VM name for libvirt domain (default: derived from project directory)")
+    ] = "",
 ) -> None:
     """Initialize a workspace in .qt-ai-dev-tools/ with Vagrantfile, provision.sh, and scripts."""
     from qt_ai_dev_tools.vagrant.workspace import WorkspaceConfig, render_workspace
@@ -720,6 +723,7 @@ def workspace_init(
         static_ip=static_ip,
         display=display,
         resolution=resolution,
+        vm_name=vm_name,
     )
     created = render_workspace(target, config)
     for f in created:

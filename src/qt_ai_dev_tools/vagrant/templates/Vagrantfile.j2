@@ -7,6 +7,7 @@ Vagrant.configure("2") do |config|
   {% endif %}
 
   config.vm.provider "libvirt" do |v|
+    v.default_prefix = "{{ vm_name }}"
     v.memory = {{ memory }}
     v.cpus = {{ cpus }}
     v.management_network_name = "{{ management_network_name }}"
@@ -18,6 +19,7 @@ Vagrant.configure("2") do |config|
 
   # NOTE: VirtualBox provider is NOT TESTED. Only libvirt has been verified.
   config.vm.provider "virtualbox" do |v|
+    v.name = "{{ vm_name }}"
     v.memory = {{ memory }}
     v.cpus = {{ cpus }}
     v.gui = false

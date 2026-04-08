@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from importlib import resources as importlib_resources
 from pathlib import Path
@@ -39,11 +40,32 @@ class WorkspaceConfig:
     resolution: str = "1920x1080x24"
     extra_packages: list[str] = field(default_factory=list)
     python_packages: list[str] = field(default_factory=lambda: ["basedpyright"])
+    # VM naming (empty = auto-derive from project directory)
+    vm_name: str = ""
 
 
 def default_config() -> WorkspaceConfig:
     """Return a WorkspaceConfig with default values."""
     return WorkspaceConfig()
+
+
+def derive_vm_name(workspace_path: Path) -> str:
+    """Derive a VM name from the project directory containing the workspace.
+
+    Uses the parent directory of the workspace (the project root).
+    Sanitizes to lowercase alphanumeric + hyphens, prefixed with 'qt-dev-'.
+
+    Args:
+        workspace_path: Path to the workspace directory (e.g. <project>/.qt-ai-dev-tools).
+
+    Returns:
+        A sanitized VM name like 'qt-dev-my-project'.
+    """
+    project_dir = workspace_path.resolve().parent.name
+    sanitized = re.sub(r"[^a-z0-9]+", "-", project_dir.lower()).strip("-")
+    if not sanitized:
+        sanitized = "default"
+    return f"qt-dev-{sanitized}"
 
 
 def _load_template(name: str) -> str:
@@ -71,6 +93,8 @@ def render_workspace(target: Path, config: WorkspaceConfig | None = None) -> lis
 
     env = Environment(loader=BaseLoader(), keep_trailing_newline=True)  # noqa: S701 — generating shell scripts, not HTML
     context = asdict(config)
+    if not context["vm_name"]:
+        context["vm_name"] = derive_vm_name(target)
 
     created: list[Path] = []
 

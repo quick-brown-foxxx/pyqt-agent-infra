@@ -10,6 +10,7 @@ import pytest
 from qt_ai_dev_tools.vagrant.workspace import (
     WorkspaceConfig,
     default_config,
+    derive_vm_name,
     render_workspace,
 )
 
@@ -32,6 +33,7 @@ class TestDefaultConfig:
         assert config.resolution == "1920x1080x24"
         assert config.extra_packages == []
         assert config.python_packages == ["basedpyright"]
+        assert config.vm_name == ""
 
 
 class TestRenderWorkspace:
@@ -117,3 +119,69 @@ class TestRenderWorkspace:
         render_workspace(tmp_path)
         content = (tmp_path / "Vagrantfile").read_text()
         assert "private_network" not in content
+
+    def test_vm_name_auto_derived_from_target(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "my-cool-project" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        render_workspace(workspace)
+        content = (workspace / "Vagrantfile").read_text()
+        assert 'v.default_prefix = "qt-dev-my-cool-project"' in content
+        assert 'v.name = "qt-dev-my-cool-project"' in content
+
+    def test_vm_name_explicit_override(self, tmp_path: Path) -> None:
+        config = WorkspaceConfig(vm_name="my-custom-vm")
+        render_workspace(tmp_path, config=config)
+        content = (tmp_path / "Vagrantfile").read_text()
+        assert 'v.default_prefix = "my-custom-vm"' in content
+        assert 'v.name = "my-custom-vm"' in content
+
+    def test_vm_name_in_both_providers(self, tmp_path: Path) -> None:
+        config = WorkspaceConfig(vm_name="test-vm")
+        render_workspace(tmp_path, config=config)
+        content = (tmp_path / "Vagrantfile").read_text()
+        # libvirt uses default_prefix
+        assert 'v.default_prefix = "test-vm"' in content
+        # virtualbox uses v.name
+        assert 'v.name = "test-vm"' in content
+
+
+class TestDeriveVmName:
+    def test_simple_directory_name(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "my-project" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-my-project"
+
+    def test_directory_with_special_chars(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "My Cool_Project!" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-my-cool-project"
+
+    def test_directory_with_dots(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "project.v2.0" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-project-v2-0"
+
+    def test_directory_with_unicode(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "projet-café" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-projet-caf"
+
+    def test_empty_after_sanitize_falls_back_to_default(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "..." / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-default"
+
+    def test_uppercase_lowercased(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "MyProject" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-myproject"
+
+    def test_consecutive_special_chars_collapsed(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "a---b___c" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-a-b-c"
+
+    def test_leading_trailing_special_chars_stripped(self, tmp_path: Path) -> None:
+        workspace = tmp_path / "--project--" / ".qt-ai-dev-tools"
+        workspace.mkdir(parents=True)
+        assert derive_vm_name(workspace) == "qt-dev-project"

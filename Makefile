@@ -1,4 +1,4 @@
-.PHONY: up provision ssh sync test test-unit test-full test-e2e test-integration screenshot destroy help status lint-full workspace-init setup
+.PHONY: up provision provision-dev ssh sync test test-unit test-full test-e2e test-integration screenshot destroy help status lint-full workspace-init setup
 
 SHELL := /bin/bash
 
@@ -24,6 +24,10 @@ sync: ## sync files to VM (rsync)
 
 provision: ## re-run VM provisioning
 	cd .qt-ai-dev-tools && vagrant provision
+
+provision-dev: provision  ## re-provision + sync project venv with gi links (dev only)
+	uv run qt-ai-dev-tools vm run "cd /vagrant && uv sync"
+	uv run qt-ai-dev-tools vm run 'SITE=$$(/vagrant/.venv/bin/python -c "import sysconfig; print(sysconfig.get_path('"'"'purelib'"'"'))") && GI=$$(python3 -c "import gi, os; print(os.path.dirname(gi.__file__))") && SYS=$$(dirname "$$GI") && for n in gi pygtkcompat; do [ -e "$$SYS/$$n" ] && ln -sf "$$SYS/$$n" "$$SITE/$$n"; done && for s in "$$SYS"/_gi*.so; do [ -e "$$s" ] && ln -sf "$$s" "$$SITE/"; done'
 
 ssh: ## SSH into VM
 	uv run qt-ai-dev-tools vm ssh

@@ -291,6 +291,7 @@ Independent of phases. Can be picked up anytime.
 | S-3 | medium | Print helper instructions after key commands (e.g., `workspace init` → suggest editing Vagrantfile) | Partial — `workspace init` and `install-and-own` done, other commands not yet |
 | S-4 | medium | CLI version update warning (check PyPI, print at top of output) | Ready |
 | S-5 | small | Add skill references to all CLI `--help` epilogs | Done |
+| S-6 | large | E2E tests for VM tool installation process (both PyPI and install-and-own modes, version mismatch detection, staleness rebuild). Requires spinning up full environments — deferred until Docker backend is ready (Phase 5). | Deferred |
 
 ---
 

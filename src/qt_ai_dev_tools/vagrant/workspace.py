@@ -91,8 +91,11 @@ def render_workspace(target: Path, config: WorkspaceConfig | None = None) -> lis
     if config is None:
         config = default_config()
 
+    from qt_ai_dev_tools.__version__ import __version__
+
     env = Environment(loader=BaseLoader(), keep_trailing_newline=True)  # noqa: S701 — generating shell scripts, not HTML
     context = asdict(config)
+    context["version"] = __version__
     if not context["vm_name"]:
         context["vm_name"] = derive_vm_name(target)
 

@@ -144,6 +144,18 @@ class TestRenderWorkspace:
         # virtualbox uses v.name
         assert 'v.name = "test-vm"' in content
 
+    def test_provision_contains_pinned_version(self, tmp_path: Path) -> None:
+        from qt_ai_dev_tools.__version__ import __version__
+
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert f"qt-ai-dev-tools=={__version__}" in content
+
+    def test_provision_does_not_contain_uv_sync(self, tmp_path: Path) -> None:
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "uv sync" not in content
+
 
 class TestDeriveVmName:
     def test_simple_directory_name(self, tmp_path: Path) -> None:
@@ -191,16 +203,18 @@ class TestProvisionUvToolInstall:
     """Tests for uv tool install provisioning (replaces uv sync)."""
 
     def test_provision_does_not_contain_uv_sync(self, tmp_path: Path) -> None:
-        """provision.sh must not contain 'uv sync --project /vagrant'."""
+        """provision.sh must not contain 'uv sync'."""
         render_workspace(tmp_path)
         content = (tmp_path / "provision.sh").read_text()
-        assert "uv sync --project /vagrant" not in content
+        assert "uv sync" not in content
 
     def test_provision_contains_uv_tool_install_pypi(self, tmp_path: Path) -> None:
-        """provision.sh must contain 'uv tool install qt-ai-dev-tools' for PyPI path."""
+        """provision.sh must contain pinned 'uv tool install qt-ai-dev-tools==<version>' for PyPI path."""
+        from qt_ai_dev_tools.__version__ import __version__
+
         render_workspace(tmp_path)
         content = (tmp_path / "provision.sh").read_text()
-        assert "uv tool install qt-ai-dev-tools" in content
+        assert f"uv tool install 'qt-ai-dev-tools=={__version__}'" in content
 
     def test_provision_contains_install_and_own_detection(self, tmp_path: Path) -> None:
         """provision.sh must detect local install-and-own copy."""

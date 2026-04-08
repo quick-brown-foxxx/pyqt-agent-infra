@@ -73,7 +73,7 @@ echo "==> Installing qt-ai-dev-tools"
 if [ -d /vagrant/.qt-ai-dev-tools/src/qt_ai_dev_tools ]; then
     su - vagrant -c "uv tool install --force /vagrant/.qt-ai-dev-tools/"
 else
-    su - vagrant -c "uv tool install qt-ai-dev-tools"
+    su - vagrant -c "uv tool install 'qt-ai-dev-tools=={{ version }}'"
 fi
 
 # Link system-only gi/pygobject into the tool's venv (not pip-installable).
@@ -96,27 +96,6 @@ done
 for so in "$SYS_SITE"/_gi*.so; do
     [ -e "$so" ] && ln -sf "$so" "$VENV_SITE/"
 done
-
-# Optionally prepare project venv if pyproject.toml exists.
-# Tests and apps that use AT-SPI (gi.repository.Atspi) need the gi symlinks
-# in the project venv too, not just the tool venv.
-if [ -f /vagrant/pyproject.toml ]; then
-    echo "==> Syncing project venv"
-    su - vagrant -c "cd /vagrant && uv sync"
-    PROJECT_VENV="/vagrant/.venv"
-    if [ -d "$PROJECT_VENV" ]; then
-        echo "==> Linking gi into project venv"
-        PROJECT_SITE=$("$PROJECT_VENV/bin/python" -c "import sysconfig; print(sysconfig.get_path('purelib'))")
-        for name in gi pygtkcompat; do
-            if [ -e "$SYS_SITE/$name" ]; then
-                ln -sf "$SYS_SITE/$name" "$PROJECT_SITE/$name"
-            fi
-        done
-        for so in "$SYS_SITE"/_gi*.so; do
-            [ -e "$so" ] && ln -sf "$so" "$PROJECT_SITE/"
-        done
-    fi
-fi
 
 # ── Build and install snixembed (SNI tray proxy) ───────────────────────────
 # snixembed proxies StatusNotifierItem (SNI) D-Bus tray icons into the XEmbed

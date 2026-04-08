@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from qt_ai_dev_tools.__version__ import __version__
+from qt_ai_dev_tools.__version__ import __commit__, __version__
 from qt_ai_dev_tools.models import Extents, WidgetInfo
 
 if TYPE_CHECKING:
@@ -26,4 +26,4 @@ def __getattr__(name: str) -> object:
     raise AttributeError(msg)
 
 
-__all__ = ["AtspiNode", "Extents", "QtPilot", "WidgetInfo", "__version__"]
+__all__ = ["AtspiNode", "Extents", "QtPilot", "WidgetInfo", "__commit__", "__version__"]

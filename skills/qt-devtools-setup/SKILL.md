@@ -28,13 +28,20 @@ Follow these steps in order. Each step must succeed before proceeding.
 
 ## Step 1: Install the toolkit
 
-**Option A -- use via uvx** (recommended, no installation needed):
+**Option A -- persistent install** (recommended for repeated use):
+```bash
+uv tool install qt-ai-dev-tools
+qt-ai-dev-tools workspace init
+```
+Installs into `~/.local/bin/`. Subsequent runs are instant -- no temporary venv creation. All commands work as `qt-ai-dev-tools <command>`.
+
+**Option B -- quick try via uvx** (zero-install, good for one-off usage):
 ```bash
 uvx qt-ai-dev-tools workspace init
 ```
-This runs directly without installing anything. All `qt-ai-dev-tools` commands work via `uvx qt-ai-dev-tools <command>`.
+Creates a temporary venv on each invocation. Convenient for trying the tool, but slower for repeated use. All commands work via `uvx qt-ai-dev-tools <command>`.
 
-**Option B -- local copy** (advanced, you own the code):
+**Option C -- local copy** (advanced, you own the code):
 ```bash
 uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
 cd qt-ai-dev-tools
@@ -46,8 +53,10 @@ Verify the CLI works:
 
 ```bash
 # Option A:
-uvx qt-ai-dev-tools --help
+qt-ai-dev-tools --help
 # Option B:
+uvx qt-ai-dev-tools --help
+# Option C:
 uv run qt-ai-dev-tools --help
 ```
 
@@ -55,7 +64,7 @@ Expected: help text listing available commands (tree, click, type, screenshot, v
 
 **Prerequisites:** Linux host, `uv` installed, Vagrant with libvirt provider (vagrant-libvirt plugin + QEMU/KVM).
 
-> **Note:** Commands below use `qt-ai-dev-tools` as the command prefix. If using Option A (uvx), prefix with `uvx`: `uvx qt-ai-dev-tools <command>`. If using Option B (local copy), prefix with `uv run`: `uv run qt-ai-dev-tools <command>`.
+> **Note:** Commands below use `qt-ai-dev-tools` as the command prefix. If using Option A (persistent install), the command is available directly. If using Option B (uvx), prefix with `uvx`: `uvx qt-ai-dev-tools <command>`. If using Option C (local copy), prefix with `uv run`: `uv run qt-ai-dev-tools <command>`.
 
 ## Step 2: Initialize workspace
 

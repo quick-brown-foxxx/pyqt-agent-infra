@@ -31,8 +31,34 @@ app = typer.Typer(
 )
 
 
+def _version_string() -> str:
+    """Format version string including commit hash when available."""
+    from qt_ai_dev_tools.__version__ import __commit__, __version__
+
+    if __commit__ == "dev":
+        return f"{__version__} (dev)"
+    return f"{__version__} ({__commit__})"
+
+
+def _version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(_version_string())
+        raise typer.Exit
+
+
 @app.callback()
 def main_callback(
+    version: typing.Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-V",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show version and exit.",
+        ),
+    ] = False,
     verbose: typing.Annotated[
         int,
         typer.Option(
@@ -82,6 +108,17 @@ def main_callback(
 
     if silent:
         set_silent(enabled=True)
+
+    # Update-available notice (skip in VM and when --silent)
+    if not silent:
+        from qt_ai_dev_tools._env import VM, get_bool
+
+        if not get_bool(VM):
+            from qt_ai_dev_tools._update_check import check_for_update
+
+            notice = check_for_update()
+            if notice is not None:
+                typer.echo(notice, err=True)
 
 
 def _get_pilot(app_name: str | None = None, retries: int = 5) -> QtPilot:

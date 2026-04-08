@@ -45,6 +45,9 @@ dev = [
 build-backend = "hatchling.build"
 requires = ["hatchling"]
 
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/qt_ai_dev_tools"]
 
@@ -73,6 +76,7 @@ reportOptionalCall = "error"
 reportAttributeAccessIssue = "error"
 exclude = [
     "**/__pycache__", ".venv", "venv", "build", "dist", "wrktrs",
+    "hatch_build.py",
 ]
 
 [tool.ruff]

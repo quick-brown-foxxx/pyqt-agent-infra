@@ -94,15 +94,32 @@ Once set up, the agent uses the appropriate skill for each task. `qt-devtools-ap
 
 ### Manual installation
 
-**Recommended — use via uvx** (no installation needed):
+**Option A — persistent install** (recommended for repeated use):
+```bash
+uv tool install qt-ai-dev-tools
+qt-ai-dev-tools workspace init
+```
+Installs into `~/.local/bin/`. Subsequent runs are instant — no temporary venv creation.
+
+**Option B — quick try via uvx** (zero-install, good for one-off usage):
 ```bash
 uvx qt-ai-dev-tools workspace init
 ```
+Creates a temporary venv on each invocation. Convenient for trying the tool, but slower for repeated use.
 
-**Advanced — local copy** (you own and maintain the code):
+**Option C — local copy** (advanced, you own and maintain the code):
 ```bash
 uvx qt-ai-dev-tools install-and-own ./qt-ai-dev-tools --yes-I-will-maintain-it
 ```
+
+<details>
+<summary>Other install options</summary>
+
+- **`pipx install qt-ai-dev-tools`** — same isolated-venv model as `uv tool install`, just slower. Works if you already have pipx.
+- **`pip install qt-ai-dev-tools`** (in a venv) — works fine inside a virtual environment. No isolation from other packages in that venv.
+- **`pip install --user qt-ai-dev-tools`** (global) — lands in `~/.local/`. On many Linux distros (Fedora, Debian, Ubuntu) system Python is managed by the OS and global pip installs are restricted or break things. Not recommended — use `uv tool` or `pipx` instead.
+
+</details>
 
 ## Project status
 

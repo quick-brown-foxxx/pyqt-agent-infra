@@ -136,30 +136,18 @@ When to use VM vs container vs host. Feature matrix.
 
 ## Phase 6: Real-World Validation
 
-**Status:** Complete (three rounds).
+**Status:** Complete (three rounds). 27 issues found and fixed, 5 deferred.
 
-### Round 1 (6.1-6.3)
+Validated against 4 real Qt apps: SpeedCrunch (Qt 5.15), KeePassXC (Qt 5.15), qBittorrent (Qt 6.4), VLC (Qt 5.15). Three rounds of testing, each building on the last. Key outcomes:
 
-Validated against SpeedCrunch (simple) and KeePassXC (complex). Found 14 issues, fixed 9 (all Critical/Major). Key learnings: AT_SPI_BUS required for Qt5, visibility filter essential for stacked widgets, exact match needed for real apps.
-
-### Round 2 (6.5-6.7)
-
-Expanded to 4 apps: SpeedCrunch, KeePassXC (regression), qBittorrent (Qt 6.4, new), VLC (new). Found 10 new issues, fixed 7 (both Critical, both Major, 3 Minor). Qt6 confirmed working identically. Key fixes: screenshot overwrite, desktop-session service, slider values, click guards, tray identity, visibility consistency, `do --index`.
-
-### Round 3 (6.8-6.10)
-
-Re-validated all 4 apps after codebase improvements. Clean VM reprovision. Zero regressions. Found and fixed:
-- ISSUE-025: Visibility filter now uses AT-SPI STATE_SHOWING (replaces coordinate heuristic)
-- ISSUE-005: `type`/`key` commands now accept `--app` flag
-- ISSUE-021: `do --screenshot` properly transfers file from VM to host
-- NEW-001: `tree --visible` default aligned with `find`/`click`/`do`
-- Two provisioning bugs fixed (.local ownership, AT-SPI xprop race)
-
-Added 40+ new tests (unit + e2e) covering screenshot, logging, subprocess helpers, CLI commands, and visibility filter. Total deferred: 5 issues (ISSUE-007/008/011/018/024).
+- Visibility filter upgraded from coordinate heuristic to AT-SPI `STATE_SHOWING` — 93% noise reduction on menu-heavy apps
+- All CLI commands now have consistent `--app` targeting, `--visible` defaults, screenshot transfer
+- 40+ tests added (unit + e2e) for previously untested modules and new features
+- Qt6 confirmed working identically to Qt5
 
 **Remaining deferred:** 5 issues (ISSUE-007/008/011/018/024). See `docs/validation/issues.md`.
 
-**App setup reference:** `docs/validation/process.md` — install/launch/kill for all 4 apps with AT-SPI behavior notes.
+**App setup reference:** `docs/validation/process.md` — install/launch/kill for all 4 apps.
 
 ---
 

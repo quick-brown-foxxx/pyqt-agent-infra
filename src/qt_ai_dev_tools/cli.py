@@ -131,7 +131,9 @@ def _widget_dict(widget: AtspiNode) -> dict[str, object]:
 
 def _is_in_vm() -> bool:
     """Check if we're running inside the Vagrant VM."""
-    return os.environ.get("QT_AI_DEV_TOOLS_VM") == "1"
+    from qt_ai_dev_tools._env import VM, get_bool
+
+    return get_bool(VM)
 
 
 def _proxy_to_vm(workspace: Path | None = None) -> None:

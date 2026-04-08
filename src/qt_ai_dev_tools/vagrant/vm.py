@@ -103,7 +103,10 @@ def vm_sync_auto(workspace: Path | None = None) -> subprocess.Popen[str]:
 def vm_run(
     command: str, workspace: Path | None = None, display: str = ":99", *, stream: bool = False
 ) -> subprocess.CompletedProcess[str]:
-    """Run a command inside the VM with proper Qt/AT-SPI environment."""
+    """Run a command inside the VM with proper Qt/AT-SPI environment.
+
+    Env vars exported here are defined in ``qt_ai_dev_tools._env``.
+    """
     if not re.fullmatch(r":\d+(\.\d+)?", display):
         msg = f"Invalid display format: {display!r} (expected ':N' or ':N.M')"
         raise ValueError(msg)

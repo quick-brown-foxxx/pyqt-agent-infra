@@ -145,9 +145,9 @@ Validated against 4 real Qt apps: SpeedCrunch (Qt 5.15), KeePassXC (Qt 5.15), qB
 - 40+ tests added (unit + e2e) for previously untested modules and new features
 - Qt6 confirmed working identically to Qt5
 
-**Remaining deferred:** 5 issues (ISSUE-007/008/011/018/024). See `docs/validation/issues.md`.
+**Remaining deferred:** 5 issues (ISSUE-007/008/011/018/024). See `docs/real-apps-validation/issues.md`.
 
-**App setup reference:** `docs/validation/process.md` — install/launch/kill for all 4 apps.
+**App setup reference:** `docs/real-apps-validation/process.md` — install/launch/kill for all 4 apps.
 
 ---
 

@@ -52,10 +52,12 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
     - `vm.py` — VM lifecycle: up, status, ssh, destroy, sync, run
     - `templates/` — Jinja2 templates for Vagrantfile, provision.sh
   - `installer.py` — Shadcn-style installer: `uvx qt-ai-dev-tools install-and-own` copies toolkit into project
-  - `__version__.py` — Package version (single source of truth)
+  - `__version__.py` — Package version + commit hash (reads version from `pyproject.toml` via `importlib.metadata`)
+  - `_update_check.py` — PyPI update-available warning with 24h cache
 - `app/main.py` — sample PySide6 todo app (test subject)
 - `tests/` — pytest-qt + AT-SPI + CLI integration tests
-- `pyproject.toml` — build config, deps, linting, CLI entry point
+- `hatch_build.py` — custom hatch build hook: stamps git commit hash into `__version__.py` at build time
+- `pyproject.toml` — build config, deps, linting, CLI entry point, **single source of truth for version**
 - `provision.sh` — VM setup: Xvfb, openbox, AT-SPI, PySide6 (generated from template)
 - `Vagrantfile` — Ubuntu 24.04 VM (libvirt, 4GB RAM, 4 CPUs) (generated from template)
 - `RESULTS.md` — proof-of-concept evaluation
@@ -63,7 +65,7 @@ Infrastructure for AI agents to interact with Qt/PySide apps on Linux — inspec
 
 ## Current state
 
-Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), runnable via `uvx qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools install-and-own`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects and generates a `pyproject.toml` so the copy is installable via `uv tool install`. VM provisioning uses `uv tool install` (from PyPI or local install-and-own copy) instead of `uv sync`, decoupling the tool installation from the user's project. New in 0.6.3: centralized env var registry (`_env.py`), VM tool readiness check (`_vm_tool.py`) with version pinning and staleness detection, provisioning template no longer runs `uv sync` on user projects. The next milestone is Phase 8 (container & host support).
+Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tools/`) with a CLI (`qt-ai-dev-tools`), runnable via `uvx qt-ai-dev-tools` or copyable via `uvx qt-ai-dev-tools install-and-own`. All AT-SPI boundary typing is confined to `_atspi.py` with strict basedpyright enabled project-wide. Vagrant infrastructure is templated (Jinja2) with multi-provider support (libvirt + VirtualBox), static IP option, and auto-sync. Compound commands (`fill`, `do`) streamline agent interaction. The bridge feature adds `evaluate_script` equivalent via Unix socket. Five Linux subsystem modules (clipboard, file dialog, system tray, notifications, audio) give agents access to desktop capabilities beyond the widget tree. Phase 6.5 hygiene improvements include setup script, pre-commit hooks, pytest markers, and expanded test coverage. The shadcn-style installer (`installer.py`) copies the full toolkit into target projects and generates a `pyproject.toml` so the copy is installable via `uv tool install`. VM provisioning uses `uv tool install` (from PyPI or local install-and-own copy) instead of `uv sync`, decoupling the tool installation from the user's project. New in 0.6.3: centralized env var registry (`_env.py`), VM tool readiness check (`_vm_tool.py`) with version pinning and staleness detection, provisioning template no longer runs `uv sync` on user projects. Distribution: `uv tool install` (recommended), `uvx` (quick try), `install-and-own` (advanced). CLI has `--version`/`-V` flag showing version + commit hash, and update-available warning checking PyPI once/day. Build system bakes git commit hash via custom hatch hook. The next milestone is Phase 8 (container & host support).
 
 ## Key technical facts
 

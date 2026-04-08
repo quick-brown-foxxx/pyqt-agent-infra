@@ -166,7 +166,7 @@ Rewrote all AI skills to be self-contained single SKILL.md files covering all cu
 
 ## Phase 7: Installer & Distribution Overhaul
 
-**Status:** Partially complete. 7.1, 7.4, 7.7, 7.8 done. 7.0 brainstorm and 7.2, 7.3, 7.5 still needed. 7.6 skipped.
+**Status:** Partially complete. 7.1, 7.4, 7.7, 7.8, 7.9 done. 7.0 brainstorm and 7.2, 7.3, 7.5 still needed. 7.6 skipped.
 
 ### 7.0 — [brainstorm] Distribution philosophy
 
@@ -195,6 +195,10 @@ Skipped per user decision.
 ### 7.7 — [implement] Highlight Vagrantfile editing in setup skill and workspace init output — DONE
 
 ### 7.8 — [implement] Default workspace directory `.qt-ai-dev-tools/`, `--path` option removed — DONE
+
+### 7.9 — [implement] VM installation logic fix — DONE
+
+Centralized env var registry (`_env.py`), VM tool readiness check (`_vm_tool.py`), provisioning template cleanup. Key changes: template never runs `uv sync` on user's project, PyPI install version-pinned, install-and-own auto-rebuilds on staleness with gi re-link. Design: `docs/superpowers/specs/2026-04-08-vm-installation-logic-design.md`.
 
 ---
 
@@ -309,7 +313,7 @@ Phase 7: Installer Overhaul ───── mostly independent
 Phase 8: E2E Testing Framework ── mostly independent
 Phase 10: Screen Recording ────── independent
 
-Standalone tasks (S-1..S-4) ───── independent, anytime
+Standalone tasks (S-1..S-6) ───── independent, anytime
 ```
 
 ---

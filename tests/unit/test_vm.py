@@ -98,7 +98,9 @@ class TestVmRunEnvConstruction:
         assert "QT_ACCESSIBILITY=1" in ssh_cmd
         assert "QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1" in ssh_cmd
         assert "QT_AI_DEV_TOOLS_VM=1" in ssh_cmd
-        assert "UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools" in ssh_cmd
+        assert "PATH=$HOME/.local/bin:$PATH" in ssh_cmd
+        assert "UV_PROJECT_ENVIRONMENT" not in ssh_cmd
+        assert ".venv-qt-ai-dev-tools" not in ssh_cmd
         assert "DBUS_SESSION_BUS_ADDRESS=" in ssh_cmd
 
     def test_custom_display_parameter(self, tmp_path: Path) -> None:

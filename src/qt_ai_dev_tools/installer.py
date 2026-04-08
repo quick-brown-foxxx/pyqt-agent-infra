@@ -41,6 +41,24 @@ display = ":99"
 resolution = "1920x1080x24"
 """
 
+_PYPROJECT_TOML_TEMPLATE: str = """\
+[project]
+name = "qt-ai-dev-tools"
+version = "{version}"
+requires-python = ">=3.12"
+dependencies = ["typer>=0.12.0", "jinja2>=3.1.0", "colorlog>=6.10.1"]
+
+[project.scripts]
+qt-ai-dev-tools = "qt_ai_dev_tools.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qt_ai_dev_tools"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+"""
+
 
 def _copy_package_source(target_src: Path) -> None:
     """Copy the qt_ai_dev_tools package source into target/src/."""
@@ -93,6 +111,13 @@ def _write_cli_script(target: Path) -> Path:
     return cli_path
 
 
+def _write_pyproject_toml(target: Path) -> Path:
+    """Generate pyproject.toml for uv tool install compatibility."""
+    pyproject_path = target / "pyproject.toml"
+    pyproject_path.write_text(_PYPROJECT_TOML_TEMPLATE.format(version=__version__))
+    return pyproject_path
+
+
 def _write_config_toml(target: Path, *, memory: int, cpus: int) -> Path:
     """Generate config.toml with workspace defaults."""
     config_path = target / "config.toml"
@@ -140,6 +165,10 @@ def install_and_own(target: Path, *, memory: int = 4096, cpus: int = 4) -> list[
     # Generate config.toml
     _write_config_toml(target, memory=memory, cpus=cpus)
     created.append("config.toml")
+
+    # Generate pyproject.toml (enables `uv tool install` from this directory)
+    _write_pyproject_toml(target)
+    created.append("pyproject.toml")
 
     return created
 

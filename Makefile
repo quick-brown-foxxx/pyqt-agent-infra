@@ -23,7 +23,7 @@ sync: ## sync files to VM (rsync)
 	uv run qt-ai-dev-tools vm sync
 
 provision: ## re-run VM provisioning
-	vagrant provision
+	cd .qt-ai-dev-tools && vagrant provision
 
 ssh: ## SSH into VM
 	uv run qt-ai-dev-tools vm ssh

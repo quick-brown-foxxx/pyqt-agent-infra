@@ -108,10 +108,9 @@ def vm_bridge_app() -> None:
         " --property=Environment=QT_QPA_PLATFORM=xcb"
         " --property=Environment=QT_ACCESSIBILITY=1"
         " --property=Environment=QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1"
-        " --property=Environment=UV_PROJECT_ENVIRONMENT=/home/vagrant/.venv-qt-ai-dev-tools"
         " --property=Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
         " --property=WorkingDirectory=/vagrant"
-        " /home/vagrant/.venv-qt-ai-dev-tools/bin/python3 app/main.py",
+        " python3 app/main.py",
         timeout=10,
     )
     if start.returncode != 0:

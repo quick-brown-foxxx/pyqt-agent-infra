@@ -185,3 +185,50 @@ class TestDeriveVmName:
         workspace = tmp_path / "--project--" / ".qt-ai-dev-tools"
         workspace.mkdir(parents=True)
         assert derive_vm_name(workspace) == "qt-dev-project"
+
+
+class TestProvisionUvToolInstall:
+    """Tests for uv tool install provisioning (replaces uv sync)."""
+
+    def test_provision_does_not_contain_uv_sync(self, tmp_path: Path) -> None:
+        """provision.sh must not contain 'uv sync --project /vagrant'."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "uv sync --project /vagrant" not in content
+
+    def test_provision_contains_uv_tool_install_pypi(self, tmp_path: Path) -> None:
+        """provision.sh must contain 'uv tool install qt-ai-dev-tools' for PyPI path."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "uv tool install qt-ai-dev-tools" in content
+
+    def test_provision_contains_install_and_own_detection(self, tmp_path: Path) -> None:
+        """provision.sh must detect local install-and-own copy."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "/vagrant/.qt-ai-dev-tools/src/qt_ai_dev_tools" in content
+
+    def test_provision_contains_uv_tool_install_local(self, tmp_path: Path) -> None:
+        """provision.sh must use 'uv tool install --force' for local copy."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "uv tool install --force" in content
+
+    def test_provision_gi_linking_uses_tool_venv(self, tmp_path: Path) -> None:
+        """gi/pygobject linking must target the uv tool venv, not project venv."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert ".local/share/uv/tools/qt-ai-dev-tools" in content
+        assert ".venv-qt-ai-dev-tools" not in content
+
+    def test_provision_bashrc_no_uv_project_environment(self, tmp_path: Path) -> None:
+        """provision.sh .bashrc block must not export UV_PROJECT_ENVIRONMENT."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert "UV_PROJECT_ENVIRONMENT" not in content
+
+    def test_provision_bashrc_has_local_bin_in_path(self, tmp_path: Path) -> None:
+        """provision.sh .bashrc block must add ~/.local/bin to PATH."""
+        render_workspace(tmp_path)
+        content = (tmp_path / "provision.sh").read_text()
+        assert ".local/bin" in content

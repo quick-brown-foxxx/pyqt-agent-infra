@@ -78,7 +78,7 @@ tests/
 
 Markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`. The e2e and integration directories apply their markers via module-level `pytestmark`.
 
-Timeout: `timeout = 30` (seconds) configured in `pyproject.toml`. Requires `pytest-timeout` plugin (installed in VM venv via `uv sync`).
+Timeout: `timeout = 30` (seconds) configured in `pyproject.toml`. Requires `pytest-timeout` plugin (installed in the VM via `uv tool install`).
 
 ## Test parallelism (pytest-xdist)
 
@@ -120,8 +120,8 @@ without VM access.
 1. **System deps**: Xvfb, xdotool, scrot, openbox, AT-SPI, D-Bus, stalonetray, snixembed, dunst, PipeWire, sox, ffmpeg, xclip, xsel
 2. **Python system packages**: PySide6 installed via `pip3 --break-system-packages`
 3. **uv installed** at `/opt/uv/`, symlinked to `/usr/local/bin/uv`
-4. **Project venv** at `~/.venv-qt-ai-dev-tools`, created via `uv sync --project /vagrant`
-5. **System-only packages symlinked** into venv: `gi`, `pygtkcompat`, `_gi*.so` (not pip-installable)
+4. **qt-ai-dev-tools** installed as standalone tool via `uv tool install`, binary at `~/.local/bin/qt-ai-dev-tools`, venv at `~/.local/share/uv/tools/qt-ai-dev-tools/`
+5. **System-only packages symlinked** into tool venv: `gi`, `pygtkcompat`, `_gi*.so` (not pip-installable)
 6. **PySide6** is in both system Python (for apps) and venv (via system site-packages or pip)
 7. **Desktop session** systemd user service: openbox + AT-SPI + snixembed + stalonetray + dunst + PipeWire
 
@@ -134,11 +134,11 @@ QT_ACCESSIBILITY=1
 QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 QT_AI_DEV_TOOLS_VM=1
 QT_AI_DEV_TOOLS_BRIDGE=1
-UV_PROJECT_ENVIRONMENT=$HOME/.venv-qt-ai-dev-tools
+PATH=$HOME/.local/bin:$PATH
 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 ```
 
-`UV_PROJECT_ENVIRONMENT` tells `uv run` to use the venv outside `/vagrant`, so `uv run pytest` picks up all dev deps plus the symlinked system packages.
+`PATH` includes `~/.local/bin` where `uv tool install` places the `qt-ai-dev-tools` binary.
 
 ## E2E test infrastructure
 
@@ -194,7 +194,7 @@ Tests within a module run in file order (class by class, method by method). All 
 - **PySide6 not in host venv**: pytest-qt import fails on the host. All tests must run in the VM.
 - **Bridge blocked by modal dialogs**: QFileDialog, QMessageBox block the Qt event loop. The bridge socket server can't respond while a modal is open. Use AT-SPI/xdotool for dialog interaction.
 - **xdotool needs openbox**: Without a window manager, xdotool coordinates are wrong (windows have no decoration/position management).
-- **`pytest-timeout`**: Configured in pyproject.toml (`timeout = 30`) but requires the plugin, which is installed in the VM venv via `uv sync`.
+- **`pytest-timeout`**: Configured in pyproject.toml (`timeout = 30`) but requires the plugin, which is installed in the VM via `uv tool install`.
 
 ## Writing new e2e tests
 

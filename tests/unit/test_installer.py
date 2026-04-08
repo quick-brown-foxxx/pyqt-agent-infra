@@ -75,6 +75,67 @@ class TestInstallAndOwn:
         assert "src/qt_ai_dev_tools/" in created
 
 
+class TestInstallAndOwnPyprojectToml:
+    """Tests for pyproject.toml generation in install_and_own()."""
+
+    def test_creates_pyproject_toml(self, tmp_path: Path) -> None:
+        """install_and_own should create a pyproject.toml for uv tool install."""
+        from qt_ai_dev_tools.installer import install_and_own
+
+        install_and_own(tmp_path)
+
+        pyproject = tmp_path / "pyproject.toml"
+        assert pyproject.exists()
+
+    def test_pyproject_contains_entry_point(self, tmp_path: Path) -> None:
+        """pyproject.toml must define the qt-ai-dev-tools CLI entry point."""
+        from qt_ai_dev_tools.installer import install_and_own
+
+        install_and_own(tmp_path)
+
+        content = (tmp_path / "pyproject.toml").read_text()
+        assert 'qt-ai-dev-tools = "qt_ai_dev_tools.cli:app"' in content
+
+    def test_pyproject_contains_dependencies(self, tmp_path: Path) -> None:
+        """pyproject.toml must list runtime dependencies."""
+        from qt_ai_dev_tools.installer import install_and_own
+
+        install_and_own(tmp_path)
+
+        content = (tmp_path / "pyproject.toml").read_text()
+        assert "typer" in content
+        assert "jinja2" in content
+        assert "colorlog" in content
+
+    def test_pyproject_contains_build_system(self, tmp_path: Path) -> None:
+        """pyproject.toml must have hatchling build system and packages config."""
+        from qt_ai_dev_tools.installer import install_and_own
+
+        install_and_own(tmp_path)
+
+        content = (tmp_path / "pyproject.toml").read_text()
+        assert "hatchling" in content
+        assert 'packages = ["src/qt_ai_dev_tools"]' in content
+
+    def test_pyproject_contains_correct_version(self, tmp_path: Path) -> None:
+        """pyproject.toml version must match __version__."""
+        from qt_ai_dev_tools.__version__ import __version__
+        from qt_ai_dev_tools.installer import install_and_own
+
+        install_and_own(tmp_path)
+
+        content = (tmp_path / "pyproject.toml").read_text()
+        assert f'version = "{__version__}"' in content
+
+    def test_pyproject_listed_in_created_paths(self, tmp_path: Path) -> None:
+        """pyproject.toml must appear in the returned created paths list."""
+        from qt_ai_dev_tools.installer import install_and_own
+
+        created = install_and_own(tmp_path)
+
+        assert "pyproject.toml" in created
+
+
 class TestCopySkills:
     """Tests for _copy_skills() edge cases."""
 

@@ -1,13 +1,10 @@
 ---
-name: qt-runtime-eval
+name: qt-devtools-runtime-eval
 description: >
-  Execute Python code inside running Qt/PySide apps via the bridge.
-  Use when asked to "run code inside the app", "eval an expression",
-  "read internal widget state", "call Qt methods directly",
-  "bypass AT-SPI limitations", "access app internals", "check a property
-  that AT-SPI doesn't expose", or when AT-SPI inspection is insufficient.
-  The bridge is the Chrome DevTools evaluate_script equivalent for Qt.
-  Do NOT use for normal widget clicks or text input — see qt-app-interaction.
+  ALWAYS LOAD THIS SKILL WHEN EXECUTING CODE INSIDE A RUNNING QT/PYSIDE
+  APP VIA THE BRIDGE. Do not use bridge eval directly — use this skill
+  first. Runtime Python execution inside Qt apps via Unix socket, Chrome
+  DevTools evaluate_script equivalent for Qt.
 ---
 
 # Qt Runtime Eval
@@ -22,7 +19,7 @@ Use the bridge when AT-SPI cannot give you what you need:
 - **Reading model data** -- row counts, cell values, selection state from `QAbstractItemModel` subclasses.
 - **Anything AT-SPI roles/names/text cannot express** -- style sheets, font metrics, palette colors, custom Q_PROPERTY values.
 
-For normal widget clicking, typing, and tree inspection, use `qt-app-interaction`. The bridge is the power tool -- reach for it when the standard inspect-interact-verify loop is insufficient.
+For normal widget clicking, typing, and tree inspection, use `qt-devtools-app-interaction`. The bridge is the power tool -- reach for it when the standard inspect-interact-verify loop is insufficient.
 
 ## Setup
 
@@ -171,7 +168,7 @@ qt-ai-dev-tools eval "app.activeWindow().windowTitle()"
 
 ## Limitations
 
-- **Modal dialogs block the bridge.** While a modal dialog is open (QFileDialog, QMessageBox, etc.), the bridge cannot respond because the Qt event loop is blocked by the modal. Use AT-SPI and xdotool for dialog interaction (see `qt-form-and-input` skill).
+- **Modal dialogs block the bridge.** While a modal dialog is open (QFileDialog, QMessageBox, etc.), the bridge cannot respond because the Qt event loop is blocked by the modal. Use AT-SPI and xdotool for dialog interaction (see `qt-devtools-form-and-input` skill).
 - **Statements return None.** Assignments, loops, and `print()` calls return `None` as their result value. Use `print()` to produce output -- stdout is captured and returned.
 - **Bridge must be active.** Either `bridge.start()` must be called in the app code with `QT_AI_DEV_TOOLS_BRIDGE=1` set, or `bridge inject` must be used on a Python 3.14+ process.
 
@@ -189,7 +186,7 @@ qt-ai-dev-tools eval "app.activeWindow().windowTitle()"
 
 ## Related skills
 
-- **`qt-dev-tools-setup`** -- install qt-ai-dev-tools, configure VM, verify environment
-- **`qt-app-interaction`** -- inspect widgets, click, type, verify results via AT-SPI (the core workflow loop)
-- **`qt-form-and-input`** -- clipboard and file dialog automation
-- **`qt-desktop-integration`** -- system tray, notifications, and audio
+- **`qt-devtools-setup`** -- install qt-ai-dev-tools, configure VM, verify environment
+- **`qt-devtools-app-interaction`** -- inspect widgets, click, type, verify results via AT-SPI (the core workflow loop)
+- **`qt-devtools-form-and-input`** -- clipboard and file dialog automation
+- **`qt-devtools-desktop-integration`** -- system tray, notifications, and audio

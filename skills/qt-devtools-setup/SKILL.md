@@ -1,13 +1,11 @@
 ---
-name: qt-dev-tools-setup
+name: qt-devtools-setup
 description: >
-  Set up qt-ai-dev-tools for AI-driven Qt/PySide app interaction.
-  Use when asked to "set up qt-ai-dev-tools", "initialize workspace",
-  "configure VM for Qt testing", "boot the VM", "install qt-ai-dev-tools",
-  or when starting a new project that needs headless Qt UI testing.
-  Covers installation, workspace init, VM boot, environment verification,
-  and self-update. Do NOT use for interacting with apps — see
-  qt-app-interaction skill instead.
+  ALWAYS LOAD THIS SKILL WHEN SETTING UP QT-AI-DEV-TOOLS, INITIALIZING
+  A WORKSPACE, OR BOOTING THE VM. Do not configure qt-ai-dev-tools
+  environments directly — use this skill first. Installation, workspace
+  init, VM boot, environment verification, and self-update for headless
+  Qt UI testing.
 ---
 
 # Set up qt-ai-dev-tools
@@ -20,9 +18,9 @@ description: >
 
 ## When NOT to use
 
-- Interacting with a running Qt app (inspecting widgets, clicking, typing) -- use `qt-app-interaction`
-- Executing code inside a running Qt app -- use `qt-runtime-eval`
-- Working with clipboard, file dialogs, tray, notifications, or audio -- use `qt-form-and-input` or `qt-desktop-integration`
+- Interacting with a running Qt app (inspecting widgets, clicking, typing) -- use `qt-devtools-app-interaction`
+- Executing code inside a running Qt app -- use `qt-devtools-runtime-eval`
+- Working with clipboard, file dialogs, tray, notifications, or audio -- use `qt-devtools-form-and-input` or `qt-devtools-desktop-integration`
 
 ---
 
@@ -277,7 +275,7 @@ uv run qt-ai-dev-tools vm run "systemctl --user restart desktop-session"
 
 Setup complete. Use the related skills for specific tasks:
 
-- **`qt-app-interaction`** -- inspect widgets, click, type, verify results (the core workflow loop)
-- **`qt-runtime-eval`** -- execute code inside running Qt apps via the bridge
-- **`qt-form-and-input`** -- clipboard and file dialog automation
-- **`qt-desktop-integration`** -- system tray, notifications, and audio
+- **`qt-devtools-app-interaction`** -- inspect widgets, click, type, verify results (the core workflow loop)
+- **`qt-devtools-runtime-eval`** -- execute code inside running Qt apps via the bridge
+- **`qt-devtools-form-and-input`** -- clipboard and file dialog automation
+- **`qt-devtools-desktop-integration`** -- system tray, notifications, and audio

@@ -91,11 +91,11 @@ Phases 1-7 complete. The project is a proper Python package (`src/qt_ai_dev_tool
 ## AI Skills
 
 Agent skills in `skills/` teach AI agents the qt-ai-dev-tools workflow:
-- `qt-dev-tools-setup` — install toolkit, configure VM, verify environment
-- `qt-app-interaction` — inspect widgets, interact, verify results (the core workflow loop)
-- `qt-form-and-input` — fill forms, handle file dialogs, clipboard operations
-- `qt-desktop-integration` — system tray, notifications, audio subsystems
-- `qt-runtime-eval` — bridge eval: execute code inside running Qt apps
+- `qt-devtools-setup` — install toolkit, configure VM, verify environment
+- `qt-devtools-app-interaction` — inspect widgets, interact, verify results (the core workflow loop)
+- `qt-devtools-form-and-input` — fill forms, handle file dialogs, clipboard operations
+- `qt-devtools-desktop-integration` — system tray, notifications, audio subsystems
+- `qt-devtools-runtime-eval` — bridge eval: execute code inside running Qt apps
 
 ## Running things
 

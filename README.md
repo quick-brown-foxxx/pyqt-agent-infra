@@ -75,22 +75,22 @@ npx -y skills add quick-brown-foxxx/qt-ai-dev-tools
 ```
 
 This gives your agent five skills:
-- `qt-dev-tools-setup` — install and configure the environment
-- `qt-app-interaction` — inspect, click, type, verify (core workflow)
-- `qt-form-and-input` — fill forms, handle file dialogs, clipboard
-- `qt-desktop-integration` — system tray, notifications, audio
-- `qt-runtime-eval` — execute Python inside running apps
+- `qt-devtools-setup` — install and configure the environment
+- `qt-devtools-app-interaction` — inspect, click, type, verify (core workflow)
+- `qt-devtools-form-and-input` — fill forms, handle file dialogs, clipboard
+- `qt-devtools-desktop-integration` — system tray, notifications, audio
+- `qt-devtools-runtime-eval` — execute Python inside running apps
 
 ### 2. Ask your agent to set up the toolkit
 
-Run `/qt-dev-tools-setup` skill as command or ask agent to load and execute it:
+Run `/qt-devtools-setup` skill as command or ask agent to load and execute it:
 - Copy the toolkit into your project
 - Initialize a Vagrant workspace
 - Boot the VM and verify the environment
 
 ### 3. Start interacting
 
-Once set up, the agent uses the appropriate skill for each task. `qt-app-interaction` covers the core workflow: **inspect** the widget tree → **interact** with widgets → **verify** results. `qt-form-and-input` handles form filling, file dialogs, and clipboard. `qt-desktop-integration` covers system tray, notifications, and audio. `qt-runtime-eval` enables executing Python inside running apps for deeper inspection.
+Once set up, the agent uses the appropriate skill for each task. `qt-devtools-app-interaction` covers the core workflow: **inspect** the widget tree → **interact** with widgets → **verify** results. `qt-devtools-form-and-input` handles form filling, file dialogs, and clipboard. `qt-devtools-desktop-integration` covers system tray, notifications, and audio. `qt-devtools-runtime-eval` enables executing Python inside running apps for deeper inspection.
 
 ### Manual installation
 

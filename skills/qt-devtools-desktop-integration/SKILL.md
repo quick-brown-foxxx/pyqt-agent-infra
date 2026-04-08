@@ -1,19 +1,16 @@
 ---
-name: qt-desktop-integration
+name: qt-devtools-desktop-integration
 description: >
-  Interact with system tray icons, desktop notifications, and audio
-  in Qt/PySide apps. Use when asked to "check the system tray",
-  "click tray icon", "read tray menu", "listen for notifications",
-  "dismiss notification", "test audio", "create virtual microphone",
-  "record audio", "verify audio output", or any OS-level desktop
-  integration testing. Covers D-Bus system tray (SNI), notification
-  monitoring, and PipeWire audio. All commands in this skill are alpha.
-  Do NOT use for widget interaction -- see qt-app-interaction.
+  ALWAYS LOAD THIS SKILL WHEN INTERACTING WITH SYSTEM TRAY, DESKTOP
+  NOTIFICATIONS, OR AUDIO IN RUNNING QT/PYSIDE APPS. Do not interact with
+  OS-level desktop features directly — use this skill first. D-Bus
+  system tray (SNI), notification monitoring, PipeWire audio virtual
+  mic and recording. All commands are alpha.
 ---
 
 # Qt Desktop Integration
 
-System tray, notifications, and audio operate outside the widget tree. They use D-Bus and PipeWire, not AT-SPI. For widget interaction, use the `qt-app-interaction` skill instead.
+System tray, notifications, and audio operate outside the widget tree. They use D-Bus and PipeWire, not AT-SPI. For widget interaction, use the `qt-devtools-app-interaction` skill instead.
 
 All commands work the same from host or VM -- no SSH wrapping needed. Use `vm run` only for arbitrary commands.
 
@@ -199,7 +196,7 @@ qt-ai-dev-tools audio virtual-mic stop
 
 ## Related Skills
 
-- **qt-dev-tools-setup** -- install qt-ai-dev-tools, configure the VM, verify the environment.
-- **qt-app-interaction** -- inspect widgets, click buttons, type text, verify state via AT-SPI.
-- **qt-form-and-input** -- fill forms, handle combo boxes, navigate tabs, work with text fields.
-- **qt-runtime-eval** -- execute Python code inside running Qt apps via the bridge.
+- **qt-devtools-setup** -- install qt-ai-dev-tools, configure the VM, verify the environment.
+- **qt-devtools-app-interaction** -- inspect widgets, click buttons, type text, verify state via AT-SPI.
+- **qt-devtools-form-and-input** -- fill forms, handle combo boxes, navigate tabs, work with text fields.
+- **qt-devtools-runtime-eval** -- execute Python code inside running Qt apps via the bridge.

@@ -25,8 +25,8 @@ app = typer.Typer(
     no_args_is_help=True,
     context_settings=_CONTEXT,
     epilog="Status: beta (subsystem commands are alpha). "
-    "Skills: qt-dev-tools-setup, qt-app-interaction, qt-form-and-input, "
-    "qt-desktop-integration, qt-runtime-eval. "
+    "Skills: qt-devtools-setup, qt-devtools-app-interaction, qt-devtools-form-and-input, "
+    "qt-devtools-desktop-integration, qt-devtools-runtime-eval. "
     "Install: npx -y skills add quick-brown-foxxx/qt-ai-dev-tools",
 )
 
@@ -249,7 +249,7 @@ def install_and_own_command(
     typer.echo(f"Toolkit installed to {target}")
     typer.echo(f"  -> Run: cd {target} && uv sync")
     typer.echo("  -> Run: qt-ai-dev-tools workspace init")
-    typer.echo("  -> Load the qt-dev-tools-setup skill for full setup guidance.")
+    typer.echo("  -> Load the qt-devtools-setup skill for full setup guidance.")
 
 
 @app.command(name="self-update")
@@ -700,7 +700,7 @@ def _verify_condition(pilot: QtPilot, condition: str, *, visible: bool = True) -
 workspace_app = typer.Typer(
     help="Manage qt-ai-dev-tools workspaces.",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-dev-tools-setup",
+    epilog="More info in skill: qt-devtools-setup",
 )
 app.add_typer(workspace_app, name="workspace")
 
@@ -758,7 +758,7 @@ def workspace_init(
 vm_app = typer.Typer(
     help="Manage Vagrant VM lifecycle.",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-dev-tools-setup",
+    epilog="More info in skill: qt-devtools-setup",
 )
 app.add_typer(vm_app, name="vm")
 
@@ -911,7 +911,7 @@ def eval_cmd(
     Or inject into a running Python 3.14+ app:
       qt-ai-dev-tools bridge inject --pid <PID>
 
-    More info in skill: qt-runtime-eval
+    More info in skill: qt-devtools-runtime-eval
     """
     _proxy_to_vm()
 
@@ -967,7 +967,7 @@ def eval_cmd(
 bridge_app = typer.Typer(
     help="Manage bridge lifecycle.",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-runtime-eval",
+    epilog="More info in skill: qt-devtools-runtime-eval",
 )
 app.add_typer(bridge_app, name="bridge")
 
@@ -1014,7 +1014,7 @@ def bridge_inject_cmd(
 clipboard_app = typer.Typer(
     help="Clipboard operations. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-form-and-input",
+    epilog="More info in skill: qt-devtools-form-and-input",
 )
 app.add_typer(clipboard_app, name="clipboard")
 
@@ -1060,7 +1060,7 @@ def clipboard_read_cmd() -> None:
 file_dialog_app = typer.Typer(
     help="File dialog automation. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-form-and-input",
+    epilog="More info in skill: qt-devtools-form-and-input",
 )
 app.add_typer(file_dialog_app, name="file-dialog")
 
@@ -1159,7 +1159,7 @@ def file_dialog_cancel_cmd(
 tray_app_cli = typer.Typer(
     help="System tray interaction. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-desktop-integration",
+    epilog="More info in skill: qt-devtools-desktop-integration",
 )
 app.add_typer(tray_app_cli, name="tray")
 
@@ -1279,7 +1279,7 @@ def tray_select_cmd(
 notify_app_cli = typer.Typer(
     help="Desktop notification interaction. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-desktop-integration",
+    epilog="More info in skill: qt-devtools-desktop-integration",
 )
 app.add_typer(notify_app_cli, name="notify")
 
@@ -1363,7 +1363,7 @@ def notify_action_cmd(
 audio_app_cli = typer.Typer(
     help="PipeWire audio interaction. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-desktop-integration",
+    epilog="More info in skill: qt-devtools-desktop-integration",
 )
 app.add_typer(audio_app_cli, name="audio")
 
@@ -1371,7 +1371,7 @@ app.add_typer(audio_app_cli, name="audio")
 vmic_app = typer.Typer(
     help="Virtual microphone management. [alpha]",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-desktop-integration",
+    epilog="More info in skill: qt-devtools-desktop-integration",
 )
 audio_app_cli.add_typer(vmic_app, name="virtual-mic")
 
@@ -1552,7 +1552,7 @@ def audio_verify_cmd(
 snapshot_app = typer.Typer(
     help="Widget tree snapshot and diff.",
     context_settings=_CONTEXT,
-    epilog="More info in skill: qt-app-interaction",
+    epilog="More info in skill: qt-devtools-app-interaction",
 )
 app.add_typer(snapshot_app, name="snapshot")
 

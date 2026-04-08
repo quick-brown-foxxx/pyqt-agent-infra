@@ -1,13 +1,11 @@
 ---
-name: qt-form-and-input
+name: qt-devtools-form-and-input
 description: >
-  Fill forms, handle file dialogs, and use the clipboard in Qt/PySide apps.
-  Use when asked to "fill a form", "enter text in multiple fields",
-  "open a file", "save a file", "handle file dialog", "copy to clipboard",
-  "paste from clipboard", "read clipboard", or any multi-field data entry task.
-  Covers form filling recipes, QFileDialog automation, and clipboard read/write.
-  Clipboard and file dialog commands are alpha.
-  Do NOT use for basic single-widget clicks or typing -- see qt-app-interaction.
+  ALWAYS LOAD THIS SKILL WHEN FILLING FORMS, HANDLING FILE DIALOGS, OR
+  USING THE CLIPBOARD IN RUNNING QT/PYSIDE APPS. Do not automate multi-field
+  input or file dialogs directly — use this skill first. Form filling
+  recipes, QFileDialog automation, clipboard read/write. Clipboard and
+  file dialog commands are alpha.
 ---
 
 # Forms, File Dialogs, and Clipboard
@@ -21,7 +19,7 @@ Use this skill for:
 - Combo box and dropdown selection
 - Modal dialog detection and dismissal
 
-For single-widget interaction (one click, one type, reading a label), use `qt-app-interaction` instead. This skill builds on that foundation with multi-step recipes.
+For single-widget interaction (one click, one type, reading a label), use `qt-devtools-app-interaction` instead. This skill builds on that foundation with multi-step recipes.
 
 All commands work the same from host or VM -- no SSH wrapping needed. Use `vm run` only for arbitrary commands.
 
@@ -253,7 +251,7 @@ qt-ai-dev-tools key Escape
 
 ## Related skills
 
-- See `qt-app-interaction` for core widget interaction (inspect, click, type, verify).
-- See `qt-runtime-eval` for executing code inside the running app via bridge.
-- See `qt-desktop-integration` for system tray, notifications, and audio.
-- See `qt-dev-tools-setup` for environment setup and VM configuration.
+- See `qt-devtools-app-interaction` for core widget interaction (inspect, click, type, verify).
+- See `qt-devtools-runtime-eval` for executing code inside the running app via bridge.
+- See `qt-devtools-desktop-integration` for system tray, notifications, and audio.
+- See `qt-devtools-setup` for environment setup and VM configuration.

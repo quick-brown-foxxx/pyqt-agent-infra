@@ -1,13 +1,11 @@
 ---
-name: qt-app-interaction
+name: qt-devtools-app-interaction
 description: >
-  Interact with Qt/PySide apps via AT-SPI accessibility. Use when asked
-  to "test the UI", "click a button", "inspect widgets",
-  "take a screenshot", "read widget state", "check the widget tree",
-  or any task requiring direct Qt widget interaction. Covers the core
-  inspect-interact-verify workflow. Do NOT use for: clipboard/file dialogs
-  (see qt-form-and-input), tray/notifications/audio (see qt-desktop-integration),
-  or runtime code execution (see qt-runtime-eval). Core commands are beta.
+  ALWAYS LOAD THIS SKILL WHEN TESTING QT/PYSIDE UI, CLICKING BUTTONS,
+  INSPECTING WIDGETS, OR TAKING SCREENSHOTS. Do not interact with Qt
+  widgets directly — use this skill first. AT-SPI accessibility-based
+  inspect-interact-verify workflow, widget tree navigation, screenshot
+  validation. Core commands are beta.
 ---
 
 # Qt App Interaction
@@ -283,7 +281,7 @@ Logs are always written to `~/.local/state/qt-ai-dev-tools/logs/qt-ai-dev-tools.
 
 ## Related Skills
 
-- **qt-form-and-input** -- multi-field form filling, clipboard operations, file dialog automation
-- **qt-desktop-integration** -- system tray, notifications, audio subsystem interaction
-- **qt-runtime-eval** -- execute Python code inside running Qt apps via the bridge (`eval` command)
-- **qt-dev-tools-setup** -- install toolkit, configure VM, verify environment
+- **qt-devtools-form-and-input** -- multi-field form filling, clipboard operations, file dialog automation
+- **qt-devtools-desktop-integration** -- system tray, notifications, audio subsystem interaction
+- **qt-devtools-runtime-eval** -- execute Python code inside running Qt apps via the bridge (`eval` command)
+- **qt-devtools-setup** -- install toolkit, configure VM, verify environment

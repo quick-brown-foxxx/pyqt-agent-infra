@@ -157,8 +157,8 @@ Validated against 4 real Qt apps: SpeedCrunch (Qt 5.15), KeePassXC (Qt 5.15), qB
 
 Rewrote all AI skills to be self-contained single SKILL.md files covering all current CLI features:
 
-- **Rewrote 2 existing skills:** `qt-dev-tools-setup`, `qt-app-interaction` — updated for current CLI flags, subsystem commands, host/VM parity language, `.qt-ai-dev-tools/` workspace directory, `install-and-own` command.
-- **Created 3 new skills:** `qt-form-and-input` (form filling, complex widgets), `qt-desktop-integration` (clipboard, file dialogs, tray, notifications, audio), `qt-runtime-eval` (bridge eval, script execution, namespace).
+- **Rewrote 2 existing skills:** `qt-devtools-setup`, `qt-devtools-app-interaction` — updated for current CLI flags, subsystem commands, host/VM parity language, `.qt-ai-dev-tools/` workspace directory, `install-and-own` command.
+- **Created 3 new skills:** `qt-devtools-form-and-input` (form filling, complex widgets), `qt-devtools-desktop-integration` (clipboard, file dialogs, tray, notifications, audio), `qt-devtools-runtime-eval` (bridge eval, script execution, namespace).
 - Deleted all old `references/` directories — skills are fully self-contained now.
 - Added skill references to all CLI `--help` epilogs.
 

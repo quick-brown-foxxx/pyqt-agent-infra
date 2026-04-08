@@ -203,6 +203,39 @@ class TestCheckLocalMode:
         # Should have written the new hash
         assert any(current_hash in cmd for cmd in call_args_log)
 
+    def test_relinks_gi_after_rebuild(self, tmp_path: Path) -> None:
+        """After uv tool install --force, gi/pygobject must be re-linked."""
+        src_dir = tmp_path / ".qt-ai-dev-tools" / "src" / "qt_ai_dev_tools"
+        src_dir.mkdir(parents=True)
+        (src_dir / "main.py").write_text("print('hello')")
+
+        stale_result = MagicMock(spec=subprocess.CompletedProcess)
+        stale_result.stdout = "old-hash-value\n"
+        stale_result.returncode = 0
+
+        ok_result = MagicMock(spec=subprocess.CompletedProcess)
+        ok_result.returncode = 0
+
+        call_args_log: list[str] = []
+
+        def mock_vm_run(command: str, workspace: Path | None = None, **_kw: object) -> MagicMock:
+            call_args_log.append(command)
+            if "cat " in command:
+                return stale_result
+            return ok_result
+
+        with patch("qt_ai_dev_tools.vagrant.vm.vm_run", side_effect=mock_vm_run):
+            _check_local_mode(tmp_path, tmp_path / ".qt-ai-dev-tools")
+
+        # Verify gi re-link command was called after uv tool install
+        install_idx = next(i for i, cmd in enumerate(call_args_log) if "uv tool install" in cmd)
+        relink_idx = next(i for i, cmd in enumerate(call_args_log) if "gi pygtkcompat" in cmd)
+        assert relink_idx > install_idx, "gi re-link must happen after uv tool install"
+        # Sanity-check the relink command content
+        relink_cmd = call_args_log[relink_idx]
+        assert "import sysconfig" in relink_cmd
+        assert "_gi*.so" in relink_cmd
+
     def test_skips_rebuild_when_current(self, tmp_path: Path) -> None:
         src_dir = tmp_path / ".qt-ai-dev-tools" / "src" / "qt_ai_dev_tools"
         src_dir.mkdir(parents=True)

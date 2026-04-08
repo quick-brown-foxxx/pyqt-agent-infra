@@ -20,6 +20,17 @@ logger = logging.getLogger(__name__)
 
 _HASH_MARKER = "/home/vagrant/.local/state/qt-ai-dev-tools/source-hash"
 
+# Re-link gi/pygobject into the tool venv after uv tool install --force recreates it.
+# The tool venv loses symlinks to system gi/pygobject packages on every reinstall.
+_RELINK_GI_CMD = (
+    'TOOL_PYTHON="/home/vagrant/.local/share/uv/tools/qt-ai-dev-tools/bin/python" && '
+    'VENV_SITE=$("$TOOL_PYTHON" -c "import sysconfig; print(sysconfig.get_path(\'purelib\'))") && '
+    'SYS_GI_DIR=$(python3 -c "import gi, os; print(os.path.dirname(gi.__file__))") && '
+    'SYS_SITE=$(dirname "$SYS_GI_DIR") && '
+    'for name in gi pygtkcompat; do [ -e "$SYS_SITE/$name" ] && ln -sf "$SYS_SITE/$name" "$VENV_SITE/$name"; done && '
+    'for so in "$SYS_SITE"/_gi*.so; do [ -e "$so" ] && ln -sf "$so" "$VENV_SITE/"; done'
+)
+
 
 class InstallMode(enum.Enum):
     """How qt-ai-dev-tools was installed in the VM."""
@@ -123,6 +134,9 @@ def _check_local_mode(project_root: Path, workspace: Path) -> None:
 
     logger.info("Local toolkit changed — rebuilding in VM")
     vm_run("uv tool install --force /vagrant/.qt-ai-dev-tools/", workspace)
+
+    # Re-link gi/pygobject into the new tool venv (uv tool install --force recreates it)
+    vm_run(_RELINK_GI_CMD, workspace)
 
     # Write new hash marker
     marker_dir = str(Path(_HASH_MARKER).parent)

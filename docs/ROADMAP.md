@@ -166,21 +166,21 @@ Rewrote all AI skills to be self-contained single SKILL.md files covering all cu
 
 ## Phase 7: Installer & Distribution Overhaul
 
-**Status:** Partially complete. 7.1, 7.4, 7.7, 7.8, 7.9 done. 7.0 brainstorm and 7.2, 7.3, 7.5 still needed. 7.6 skipped.
+**Status:** Partially complete. 7.0, 7.1, 7.2, 7.3, 7.4, 7.7, 7.8, 7.9 done. 7.5 still needed. 7.6 skipped.
 
-### 7.0 — [brainstorm] Distribution philosophy
+### 7.0 — [brainstorm] Distribution philosophy — DONE
 
-Key design questions: how should skills auto-bundle on local installation? Integration with `npx skills`? Symlinks to global skill locations?
+Three install tiers: `uv tool install` (recommended, persistent), `uvx` (quick try), `install-and-own` (advanced). pip/pipx documented as alternatives. README and setup skill updated.
 
 ### 7.1 — [implement] `uvx` as sole recommended install, drop `pip` from primary docs — DONE
 
-### 7.2 — [implement] Update-available warning
+### 7.2 — [implement] Update-available warning — DONE
 
-Check PyPI version, print warning at top of CLI output when a newer version exists.
+`_update_check.py` queries PyPI once/day, caches in `~/.local/state/qt-ai-dev-tools/version-check.json`, prints notice to stderr. Skipped when `--silent` or inside VM. 3-second timeout, all failures silently swallowed.
 
-### 7.3 — [implement] Bake version/commit hash on publish
+### 7.3 — [implement] Bake version/commit hash on publish — DONE
 
-Build system stamps version and git commit into the package at publish time.
+Custom hatch build hook (`hatch_build.py`) stamps git short hash into `__version__.py` at build time. `--version`/`-V` flag prints `0.6.3 (dev)` or `0.6.3 (abc1234)`. `pyproject.toml` is now single source of truth for version; `__version__.py` reads via `importlib.metadata`.
 
 ### 7.4 — [implement] Rename `init` → `install-and-own` with `--yes-I-will-maintain-it` confirmation — DONE
 
@@ -293,7 +293,7 @@ Independent of phases. Can be picked up anytime.
 | S-1 | small | Docs: mark X11-only, Python+Qt focus, clean up excessive "transparent proxy" mentions | Done |
 | S-2 | small | `--dry-run` auto-enables `-v` | Done |
 | S-3 | medium | Print helper instructions after key commands (e.g., `workspace init` → suggest editing Vagrantfile) | Partial — `workspace init` and `install-and-own` done, other commands not yet |
-| S-4 | medium | CLI version update warning (check PyPI, print at top of output) | Ready |
+| S-4 | medium | CLI version update warning (check PyPI, print at top of output) | Done (7.2) |
 | S-5 | small | Add skill references to all CLI `--help` epilogs | Done |
 | S-6 | large | E2E tests for VM tool installation process (both PyPI and install-and-own modes, version mismatch detection, staleness rebuild). Requires spinning up full environments — deferred until Docker backend is ready (Phase 5). | Deferred |
 

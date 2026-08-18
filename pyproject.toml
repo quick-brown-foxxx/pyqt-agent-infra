@@ -59,7 +59,7 @@ Homepage = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
 Repository = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
 Documentation = "https://github.com/quick-brown-foxxx/qt-ai-dev-tools"
 
-[tool.basedpyright]
+[tool.pyrigt]
 pythonPlatform = "Linux"
 pythonVersion = "3.12"
 venvPath = "."
